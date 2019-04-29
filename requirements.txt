@@ -1,2 +1,3 @@
 pathlib
 prompt_toolkit
+termcolor
