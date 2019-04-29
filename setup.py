@@ -18,7 +18,7 @@ setup(
   packages = find_packages(),
   author = "Alexandre D\'Hondt",
   author_email = "alexandre.dhondt@gmail.com",
-  version = "0.1.1",
+  version = "0.1.2",
   license = "AGPLv3",
   url = "https://github.com/dhondta/sploitkit",
   description = "A toolkit for easilly building Metasploit-like consoles with "
