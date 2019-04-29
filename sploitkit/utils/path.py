@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import os
 import random
 import shutil
 from os.path import expanduser, join
@@ -21,6 +22,11 @@ class Path(BasePath):
     def __new__(cls, *args, **kwargs):
         if kwargs.pop("expand", False):
             _ = expanduser(str(BasePath(*args, **kwargs)))
+            if kwargs.pop("create", False):
+                try:
+                    os.makedirs(_)
+                except OSError:
+                    pass
             args = (str(BasePath(_, **kwargs).resolve()), )
         return super(Path, cls).__new__(cls, *args, **kwargs)
     

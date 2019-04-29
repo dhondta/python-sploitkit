@@ -121,7 +121,7 @@ class Console(object):
         for k, d, v, r in self.config.items():
             if k.lower().endswith("folder") or k == "WORKSPACE":
                 # this will ensure that every path is expanded
-                p = Path(v, expand=True)
+                p = Path(v, create=True, expand=True)
                 self.config[k] = str(p)
                 if not p.exists():
                     p.mkdir()
