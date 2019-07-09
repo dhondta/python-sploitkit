@@ -67,7 +67,7 @@ class NameDescription(NoBorder):
         super(NameDescription, self).__init__([[" " * max(0, self.indent - 3),
                                                 n, ""]])
         # now wrap the text of the last column
-        max_w = self.column_max_width(2)
+        max_w = self.column_max_width(-1)
         self.table_data[0][2] = '\n'.join(wrap(descr, max_w))
         self._details = details
     
