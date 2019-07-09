@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 import inspect
-from six import u, with_metaclass
 
 from ..utils.config import Config
 from ..utils.meta import Entity, MetaEntity
@@ -29,17 +28,23 @@ def load_modules(*sources, **kwargs):
         _ = Path(__file__).parent.joinpath("../base/modules/").resolve()
         sources.insert(0, str(_))
     for source in sources:
-        source = str(Path(source).expanduser().resolve())
+        try:
+            source = str(Path(source).expanduser().resolve())
+        except OSError:  # e.g. when the folder does not exist
+            continue
         # bind the source to the Module main class as, when MetaModule.__new__
         #  is called, the source is not passed from the PyFolderPath to child
         #  PyModulePath instances ; this way, the module path can be determined
         Module._source = source
         # now, it loads every Python module from the list of source folders ;
         #  when loading Module subclasses, these are registered to 
-        #  Module.modules and Module._subclasses for further direct access
+        #  Module.modules and Module.subclasses for further direct access
         #  (i.e. from the console)
         PyFolderPath(source)
-    delattr(Module, "_source")  # then clean up the temporary attribute
+    try:
+        delattr(Module, "_source")  # then clean up the temporary attribute
+    except AttributeError:  # i.e. if sources list is empty (when include_base
+        pass                #  is False)
 
 
 class CustomDict(dict):
@@ -65,7 +70,7 @@ class MetaModule(MetaEntity):
             except ValueError:
                 subcls.path = None
         # then pass the subclass with its freshly computed path attribute to the
-        #  original __new__ method, for registration in _subclasses and in the
+        #  original __new__ method, for registration in subclasses and in the
         #  list of modules
         super(MetaModule, meta).__new__(meta, name, bases, clsdict, subcls)
         return subcls
@@ -73,22 +78,22 @@ class MetaModule(MetaEntity):
     @property
     def category(self):
         """ Module's category. """
-        return u(str(Path(self.path).parts[0]))
+        return str(Path(self.path).parts[0])
     
     @property
     def fullpath(self):
         """ Full path of the module, that is, its path joined with its name. """
-        return u(str(Path(self.path).joinpath(self.name)))
+        return str(Path(self.path).joinpath(self.name))
     
     @property
     def help(self):
         """ Help message for the module, formatted as a row with its name and 
              description then its list of options. """
-        t = u(str(BorderlessTable(self.options)))
+        t = str(BorderlessTable(self.options))
         if len(t) > 0:
-            t = u("\n\n") + t
-        return u(str(NameDescription(self.name, self.description,
-                                     self.details))) + t
+            t = "\n\n" + t
+        return str(NameDescription(self.name, self.description, self.details)) \
+               + t
     
     @property
     def options(self):
@@ -110,7 +115,7 @@ class MetaModule(MetaEntity):
         ])
 
 
-class Module(with_metaclass(MetaModule, Entity)):
+class Module(Entity, metaclass=MetaModule):
     """ Main class handling console modules. """
     modules = CustomDict()
     
@@ -139,7 +144,12 @@ class Module(with_metaclass(MetaModule, Entity)):
                 d.append([m.name, m.path, m.description])
             t = BorderlessTable(d, "{} modules".format(c.capitalize()))
             s += t.table
-        return u("\n" + s + "\n")
+        return "\n" + s + "\n"
+    
+    @classmethod
+    def get_list(cls):
+        """ Get the list of modules' fullpath. """
+        return sorted([m.fullpath for m in Module.subclasses])
     
     @classmethod
     def get_modules(cls, path):
