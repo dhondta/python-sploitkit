@@ -5,7 +5,7 @@ from sploitkit import *
 
 # ----------------------------- SUBCONSOLE DEFINITION --------------------------
 class ModuleConsole(Console):
-    level = "project"
+    level = "module"
     message = [
         ('class:prompt', " "),
         ('class:prompt', None),
@@ -14,35 +14,37 @@ class ModuleConsole(Console):
         ('class:prompt', ")"),
     ]
     style = {
-        'prompt':  "#eeeeee",
-        'project': "#0000ff",
+        'prompt': "#eeeeee",
+        'module': "#ff0000",
     }
     
-    def __init__(self, parent, module_fullpath):
-        self.module = parent.modules.rget(module_fullpath)
+    def __init__(self, parent, fullpath):
+        self.path = fullpath
+        self.module = parent.modules.rget(fullpath)
         self.message[1] = ('class:prompt', self.module.category)
         self.message[3] = ('class:module', self.module.name)
-        self.config['WORKSPACE'] = str(Path(parent.config['WORKSPACE']) \
-                                       .joinpath(self.name))
-        super(ProjectConsole, self).__init__(parent)
+        self.config.copy(parent.config, 'WORKSPACE')
+        super(ModuleConsole, self).__init__(parent)
 
 
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
 class Use(Command):
     """ Select a module """
-    def complete_values(self, option):
-        return projects(self)
+    def complete_values(self):
+        return Module.get_list()
     
     def run(self, module):
         m = Module.get_modules(module)
-        ModuleConsole.name = m.name
-        ModuleConsole.path = m.fullpath
-        ModuleConsole(self.console).start()
+        ModuleConsole(self.console, m.fullpath).start()
+        self.console.parent.reset()
+    
+    def validate(self, option, value=None):
+        pass
 
 
 # ----------------------------- MODULE-LEVEL COMMANDS --------------------------
 class Show(Command):
-    """ Show console options """
+    """ Show module-relevant information or options """
     level = "module"
     options = ["info", "options"]
     
@@ -51,22 +53,27 @@ class Show(Command):
     
     def complete_values(self, option):
         if option == "options":
-            return self.options
-        elif option == "info":
-            return []
-            #FIXME: show information e.g. like in Recon-ng (see hereafter)
+            return self.config.keys()
     
     def run(self, option, value=None):
-        if value is None:
+        if option == "options" and value is None:
             data = [["Option", "Value"]]
             for k, v in sorted(self.config.items(), key=lambda x: x[0]):
                 data.append([k, v])
             print_formatted_text(BorderlessTable(data, "Console options"))
-        else:
+        elif option == "options":
             print_formatted_text(NameDescription(option, self.config[option]))
+        elif option == "info":
+            i = self.console.module.info
+            if len(i.strip()) != "":
+                print_formatted_text(i)
     
     def validate(self, option, value=None):
-        assert option in self.options
+        if option not in self.options:
+            raise ValueError("'{}' not in options".format(option))
+        elif value is not None and option == "options" and \
+            value not in self.config.keys():
+            raise ValueError("'{}' not in options".format(value))
 
 
 """

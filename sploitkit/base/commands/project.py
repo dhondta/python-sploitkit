@@ -20,19 +20,17 @@ class ProjectConsole(Console):
         'prompt':  "#eeeeee",
         'project': "#0000ff",
     }
-    config = Config({
-        Option('WORKSPACE', "folder where results are saved"): None,
-        Option('RECORD', "whether results should be saved or not"): True,
-    })
     
-    def __init__(self, parent):
-        self.message[1] = ('class:project', self.name)
+    def __init__(self, parent, name):
+        self.message[1] = ('class:project', name)
         self.config['WORKSPACE'] = str(Path(parent.config['WORKSPACE']) \
-                                       .joinpath(self.name))
+                                       .joinpath(name))
         super(ProjectConsole, self).__init__(parent)
 
 
 # ------------------------------ ROOT-LEVEL COMMANDS ---------------------------
+# These commands are available at the root level to reference a project
+#  (archive|create|select|...)
 class RootCommand(Command):
     """ Proxy class for setting the level attribute. """
     level = "root"
@@ -42,7 +40,7 @@ class Archive(RootCommand):
     """ Archive a project to a ZIP file (it removes the project folder) """
     def complete_values(self):
         # this returns the list of *.zip in the workspace folder
-        return [str(x) for x in Path(Console.parent.config['WORKSPACE']) \
+        return [str(x) for x in Path(self.console.config['WORKSPACE']) \
                 .expanduser().iterfiles(".zip")]
     
     def run(self, project):
@@ -53,23 +51,23 @@ class Archive(RootCommand):
 
 class Create(RootCommand):
     """ Create a project """
-    def complete_values(self, option):
+    def complete_values(self, option=None):
         return projects(self)
     
     def run(self, project):
         self.logger.debug("Creating project '{}'...".format(project))
-        Path(Console.parent.config['WORKSPACE']).joinpath(project).mkdir()
+        Path(self.console.config['WORKSPACE']).joinpath(project).mkdir()
         self.logger.success("'{}' created".format(project))
 
 
 class Delete(RootCommand):
     """ Delete a project """
-    def complete_values(self, option):
+    def complete_values(self, option=None):
         return projects(self)
     
     def run(self, project):
         self.logger.debug("Deleting project '{}'...".format(project))
-        Path(Console.parent.config['WORKSPACE']).joinpath(project).rmtree()
+        Path(self.console.config['WORKSPACE']).joinpath(project).rmtree()
         self.logger.success("'{}' deleted".format(project))
 
 
@@ -92,31 +90,18 @@ class Select(RootCommand):
     
     def run(self, project):
         self.logger.debug("Starting subconsole '{}'".format(project))
-        ProjectConsole.name = project
-        ProjectConsole(Console.parent).start()
+        ProjectConsole(self.console, project).start()
 
 
-class Show(RootCommand):
-    """ Show options, projects or modules """
-    values = ["options", "projects"]
+# ---------------------------- PROJECT-LEVEL COMMANDS --------------------------
+class Show(Command):
+    """ Show project-relevant options """
+    level = "project"
+    values = ["options"]
     
-    def __init__(self):
-        self.categories = Console.parent.modules.keys()
-        self.values += self.categories
-        self.values = sorted(list(set(self.values)))
-    
-    def run(self, category):
-        if category == "options":
-            data = [["Name", "Value", "Description"]]
-            for k, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
-                data.append([k, v, d])
+    def run(self, value):
+        if value == "options":
+            data = [["Name", "Value", "Required", "Description"]]
+            for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
+                data.append([n, v, ["N", "Y"][r], d])
             print_formatted_text(BorderlessTable(data, "Console options"))
-        elif category == "projects":
-            data = [["Name"]]
-            for p in projects(self):
-                data.append([p])
-            print_formatted_text(BorderlessTable(data, "Existing projects"))
-        elif category in self.categories:
-            data = [["Name", "Path", "Description"]]
-            for m in sorted(Module._subclasses, key=lambda x: x.name):
-                data.append([m.name, m.path, m.description])

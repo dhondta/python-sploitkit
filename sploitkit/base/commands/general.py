@@ -5,6 +5,10 @@ from sploitkit import *
 from subprocess import call
 
 
+projects = lambda c: [x.stem for x in Path(c.console.config['WORKSPACE'])\
+                      .expanduser().iterpubdir()]
+
+
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
 class Back(Command):
     """ Come back to the previous console level """
@@ -32,10 +36,12 @@ class Help(Command):
 
 class Search(Command):
     """ Search for text in modules """
+    splitargs = False
+    
     def run(self, text):
         keywords = shlex.split(text)
         i = 0
-        for m in Module._subclasses:
+        for m in Module.subclasses:
             for k in keywords:
                 if m.search(k):
                     if i == 0:
@@ -57,15 +63,39 @@ class Search(Command):
 
 
 class Show(Command):
-    """ Show console options """
-    values = ["options"]
+    """ Show options, projects or modules """
+    level = "root"
+    options = ["modules", "options", "projects"]
     
-    def run(self, value):
-        if value == "options":
-            data = [["Name", "Value", "Description"]]
-            for k, d, v in sorted(self.config.items(), key=lambda x: x[0]):
-                data.append([k, v, d])
+    def complete_values(self, option):
+        if option == "modules":
+            return Console.parent.modules.keys()
+        elif option == "options":
+            return self.config.keys()
+        elif option == "projects":
+            return projects(self)
+    
+    def run(self, option, value=None):
+        if option == "modules":
+            h = Module.get_help(value)
+            if h.strip() != "":
+                print_formatted_text(h)
+            else:
+                self.logger.warning("No module loaded")
+        elif option == "options":
+            data = [["Name", "Value", "Required", "Description"]]
+            for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
+                if value is None or n == value:
+                    data.append([n, v, ["N", "Y"][r], d])
             print_formatted_text(BorderlessTable(data, "Console options"))
+        elif option == "projects":
+            if value is None:
+                data = [["Name"]]
+                for p in projects(self):
+                    data.append([p])
+                print_formatted_text(BorderlessTable(data, "Existing projects"))
+            else:
+                print_formatted_text(value)
 
 
 # ---------------------------- OPTIONS-RELATED COMMANDS ------------------------
@@ -76,12 +106,9 @@ class Set(Command):
             return [str(x) for x in Path(".").home().iterpubdir()]
     
     def run(self, option, value):
-        if value.lower() in ["true", "false"]:
-            value = value == "true"
-        elif value.isdigit():
-            value = int(value)
         self.config[option] = value
-        self.logger.debug("Set {} to {}".format(option, value))
+        self.logger.debug("Set {} to {}".format(option,
+                          self.config.option(option).value))
     
     def validate(self, option, value):
         assert option in self.config.keys(), "Invalid option"

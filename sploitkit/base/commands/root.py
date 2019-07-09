@@ -8,7 +8,8 @@ from sploitkit.utils.objects import BorderlessTable, NameDescription, Synopsis
 # ----------------------- GENERAL-PURPOSE ROOT-LEVEL COMMANDS ------------------
 class Help(Command):
     """ Display help (commands or individual command/module) """
-    options = ["command"]
+    level = "root"
+    options = ["command", "module"]
     
     def __init__(self):
         if len(Console.parent.modules) > 0:
@@ -21,7 +22,7 @@ class Help(Command):
         if option == "command":
             return Console.parent.commands.keys()
         elif option == "module":
-            return sorted([x.fullpath for x in Module._subclasses])
+            return sorted([x.fullpath for x in Module.subclasses])
     
     def run(self, option=None, value=None):
         if option is None:
@@ -38,5 +39,5 @@ class Help(Command):
             assert value in Console.parent.commands.keys(), \
                 "Please enter a valid command"
         elif option == "module":
-            assert value in [x.fullpath for x in Module._subclasses], \
+            assert value in [x.fullpath for x in Module.subclasses], \
                 "Please enter a valid module"

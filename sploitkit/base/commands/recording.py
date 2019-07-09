@@ -11,6 +11,7 @@ rcfiles = lambda c: [x.name for x in Path(c.console.config['WORKSPACE'])\
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
 class RecordStatus(Command):
     """ Consult status for commands recording to a .rc file """
+    # Rationale: recording status should be consultable from any console level
     aliases = ["record"]
     alias_only = True
     values = ["status"]
@@ -22,7 +23,7 @@ class RecordStatus(Command):
 
 # ------------------------------ ROOT-LEVEL COMMANDS ---------------------------
 class RecordCommand(Command):
-    """ Proxy class, namely for setting the level attribute. """
+    """ Proxy class (namely for setting the level attribute). """
     level = "root"
 
     def complete_values(self):
@@ -30,7 +31,8 @@ class RecordCommand(Command):
 
 
 class Record(RecordCommand):
-    """ Save commands to a .rc file """
+    """ Start/stop or consult status of commands recording to a .rc file """
+    # Rationale: recording start/stop is only triggerable from the root level
     options = ["start", "stop", "status"]
     
     def run(self, option, rcfile=None):
