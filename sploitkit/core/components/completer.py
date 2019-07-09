@@ -7,6 +7,7 @@ from prompt_toolkit.completion import Completer, Completion
 __all__ = ["CommandCompleter"]
 
 
+slist   = lambda l:    sorted(l, key=lambda s: s.casefold())
 wfilter = lambda l, w: [x for x in l if w is None or x.startswith(w)]
 
 
@@ -41,7 +42,7 @@ class CommandCompleter(Completer):
         o2 = len(cmd) + len(t1 or "") + 2 - bc if cmd and t2 else 0
         _ = self.console.commands
         c = _[cmd]() if cmd in _ else None
-        cmds = sorted(_.keys())
+        cmds = slist(_.keys())
         nargs = len(c.args) if c is not None else 0
         # then handle tokens ;
         # when no token is provided, just yield the list of available commands
@@ -59,11 +60,11 @@ class CommandCompleter(Completer):
             #  or values, depending on the type of command
             elif ts > 0 and c is not None:
                 if nargs == 1:    # COMMAND VALUE
-                    for _ in sorted(c.complete_values() or []):
+                    for _ in slist(c.complete_values() or []):
                         yield Completion(_, start_position=0)
                 # e.g.  set  ---> ["WORKSPACE", ...]
                 elif nargs == 2:  # COMMAND OPTION VALUE
-                    for _ in sorted(c.complete_options() or []):
+                    for _ in slist(c.complete_options() or []):
                         yield Completion(_, start_position=0)
         # when two tokens are provided, handle format:
         #   COMMAND [PARTIAL_](OPTION ...|VALUE)
@@ -71,22 +72,22 @@ class CommandCompleter(Completer):
             # when a partial value token is given, yield the list of valid ones
             # e.g.  select my-pro  ---> ["my-project", ...]
             if nargs == 1 and ts == 0:
-                for _ in wfilter(sorted(c.complete_values() or []), t1):
+                for _ in wfilter(slist(c.complete_values() or []), t1):
                     yield Completion(_, start_position=o1)
             # when a partial option token is given, yield the list of valid ones
             # e.g.  set W  ---> ["WORKSPACE"]
             elif nargs == 2 and ts == 0:
-                for _ in wfilter(sorted(c.complete_options() or []), t1):
+                for _ in wfilter(slist(c.complete_options() or []), t1):
                     yield Completion(_, start_position=o1)
             # when a valid option token is given, yield the list of values
             # e.g.  set WORKSPACE  ---> ["/home/user/...", "..."]
             elif nargs == 2 and ts > 0 and t1 in c.options:
-                for _ in sorted(c.complete_values(t1) or []):
+                for _ in slist(c.complete_values(t1) or []):
                     yield Completion(_, start_position=0)
         # when three tokens are provided, handle format:
         #   COMMAND OPTION [PARTIAL_]VALUE
         elif l == 3 and c is not None and t1 in c.options:
             if nargs == 2 and ts == 0:
-                for _ in wfilter(sorted(c.complete_values(t1) or []), t2):
+                for _ in wfilter(slist(c.complete_values(t1) or []), t2):
                     yield Completion(_, start_position=o2)
         # handle no other format
