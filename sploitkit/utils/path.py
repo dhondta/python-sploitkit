@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import os
 import random
 import shutil
-from os.path import expanduser, join
+from os.path import expanduser
 from pathlib import Path as BasePath
 from pkgutil import ImpImporter
 from pygments.lexers import PythonLexer
@@ -22,18 +22,27 @@ class Path(BasePath):
     def __new__(cls, *args, **kwargs):
         if kwargs.pop("expand", False):
             _ = expanduser(str(BasePath(*args, **kwargs)))
+            p = BasePath(_, **kwargs).resolve()
             if kwargs.pop("create", False):
-                try:
-                    os.makedirs(_)
-                except OSError:
-                    pass
-            args = (str(BasePath(_, **kwargs).resolve()), )
+                p.mkdir(parents=True, exist_ok=True)
+            args = (str(p), )
         return super(Path, cls).__new__(cls, *args, **kwargs)
     
     @property
     def child(self):
         """ Get the child path relative to self's one. """
-        return Path(join(*self.parts[1:]))
+        return Path(*self.parts[1:])
+    
+    @property
+    def size(self):
+        """ Get path's size. """
+        if self.is_file() or self.is_symlink():
+            return self.stat().st_size
+        elif self.is_dir():
+            s = 0
+            for f in self.glob("**/*"):
+                s += os.stat(str(f)).st_size
+            return s
     
     def append_bytes(self, text):
         """ Allows to append bytes to the file, as only write_bytes is available
