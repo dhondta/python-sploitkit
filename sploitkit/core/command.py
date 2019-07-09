@@ -251,7 +251,7 @@ class Command(Entity, metaclass=MetaCommand):
                     c = Command.commands[l][n]
                     Command.unregister_command(c)
                 except KeyError:
-                    pass        
+                    pass
     
     def complete_options(self):
         """ Default option completion method. """

@@ -9,6 +9,7 @@ import string
 from prompt_toolkit import print_formatted_text, PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError
 
@@ -17,64 +18,76 @@ from .components import *
 from .defaults import *
 from .module import load_modules, Module
 from ..utils.config import Config, Option
+from ..utils.meta import Entity, MetaEntity
 from ..utils.path import Path
 
 
-__all__ = ["Console", "ConsoleExit"]
+__all__ = ["Console", "ConsoleExit", "ConsoleDuplicate", "FrameworkConsole"]
 
 
 dcount = lambda d, n=0: sum([dcount(v, n) if isinstance(v, dict) else n + 1 \
                              for v in d.values()])
 
 
-class Console(object):
+def load_consoles():
+    """ Initialize the list of Entity._subclasses[Console]. """
+    # handle proxy classes exclusion ; this will remove classes like for example
+    #  RootCommand which aims to define level="root" for related level commands
+    for c in Console.subclasses:
+        if len(c.__subclasses__()) > 0:
+            Console.unregister_subclass(c)
+        else:
+            c.config.console = c
+
+
+class Console(Entity, metaclass=MetaEntity):
+    """ Base console class. """
+    # convention: mangled attributes are not customizable when subclassing
+    #              Console...
+    _recorder = Recorder()
+    # ... by opposition to public class attributes that can be tuned
+    appname = ""
+    config = Config()
     level = ROOT_LEVEL
-    name = ""
-    message = [
-        ('class:prompt', " > "),
-    ]
+    message = PROMPT_FORMAT
     motd = """
     
     """
     parent = None
-    config = Config({
-        Option('WORKSPACE', "folder where results are saved", True): "~/Notes",
-        Option('APPLICATION_FOLDER', "folder where application assets (i.e."
-                                     " logs) are saved", True): "~/.{name}",
-    })
-    recorder = Recorder()
-    sources = {
-        'banners':  None,
-        'commands': COMMAND_SOURCES,
-        'modules':  MODULE_SOURCES,
-    }
-    style = {
-        '':        "#30b06f",
-        'prompt':  "#eeeeee",
-    }
+    sources = SOURCES
+    style = PROMPT_STYLE
 
     def __init__(self, parent=None, **kwargs):
+        # determine the relevant parent
         self.parent = parent
-        self.__init(**kwargs) if parent is None else self.__update()
-        self.__setup()
+        if self.parent is not None and self.parent.level == self.level:
+            while parent is not None and parent.level == self.level:
+                parent = parent.parent  # go up of one console level
+            # raise an exception in the context of command's .run() execution,
+            #  to be propagated to console's .run() execution, setting the
+            #  directly higher level console in argument
+            raise ConsoleDuplicate(parent)
+        # configure the console regarding its parenthood
+        if self.parent is None:
+            if Console.parent is not None:
+                raise Exception("Only one parent console can be used")
+            Console.parent = self
+            self.__init(**kwargs)
+        self.config.normalize()
+        self.reset()
         # setup the session with the custom completer and validator
-        completer = CommandCompleter()
-        completer.console = self
-        validator = CommandValidator()
-        validator.console = self
+        completer, validator = CommandCompleter(), CommandValidator()
+        completer.console = validator.console = self  # console back-reference
+        message, style = self.prompt
         self.__session = PromptSession(
-            self.message,
+            message,
             completer=completer,
             validator=validator,
-            style=Style.from_dict(self.style),
+            style=Style.from_dict(style),
         )
     
     def __init(self, **kwargs):
         """ Initialize the parent console with commands and modules. """
-        if Console.parent is not None:
-            raise Exception("Only one parent console can be used")
-        Console.parent = self
-        Console.appname = self.name
         # display a random banner from the banners folder
         get_banner_func = kwargs.get('get_banner_func', get_banner)
         print_formatted_text(get_banner_func(self._sources("banners")))
@@ -84,68 +97,30 @@ class Console(object):
         # setup modules
         kw = {'include_base': kwargs.get("include_base", True)}
         load_modules(*self._sources("modules"), **kw)
-        self.modules = Module.modules
-        for m in Module._subclasses:
+        for m in Module.subclasses:
             m.console = self
         nmod = dcount(self.modules)
         # load all commands
         if hasattr(self, "exclude"):
             kw['exclude'] = self.exclude
         load_commands(*self._sources("commands"), **kw)
+        # load subconsole classes
+        load_consoles()
         # TODO: display a MOTD (i.e. with nmod)
+        # display module stats
+        m = []
+        for c in self.modules.keys():
+            m.append("{} {}".format(len(self.modules[c]), c))
+        if len(m) > 0:
+            mlen = max(map(len, m))
+            s = ""
+            print("")
+            for line in m:
+                line = ("-=[ {: <" + str(mlen) + "} ]=-").format(line)
+                print_formatted_text(FormattedText([("#00ff00", line)]))
+            print("")
         # setup the prompt message
-        self.message.insert(0, ('class:prompt', self.name))
-    
-    def __setup(self):
-        """ Setup the console, i.e. logging and config options. """
-        # setup level's commands
-        self.commands = {}
-        self.commands.update(Command.commands.get("general", {}))
-        for n, c in list(self.commands.items()):
-            if c.level == "general" and \
-                self.level in getattr(c, "except_levels", []):
-                del self.commands[n]
-        self.commands.update(Command.commands.get(self.level, {}))
-        for c in self.commands.values():
-            c.console = self
-        # expand format variables using console's attributes
-        for k, d, v, r in self.config.items():
-            kw = {}
-            for n in re.findall(r'\{([a-z]+)\}', v):
-                kw[n] = getattr(self, n, "")
-            try:
-                self.config[k] = v.format(**kw)
-            except:
-                continue
-        # expand and resolve paths
-        for k, d, v, r in self.config.items():
-            if k.lower().endswith("folder") or k == "WORKSPACE":
-                # this will ensure that every path is expanded
-                p = Path(v, create=True, expand=True)
-                self.config[k] = str(p)
-                if not p.exists():
-                    p.mkdir()
-        # attach a logger to the console (if parent console)
-        if self.parent is None:
-            logspath = Path(self.config['APPLICATION_FOLDER']).joinpath("logs")
-            if not logspath.exists():
-                logspath.mkdir()
-            logfile = str(logspath.joinpath(Console.appname + ".log"))
-            self.logger = get_logger(self.name, logfile)
-        else:
-            self.logger = Console.parent.logger
-    
-    def __update(self):
-        """ Update child console's prompt message and style. """
-        # setup the prompt message by adding child's message tokens at the
-        #  end of parent's one (parent's last token is then re-appended)
-        m = [_ for _ in self.parent.message]
-        t = m.pop()
-        m.extend(self.message)
-        m.append(t)
-        self.message = m
-        # setup the style, using this of the parent
-        self.style.update(self.parent.style)
+        self.message.insert(0, ('class:appname', self.appname))
     
     def _sources(self, items):
         """ Return the list of sources for the related items
@@ -159,6 +134,22 @@ class Console(object):
     def execute(self, cmd, abort=False):
         """ Alias for run. """
         return self.run(cmd, abort)
+    
+    def reset(self):
+        """ Setup commands for the current level and reset bindings between
+             commands and the current console. """
+        # bind console class attributes with the Console class
+        self.__class__.config.console = self.__class__
+        # setup level's commands
+        self.commands = {}
+        self.commands.update(Command.commands.get("general", {}))
+        for n, c in list(self.commands.items()):
+            if c.level == "general" and \
+                self.level in getattr(c, "except_levels", []):
+                del self.commands[n]
+        self.commands.update(Command.commands.get(self.level, {}))
+        for c in self.commands.values():
+            c.console = self
     
     def run(self, cmd, abort=False):
         """ Run a framework console command. """
@@ -184,6 +175,11 @@ class Console(object):
                 obj.validate(*args)
             obj.run(*args)
             return True
+        except ConsoleDuplicate as e:
+            # pass the higher console instance attached to the exception raised
+            #  from within a command's .run() execution to console's .start(),
+            #  keeping the current command to be reexecuted
+            raise ConsoleDuplicate(e.higher, cmd if e.cmd is None else e.cmd)
         except ConsoleExit:
             return False
         except Exception as e:
@@ -192,19 +188,110 @@ class Console(object):
     
     def start(self):
         """ Start looping with console's session prompt. """
+        reexec = None
         while True:
             try:
-                _ = self.__session.prompt(auto_suggest=AutoSuggestFromHistory())
+                _ = reexec if reexec is not None else \
+                    self.__session.prompt(auto_suggest=AutoSuggestFromHistory())
+                reexec = None
                 if not self.run(_):
-                    return
-                if self.recorder.enabled:
-                    self.recorder.save(_)
+                    return  # console run aborted
+                if Console._recorder.enabled:
+                    Console._recorder.save(_)
+            except ConsoleDuplicate as e:
+                if self == e.higher:  # stop raising duplicate when reaching a
+                    reexec = e.cmd    #  console with a different level, then
+                    self.reset()      #  reset associated commands not to rerun
+                    continue          #  the erroneous command from the
+                                      #  just-exited console
+                self.logger.debug("Exiting {}[{}]".format(self.__class__, id(self)))
+                raise e  # reraise up to the higher (level) console
             except EOFError:
                 break
             except KeyboardInterrupt:
                 continue
+    
+    @property
+    def logger(self):
+        try:
+            return Console.logger
+        except:
+            return null_handler
+    
+    @property
+    def modules(self):
+        return Module.modules
+    
+    @property
+    def prompt(self):
+        if self.parent is None:
+            return self.message, self.style
+        # setup the prompt message by adding child's message tokens at the
+        #  end of parent's one (parent's last token is then re-appended)
+        pmessage, pstyle = self.parent.prompt
+        message = pmessage.copy()  # copy parent message tokens
+        t = message.pop()
+        message.extend(self.message)
+        message.append(t)
+        # setup the style, using this of the parent
+        style = pstyle.copy()  # copy parent style dict
+        style.update(self.style)
+        return message, style
+
+    @classmethod
+    def register_console(cls, subcls):
+        """ Register console classes and link them with their configs. """
+        subcls.config.console = subcls
+
+
+class ConsoleDuplicate(Exception):
+    """ Dedicated exception class for exiting a duplicate (sub)console. """
+    def __init__(self, higher, cmd=None):
+        self.cmd, self.higher = cmd, higher
+        super(ConsoleDuplicate, self).__init__("Another console of the same "
+                                               "level is already running")
 
 
 class ConsoleExit(Exception):
     """ Dedicated exception class for exiting a (sub)console. """
     pass
+
+
+class FrameworkConsole(Console):
+    """ Framework console subclass for defining specific config options. """
+    aliases = []
+    config = Config({
+        Option(
+            'APP_FOLDER',
+            "folder where application assets (i.e.  logs) are "
+            "saved",
+            True,
+        ): "~/.{appname}",
+        Option(
+            'DEBUG',
+            "debug mode",
+            False,
+            callback=lambda o: o.config.console._set_logging(o.value)
+        ): "false",
+        Option(
+            'WORKSPACE',
+            "folder where results are saved",
+            True
+        ): "~/Notes",
+    })
+
+    def __init__(self, *args, **kwargs):
+        FrameworkConsole._set_logging(to_file=False)
+        super(FrameworkConsole, self).__init__(*args, **kwargs)
+    
+    @classmethod
+    def _set_logging(cls, debug=False, to_file=True):
+        """ Set a new logger with the input logging level. """
+        level = ["INFO", "DEBUG"][debug]
+        logfile = None
+        if to_file:
+            # attach a logger to the console
+            logspath = Path(cls.config.option('APP_FOLDER').value).joinpath("logs")
+            logspath.mkdir(parents=True, exist_ok=True)
+            logfile = str(logspath.joinpath(cls.appname + ".log"))
+        Console.logger = get_logger(cls.name, logfile, level)
