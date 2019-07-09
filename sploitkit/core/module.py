@@ -136,15 +136,16 @@ class Module(Entity, metaclass=MetaModule):
         """ Display command's help, using its metaclass' properties. """
         _ = cls.modules
         categories = _.keys() if category is None else [category]
-        s = ""
+        s, i = "", 0
         for c in categories:
             d = [["Name", "Path", "Description"]]
             for n, m in sorted(flatten(_.get(c, {})).items(),
                                key=lambda x: x[0]):
                 d.append([m.name, m.path, m.description])
             t = BorderlessTable(d, "{} modules".format(c.capitalize()))
-            s += t.table
-        return "\n" + s + "\n"
+            s += t.table + "\n\n"
+            i += 1
+        return "\n" + s.strip() + "\n" if i > 0 else ""
     
     @classmethod
     def get_list(cls):
