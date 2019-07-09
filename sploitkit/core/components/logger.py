@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 from termcolor import colored
 
 
-__all__ = ["get_logger"]
+__all__ = ["check_log_level", "get_logger", "null_handler"]
 
 
 logging.SUCCESS = logging.INFO + 5
@@ -44,6 +44,11 @@ def success(self, message, *args, **kwargs):
 logging.Logger.success = success
 
 
+# set a null logger
+null_handler = logging.getLogger("main")
+null_handler.addHandler(logging.NullHandler())
+
+
 # add a custom message handler for tuning the format with 'levelsymbol'
 class ConsoleHandler(logging.StreamHandler):
     def emit(self, record):
@@ -51,18 +56,34 @@ class ConsoleHandler(logging.StreamHandler):
         super(ConsoleHandler, self).emit(record)
 
 
+# log level checking
+def check_log_level(level):
+    """ Log level check function. """
+    try:
+        return isinstance(getattr(logging, level), int)
+    except:
+        return False
+
+
 # logging configuration
-def get_logger(name, logfile):
+def get_logger(name, logfile=None, level="INFO"):
+    """ Logger initialization function. """
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    # setup a StreamHandler for the console (at level INFO)
-    ch = ConsoleHandler()
-    ch.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
-    ch.setLevel(logging.INFO)
-    logger.addHandler(ch)
-    # setup a FileHandler for logging to a file (at level DEBUG)
-    fh = RotatingFileHandler(logfile)
-    fh.setFormatter(logging.Formatter(LOGFILE_FORMAT, datefmt=DATE_FORMAT))
-    fh.setLevel(logging.DEBUG)
-    logger.addHandler(fh)
+    level = getattr(logging, level)
+    logger.setLevel(level)
+    if len(logger.handlers) == 0:
+        # setup a StreamHandler for the console (at level INFO)
+        ch = ConsoleHandler()
+        ch.setFormatter(logging.Formatter(fmt=LOG_FORMAT))
+        ch.setLevel(level)
+        logger.addHandler(ch)
+        if logfile is not None:
+            # setup a FileHandler for logging to a file (at level DEBUG)
+            fh = RotatingFileHandler(logfile)
+            fh.setFormatter(logging.Formatter(LOGFILE_FORMAT, datefmt=DATE_FORMAT))
+            fh.setLevel(logging.DEBUG)
+            logger.addHandler(fh)
+    else:
+        for h in logger.handlers:
+            h.setLevel(level)
     return logger
