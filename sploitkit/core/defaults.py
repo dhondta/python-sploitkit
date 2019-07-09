@@ -1,13 +1,29 @@
 from __future__ import unicode_literals
 
 
-__all__ = ["COMMAND_SOURCES", "MODULE_SOURCES", "ROOT_LEVEL"]
+__all__ = ["PROMPT_FORMAT", "PROMPT_STYLE", "ROOT_LEVEL", "SOURCES"]
 
 
 ROOT_LEVEL = "root"  # console root level's name
 
-# list of Python module names from which the console commands are to be loaded
-COMMAND_SOURCES = ["commands"]
 
-# list of Python module names from which the console modules are to be loaded
-MODULE_SOURCES  = ["modules"]
+# list of folders from which related items are to be loaded
+SOURCES = {
+    'banners':  None,
+    'commands': ["commands"],
+    'modules':  ["modules"],
+}
+
+
+# prompt message format
+PROMPT_FORMAT = [
+    ('class:prompt', " > "),
+]
+
+
+# prompt message style
+PROMPT_STYLE = {
+    '':        "#30b06f",  # text after the prompt
+    'prompt':  "#eeeeee",  # prompt message
+    'appname': "#eeeeee underline",  # application name
+}
