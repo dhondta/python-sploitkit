@@ -34,12 +34,11 @@ class Use(Command):
         return Module.get_list()
     
     def run(self, module):
-        m = Module.get_modules(module)
-        ModuleConsole(self.console, m.fullpath).start()
-        self.console.parent.reset()
+        ModuleConsole(self.console, Module.get_modules(module).fullpath).start()
     
-    def validate(self, option, value=None):
-        pass
+    def validate(self, value):
+        if value not in self.complete_values():
+            raise ValueError("'{}' does not exist".format(value))
 
 
 # ----------------------------- MODULE-LEVEL COMMANDS --------------------------

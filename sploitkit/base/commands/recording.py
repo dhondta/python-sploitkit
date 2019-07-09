@@ -37,11 +37,11 @@ class Record(RecordCommand):
     
     def run(self, option, rcfile=None):
         if option == "start":
-            Console.parent.recorder.start(rcfile)
+            Console._recorder.start(rcfile)
         elif option == "stop":
-            Console.parent.recorder.stop()
+            Console._recorder.stop()
         elif option == "status":
-            _ = ["disabled", "enabled"][Console.parent.recorder.enabled]
+            _ = ["disabled", "enabled"][Console._recorder.enabled]
             self.logger.info("Recording is {}".format(_))
     
     def validate(self, option, rcfile=None):
