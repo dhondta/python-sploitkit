@@ -6,7 +6,7 @@ Module for input of a password compliant with a simple password policy.
 Policy:
 - Prevents from using a few conjunction characters (i.e. whitespace, tabulation,
    newline)
-- Use passwords of 8 to 40 characters
+- Use passwords of 8 to 40 characters (lengths by default)
 - Use at least one lowercase character
 - Use at least one uppercase character
 - Use at least one digit
@@ -29,7 +29,7 @@ __author__ = "Alexandre D'Hondt"
 logger = logging.getLogger('root')
 
 
-def input_password(silent=False,
+def input_password(silent=False, length=(8, 40),
                    bad=["/usr/local/share/john/password.lst",
                         "/usr/share/john/password.lst",
                         "/opt/john/run/password.lst"]):
@@ -38,6 +38,7 @@ def input_password(silent=False,
      policy.
 
     :param silent: if True, do not print error messages
+    :param length: pair of lower/upper bounds for password length
     :param bad:    path to lists of bad passwords
     :return:       policy-compliant password
     """
@@ -53,13 +54,15 @@ def input_password(silent=False,
                              .format(repr(BAD_CHARS).strip("'")))
             error = True
         # check for length
-        if len(pwd) < 8:
+        if len(pwd) < length[0]:
             if not silent:
-                logger.error("Please enter a password of at least 8 characters")
+                logger.error("Please enter a password of at least {} characters"
+                             .format(length[0]))
             error = True
-        elif len(pwd) > 40:
+        elif len(pwd) > length[1]:
             if not silent:
-                logger.error("Please enter a password of at most 40 characters")
+                logger.error("Please enter a password of at most {} characters"
+                             .format(length[1]))
             error = True
         # check for complexity
         if not any(map(lambda x: x in string.ascii_lowercase, pwd or "")):

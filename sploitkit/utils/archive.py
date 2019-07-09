@@ -23,6 +23,7 @@ __author__ = "Alexandre D'Hondt"
 
 
 logger = logging.getLogger('root')
+LENGTH = (8, 64)
 
 
 def load_from_archive(src_arch, dst_path, pwd=None, ask=False, remove=False):
@@ -36,7 +37,7 @@ def load_from_archive(src_arch, dst_path, pwd=None, ask=False, remove=False):
     :param remove:   remove after decompression
     """
     # handle password then decompress with 7-zip
-    pwd = input_password(silent=True) if ask else pwd
+    pwd = input_password(silent=True, length=LENGTH) if ask else pwd
     logger.debug("Loading {}archive".format(["encrypted ", ""][pwd is None]))
     logger.debug("> Decompressing '{}' to '{}'...".format(src_arch, dst_path))
     cmd = ["7z", "x"] + [["-p{}".format(pwd)], []][pwd is None] + \
@@ -61,7 +62,7 @@ def save_to_archive(src_path, dst_arch, pwd=None, ask=False, remove=False):
     :param remove:   remove after compression
     """
     # handle password then compress with 7-zip
-    pwd = input_password() if ask else pwd
+    pwd = input_password(length=LENGTH) if ask else pwd
     logger.debug("Saving {}archive".format(["encrypted ", ""][pwd is None]))
     logger.debug("> Compressing '{}' to '{}'...".format(src_path, dst_arch))
     cmd = ["7z", "a"] + [["-p{}".format(pwd)], []][pwd is None] + \
