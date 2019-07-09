@@ -1,11 +1,17 @@
 from __future__ import unicode_literals
 
+import re 
+
+from .path import Path
+
 
 __all__ = ["Config", "Option"]
 
 
 class Config(dict):
     """ Enhanced dictionary for handling Option instances as its keys. """
+    bind = True  # class attribute used to bind a parent class to a Config
+                 #  instance
     def __init__(self, *args, **kwargs):
         self.__d = {}
         self.update(*args, **kwargs)
@@ -13,30 +19,86 @@ class Config(dict):
     def __getitem__(self, key):
         if isinstance(key, Option):
             key = key.name
-        return self.__d[key]
+        return self.__d[key][1]
     
     def __setitem__(self, key, value):
         if not isinstance(key, Option):
-            key = Option(key)
+            if not isinstance(key, tuple):
+                key = (key, )
+            key = Option(*key)
         tmp = key
         key = key.bind(self)  # get an existing instance or the new one
         if tmp is not key: 
             del tmp  # if an instance already existed, remove the new one
-        self.__d[key.name] = value
+        value = self.normalize(key, value)
+        if not key.validate():
+            raise ValueError("Invalid value")
+        self.__d[key.name] = (key, value)
         super(Config, self).__setitem__(key, value)
+        try:
+            self.option(key).callback()
+        except Exception as e:
+            self._last_error = str(e)
+            #self.console.logger.exception(e)
+    
+    def _normalize(self, key, value):
+        """ Normalize one value with format strings and paths. """
+        if value is None:
+            value = self[key]
+        try:
+            self.console
+        except AttributeError:  # occurs when console is not linked to config
+            return value        #  (i.e. at startup)
+        # try to expand format variables using console's attributes
+        kw = {}
+        for n in re.findall(r'\{([a-z]+)\}', str(value)):
+            kw[n] = self.console.__dict__.get(n, "")
+        try:
+            value = value.format(**kw)
+        except:
+            pass
+        # expand and resolve paths
+        if key.name.endswith("FOLDER") or key.name.endswith("WORKSPACE"):
+            # this will ensure that every path is expanded
+            p = Path(value, create=True, expand=True)
+            value = str(p)
+        # convert common formats to their basic types
+        try:
+            if value.isdigit():
+                value = int(value)
+            if value.lower() in ["false", "true"]:
+                value = value.lower() == "true"
+        except AttributeError:  # occurs e.g. if value is already a bool
+            pass
+        # then try to transform using the user-defined function
+        return key.transform(value)
+    
+    def copy(self, config, key):
+        """ Copy an option based on its key from another Config instance. """
+        self[config.option(key)] = config[key]
 
     def items(self):
         """ Return (key, descr, value, required) instead of (key, value). """
-        return [(str(o.name), o.description or "", str(o.value), o.required) \
+        return [(str(o.name), o.description or "", o.value, o.required) \
                 for o in sorted(self, key=lambda x: x.name)]
 
     def keys(self):
         """ Return string keys (like original dict). """
         return sorted(self.__d.keys())
+    
+    def normalize(self, key=None, value=None):
+        """ Normalize one or all values with format strings and paths. """
+        if key is not None:
+            return self._normalize(key if isinstance(key, Option) else \
+                                   self.option(key), value)
+        for k, d, v, r in self.items():
+            self[k] = self._normalize(self.option(k), v)
 
     def option(self, key):
         """ Return Option instance from key. """
-        return Option(key)
+        if isinstance(key, Option):
+            key = key.name
+        return self.__d[key][0]
 
     def update(self, *args, **kwargs):
         """ Custom update method for handling update of another Config and
@@ -63,10 +125,26 @@ class Option(object):
          for a Config dictionary. """
     _instances = {}
     
-    def __init__(self, name, description=None, required=False):
+    def __init__(self, name, description=None, required=False, choices=None,
+                 transform=None, validate=None, callback=None):
         self.name = name
         self.description = description
         self.required = required
+        self.choices = choices
+        self.__set_func(transform, "transform")
+        if validate is None and choices is not None:
+            validate = lambda x: x.value in x.choices
+        self.__set_func(validate, "validate")
+        self.__set_func(callback, "callback")
+    
+    def __set_func(self, func, name):
+        """ Set a function, e.g. for manipulating option's value. """
+        if func is None:
+            func = lambda *a, **kw: a[-1] if len(a) > 0 else None
+        if isinstance(func, type(lambda:0)):
+            setattr(self, name, func.__get__(self, self.__class__))
+        else:
+            raise Exception("Bad {} lambda".format(name)) 
     
     def bind(self, parent):
         """ Register this instance as a key of the given Config or retrieve the
@@ -74,17 +152,26 @@ class Option(object):
         o, i = Option._instances, id(parent)
         o.setdefault(i, {})
         if o[i].get(self.name) is None:
-            self._config = parent
+            self.config = parent
             o[i][self.name] = self
         else:
-            o[i][self.name]._config = parent
+            o[i][self.name].config = parent
         return o[i][self.name]
+    
+    def copy(self):
+        """ Copy option information to a new Option instance. """
+        return Option(self.name, self.description, self.required, self.choices,
+                      self.transform, self.validate, self.callback)
     
     @property
     def value(self):
-        if hasattr(self, "_config"):
-            _ = self._config[self]
+        if hasattr(self, "config"):
+            _ = self.config[self]
             if self.required and _ is None:
                 raise ValueError("{} must be defined" .format(self.name))
-            else:
-                return _ or ""
+            if isinstance(self.transform, type(lambda:0)) and \
+                self.transform.__name__ == (lambda:0).__name__:
+                _ = self.transform(_)
+            elif _ is None:
+                _ = ""
+            return _
