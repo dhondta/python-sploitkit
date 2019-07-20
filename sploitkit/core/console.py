@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 import os
-import pathlib
 import random
 import re
 import shlex
@@ -13,31 +12,21 @@ from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError
 
-from .command import load_commands, Command
+from .command import Command, FUNCTIONALITIES
 from .components import *
-from .defaults import *
-from .module import load_modules, Module
+from .entity import *
+from .model import BaseModel, Model
+from .module import Module
 from ..utils.config import Config, Option
-from ..utils.meta import Entity, MetaEntity
 from ..utils.path import Path
 
 
-__all__ = ["Console", "ConsoleExit", "ConsoleDuplicate", "FrameworkConsole"]
+__all__ = ["BaseModel", "Command", "Model", "Module", "StoreExtension",
+           "Console", "ConsoleExit", "ConsoleDuplicate", "FrameworkConsole"]
 
 
 dcount = lambda d, n=0: sum([dcount(v, n) if isinstance(v, dict) else n + 1 \
                              for v in d.values()])
-
-
-def load_consoles():
-    """ Initialize the list of Entity._subclasses[Console]. """
-    # handle proxy classes exclusion ; this will remove classes like for example
-    #  RootCommand which aims to define level="root" for related level commands
-    for c in Console.subclasses:
-        if len(c.__subclasses__()) > 0:
-            Console.unregister_subclass(c)
-        else:
-            c.config.console = c
 
 
 class Console(Entity, metaclass=MetaEntity):
@@ -45,17 +34,19 @@ class Console(Entity, metaclass=MetaEntity):
     # convention: mangled attributes are not customizable when subclassing
     #              Console...
     _recorder = Recorder()
+    _storage  = StoragePool()
     # ... by opposition to public class attributes that can be tuned
-    appname = ""
-    config = Config()
-    level = ROOT_LEVEL
-    message = PROMPT_FORMAT
-    motd = """
+    appname      = ""
+    config       = Config()
+    exclude      = []
+    level        = ROOT_LEVEL
+    message      = PROMPT_FORMAT
+    motd         = """
     
     """
-    parent = None
-    sources = SOURCES
-    style = PROMPT_STYLE
+    parent       = None
+    sources      = SOURCES
+    style        = PROMPT_STYLE
 
     def __init__(self, parent=None, **kwargs):
         # determine the relevant parent
@@ -73,7 +64,6 @@ class Console(Entity, metaclass=MetaEntity):
                 raise Exception("Only one parent console can be used")
             Console.parent = self
             self.__init(**kwargs)
-        self.config.normalize()
         self.reset()
         # setup the session with the custom completer and validator
         completer, validator = CommandCompleter(), CommandValidator()
@@ -94,23 +84,27 @@ class Console(Entity, metaclass=MetaEntity):
         # display a random quote from quotes.csv (in the banners folder)
         get_quote_func = kwargs.get('get_quote_func', get_quote)
         print_formatted_text(get_quote_func(self._sources("banners")))
-        # setup modules
-        kw = {'include_base': kwargs.get("include_base", True)}
-        load_modules(*self._sources("modules"), **kw)
-        for m in Module.subclasses:
-            m.console = self
-        nmod = dcount(self.modules)
-        # load all commands
-        if hasattr(self, "exclude"):
-            kw['exclude'] = self.exclude
-        load_commands(*self._sources("commands"), **kw)
-        # load subconsole classes
-        load_consoles()
+        # setup entities
+        load_entities(
+            [BaseModel, Command, Console, Model, Module, StoreExtension],
+            *self._sources("entities"),
+            include_base=kwargs.get("include_base", True),
+            select=kwargs.get("select", {'command': FUNCTIONALITIES}),
+            exclude=kwargs.get("exclude", {}),
+            backref=kwargs.get("backref", BACK_REFERENCES),
+            docstr_parser=kwargs.get("docstr_parser", lambda s: {}),
+        )
+        Console._storage.models = Model.subclasses + BaseModel.subclasses
         # TODO: display a MOTD (i.e. with nmod)
         # display module stats
         m = []
-        for c in self.modules.keys():
-            m.append("{} {}".format(len(self.modules[c]), c))
+        width = max(len(str(len(m))) for m in self.modules.values())
+        for category in self.modules.keys():
+            l = "{} {}".format(Module.get_count(category), category)
+            disabled = Module.get_count(category, enabled=False)
+            if disabled > 0:
+                l += " ({} disabled)".format(disabled)
+            m.append(l)
         if len(m) > 0:
             mlen = max(map(len, m))
             s = ""
@@ -121,6 +115,20 @@ class Console(Entity, metaclass=MetaEntity):
             print("")
         # setup the prompt message
         self.message.insert(0, ('class:appname', self.appname))
+        # display warnings
+        if not Console._storage.encrypted[0]:
+            self.logger.warning("Store encryption disabled")
+            r = Console._storage.encrypted[1]
+            if "No such file or directory" in r:
+                self.logger.debug("Reason: {}"
+                                  .format(r))
+    
+    def _reset_logname(self):
+        """ Reset logger's name according console's attributes. """
+        try:
+            self.logger.name = "{}:{}".format(self.level, self.logname)
+        except AttributeError:
+            self.logger.name = self.__class__.name
     
     def _sources(self, items):
         """ Return the list of sources for the related items
@@ -136,8 +144,8 @@ class Console(Entity, metaclass=MetaEntity):
         return self.run(cmd, abort)
     
     def reset(self):
-        """ Setup commands for the current level and reset bindings between
-             commands and the current console. """
+        """ Setup commands for the current level, reset bindings between
+             commands and the current console then update store's object. """
         # bind console class attributes with the Console class
         self.__class__.config.console = self.__class__
         # setup level's commands
@@ -150,6 +158,9 @@ class Console(Entity, metaclass=MetaEntity):
         self.commands.update(Command.commands.get(self.level, {}))
         for c in self.commands.values():
             c.console = self
+        # get the relevant store and bind it to loaded models
+        p = Path(self.config.option('WORKSPACE').value).joinpath("store.db")
+        Console.store = Console._storage.get(p)
     
     def run(self, cmd, abort=False):
         """ Run a framework console command. """
@@ -188,14 +199,17 @@ class Console(Entity, metaclass=MetaEntity):
     
     def start(self):
         """ Start looping with console's session prompt. """
-        reexec = None
+        reexec, c = None, self.__class__.__name__
+        self._reset_logname()
+        self.logger.debug("Starting {}[{}]".format(c, id(self)))
         while True:
+            self._reset_logname()
             try:
                 _ = reexec if reexec is not None else \
                     self.__session.prompt(auto_suggest=AutoSuggestFromHistory())
                 reexec = None
                 if not self.run(_):
-                    return  # console run aborted
+                    break  # console run aborted
                 if Console._recorder.enabled:
                     Console._recorder.save(_)
             except ConsoleDuplicate as e:
@@ -204,12 +218,19 @@ class Console(Entity, metaclass=MetaEntity):
                     self.reset()      #  reset associated commands not to rerun
                     continue          #  the erroneous command from the
                                       #  just-exited console
-                self.logger.debug("Exiting {}[{}]".format(self.__class__, id(self)))
+                self.logger.debug("Exiting {}[{}]".format(c, id(self)))
                 raise e  # reraise up to the higher (level) console
             except EOFError:
                 break
             except KeyboardInterrupt:
                 continue
+        self.logger.debug("Exiting {}[{}]".format(c, id(self)))
+        if self.parent is not None:
+            # rebind entities to the parent console
+            self.parent.reset()
+        else:
+            # gracefully close every DB in the pool
+            self._storage.free()
     
     @property
     def logger(self):
@@ -281,7 +302,7 @@ class FrameworkConsole(Console):
     })
 
     def __init__(self, *args, **kwargs):
-        FrameworkConsole._set_logging(to_file=False)
+        self.__class__._set_logging()
         super(FrameworkConsole, self).__init__(*args, **kwargs)
     
     @classmethod
@@ -291,7 +312,8 @@ class FrameworkConsole(Console):
         logfile = None
         if to_file:
             # attach a logger to the console
-            logspath = Path(cls.config.option('APP_FOLDER').value).joinpath("logs")
+            logspath = Path(cls.config.option('APP_FOLDER').value)\
+                       .joinpath("logs")
             logspath.mkdir(parents=True, exist_ok=True)
             logfile = str(logspath.joinpath(cls.appname + ".log"))
         Console.logger = get_logger(cls.name, logfile, level)
