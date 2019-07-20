@@ -1,3 +1,4 @@
-from .command import *
+from peewee import *
+
 from .console import *
-from .module import *
+from .model import IPAddressField, MACAddressField
