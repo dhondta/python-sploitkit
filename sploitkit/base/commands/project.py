@@ -10,6 +10,7 @@ projects = lambda c: [x.stem for x in Path(c.console.config['WORKSPACE'])\
 
 # ----------------------------- SUBCONSOLE DEFINITION --------------------------
 class ProjectConsole(Console):
+    """ Project subconsole definition. """
     level = "project"
     message = [
         ('class:prompt', "["),
@@ -22,6 +23,7 @@ class ProjectConsole(Console):
     }
     
     def __init__(self, parent, name):
+        self.logname = name
         self.message[1] = ('class:project', name)
         self.config['WORKSPACE'] = str(Path(parent.config['WORKSPACE']) \
                                        .joinpath(name))
@@ -89,7 +91,6 @@ class Select(RootCommand):
         return projects(self)
     
     def run(self, project):
-        self.logger.debug("Starting subconsole '{}'".format(project))
         ProjectConsole(self.console, project).start()
 
 

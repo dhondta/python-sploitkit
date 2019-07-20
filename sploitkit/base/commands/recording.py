@@ -46,9 +46,10 @@ class Record(RecordCommand):
     
     def validate(self, option, rcfile=None):
         if option == "start":
-            assert rcfile is not None, "Please enter a filename"
-            assert not Path(rcfile).exists(), \
-                   "A file with the same name already exists"
+            if rcfile is None:
+                raise ValueError("Please enter a filename")
+            if Path(rcfile).exists():
+                raise ValueError("A file with the same name already exists")
         elif option in ["stop", "status"]:
             assert rcfile is None
 

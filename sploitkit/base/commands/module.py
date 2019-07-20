@@ -5,6 +5,7 @@ from sploitkit import *
 
 # ----------------------------- SUBCONSOLE DEFINITION --------------------------
 class ModuleConsole(Console):
+    """ Module subconsole definition. """
     level = "module"
     message = [
         ('class:prompt', " "),
@@ -21,8 +22,9 @@ class ModuleConsole(Console):
     def __init__(self, parent, fullpath):
         self.path = fullpath
         self.module = parent.modules.rget(fullpath)
+        self.logname = fullpath
         self.message[1] = ('class:prompt', self.module.category)
-        self.message[3] = ('class:module', self.module.name)
+        self.message[3] = ('class:module', self.module.base)
         self.config.copy(parent.config, 'WORKSPACE')
         super(ModuleConsole, self).__init__(parent)
 
@@ -34,7 +36,12 @@ class Use(Command):
         return Module.get_list()
     
     def run(self, module):
-        ModuleConsole(self.console, Module.get_modules(module).fullpath).start()
+        fullpath = Module.get_modules(module).fullpath
+        cmodule = getattr(self.console, "module", None)
+        # avoid starting a new subconsole for the same module
+        if cmodule is not None and cmodule.fullpath == fullpath:
+            return
+        ModuleConsole(self.console, fullpath).start()
     
     def validate(self, value):
         if value not in self.complete_values():
@@ -42,9 +49,19 @@ class Use(Command):
 
 
 # ----------------------------- MODULE-LEVEL COMMANDS --------------------------
-class Show(Command):
-    """ Show module-relevant information or options """
+class ModuleCommand(Command):
+    """ Proxy class (for setting the level attribute). """
     level = "module"
+
+
+class Run(ModuleCommand):
+    """ Run module """
+    def run(self):
+        self.console.module().run()
+
+
+class Show(ModuleCommand):
+    """ Show module-relevant information or options """
     options = ["info", "options"]
     
     def complete_options(self):

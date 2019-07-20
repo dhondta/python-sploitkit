@@ -13,7 +13,7 @@ projects = lambda c: [x.stem for x in Path(c.console.config['WORKSPACE'])\
 class Back(Command):
     """ Come back to the previous console level """
     except_levels = ["root"]
-       
+    
     def run(self):
         raise ConsoleExit
 
@@ -69,7 +69,8 @@ class Show(Command):
     
     def complete_values(self, option):
         if option == "modules":
-            return Console.parent.modules.keys()
+            return [m for m in self.console.modules.keys() \
+                    if getattr(m, "enabled", True)]
         elif option == "options":
             return self.config.keys()
         elif option == "projects":
@@ -107,8 +108,8 @@ class Set(Command):
     
     def run(self, option, value):
         self.config[option] = value
-        self.logger.debug("Set {} to {}".format(option,
-                          self.config.option(option).value))
+        print_formatted_text("{} => {}".format(option,
+                             self.config.option(option).value))
     
     def validate(self, option, value):
         assert option in self.config.keys(), "Invalid option"
