@@ -4,7 +4,7 @@ import gc
 import re
 from inspect import getargspec
 
-from ..utils.meta import Entity, MetaEntity
+from .entity import Entity, MetaEntity
 from ..utils.misc import failsafe
 from ..utils.objects import BorderlessTable, NameDescription
 from ..utils.path import Path, PyModulePath
@@ -14,11 +14,11 @@ __all__ = ["Command"]
 
 
 COMMAND_STYLES = [
-    "lowercase",    # ClassName => classname
-    "none",         # ClassName => ClassName
-    "powershell",   # ClassName => Class-Name
-    "slugified",    # ClassName => class-name
-    "uppercase"     # ClassName => CLASSNAME
+    "lowercase",   # ClassName => classname
+    "none",        # ClassName => ClassName
+    "powershell",  # ClassName => Class-Name
+    "slugified",   # ClassName => class-name
+    "uppercase"    # ClassName => CLASSNAME
 ]
 """
 Usage:
@@ -33,46 +33,6 @@ FUNCTIONALITIES = [
     "project",    # base project-level commands
     "module",     # base module-level commands
 ]
-
-
-def load_commands(*sources, **kwargs):
-    """ Load every Command subclass found in the given source files.
-    
-    :param sources:      paths to Python modules containing Command subclasses
-    :param include_base: include the base commands provided with sploitkit
-    :param exclude:      list of command identifiers (level[/name]) to be
-                          excluded (useful when including the base but not every
-                          command is required)
-    """
-    sources = list(sources)
-    if kwargs.get("include_base", True):
-        # this allows to use sploitkit.base commands for starting a project with
-        #  a baseline of commands, namely including project management
-        for l in FUNCTIONALITIES[::-1]:
-            m = "../base/commands/" + l + ".py"
-            _ = Path(__file__).parent.joinpath(m).resolve()
-            sources.insert(0, str(_))
-    # now, it loads every Python module from the list of sources ; when loading
-    #  Command subclasses, these are registered to Command.commands, organized
-    #  as a dictionary by command levels and Command.subclasses for further
-    #  direct access (i.e. from the console)
-    for source in sources:
-        PyModulePath(source)
-    # handle proxy classes exclusion ; this will remove classes like for example
-    #  RootCommand which aims to define level="root" for related level commands
-    for c in Command.subclasses:
-        if len(c.__subclasses__()) > 0:
-            Command.unregister_command(c)
-    # handle specific commands or sets of commands exclusions ; this will remove
-    #  them from the Command.commands and Command.subclasses dictionaries
-    Command.unregister_items(*kwargs.get("exclude", []))
-    # handle conditional commands ; this will remove commands having a
-    #  "condition" method returning False
-    for c in Command.subclasses:
-        c, o = c, c()
-        if hasattr(o, "condition") and not o.condition():
-            Command.unregister_command(c)
-    gc.collect()
 
 
 class MetaCommand(MetaEntity):
@@ -116,13 +76,13 @@ class MetaCommand(MetaEntity):
 
 class Command(Entity, metaclass=MetaCommand):
     """ Main class handling console commands. """
-    aliases = []
-    alias_only = False
-    commands = {}
-    level = "general"
-    levels = []
+    aliases       = []
+    alias_only    = False
+    commands      = {}
+    level         = "general"
+    levels        = []
     except_levels = []
-    splitargs = True
+    splitargs     = True
     
     @property
     def _nargs(self):
@@ -172,7 +132,7 @@ class Command(Entity, metaclass=MetaCommand):
                 levels[l] = cls.commands[l]
         # now make the help with tables of command name-descriptions by level
         s, i = "", 0
-        for l, cmds in levels.items():
+        for l, cmds in sorted(levels.items(), key=lambda x: x[0]):
             if len(cmds) == 0:
                 continue
             d = [["Name", "Description"]]
@@ -230,7 +190,7 @@ class Command(Entity, metaclass=MetaCommand):
             del Command.commands[l]
     
     @classmethod
-    def unregister_items(cls, *identifiers):
+    def unregister_commands(cls, *identifiers):
         """ Unregister items from Command based on their 'identifiers'
             (functionality or level/name). """
         for i in identifiers:
@@ -241,7 +201,8 @@ class Command(Entity, metaclass=MetaCommand):
                 f, n = _[0], None  # functionality
             # apply deletions
             if n is None:
-                assert f in FUNCTIONALITIES
+                if f not in FUNCTIONALITIES:
+                    raise ValueError("Non-existing functionality {}".format(f))
                 _ = "../base/commands/" + f + ".py"
                 _ = Path(__file__).parent.joinpath(_).resolve()
                 for c in PyModulePath(str(_)).get_classes(Command):
