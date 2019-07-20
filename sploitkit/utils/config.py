@@ -30,7 +30,6 @@ class Config(dict):
         key = key.bind(self)  # get an existing instance or the new one
         if tmp is not key: 
             del tmp  # if an instance already existed, remove the new one
-        value = self.normalize(key, value)
         if not key.validate():
             raise ValueError("Invalid value")
         self.__d[key.name] = (key, value)
@@ -40,38 +39,6 @@ class Config(dict):
         except Exception as e:
             self._last_error = str(e)
             #self.console.logger.exception(e)
-    
-    def _normalize(self, key, value):
-        """ Normalize one value with format strings and paths. """
-        if value is None:
-            value = self[key]
-        try:
-            self.console
-        except AttributeError:  # occurs when console is not linked to config
-            return value        #  (i.e. at startup)
-        # try to expand format variables using console's attributes
-        kw = {}
-        for n in re.findall(r'\{([a-z]+)\}', str(value)):
-            kw[n] = self.console.__dict__.get(n, "")
-        try:
-            value = value.format(**kw)
-        except:
-            pass
-        # expand and resolve paths
-        if key.name.endswith("FOLDER") or key.name.endswith("WORKSPACE"):
-            # this will ensure that every path is expanded
-            p = Path(value, create=True, expand=True)
-            value = str(p)
-        # convert common formats to their basic types
-        try:
-            if value.isdigit():
-                value = int(value)
-            if value.lower() in ["false", "true"]:
-                value = value.lower() == "true"
-        except AttributeError:  # occurs e.g. if value is already a bool
-            pass
-        # then try to transform using the user-defined function
-        return key.transform(value)
     
     def copy(self, config, key):
         """ Copy an option based on its key from another Config instance. """
@@ -85,14 +52,6 @@ class Config(dict):
     def keys(self):
         """ Return string keys (like original dict). """
         return sorted(self.__d.keys())
-    
-    def normalize(self, key=None, value=None):
-        """ Normalize one or all values with format strings and paths. """
-        if key is not None:
-            return self._normalize(key if isinstance(key, Option) else \
-                                   self.option(key), value)
-        for k, d, v, r in self.items():
-            self[k] = self._normalize(self.option(k), v)
 
     def option(self, key):
         """ Return Option instance from key. """
@@ -137,6 +96,10 @@ class Option(object):
         self.__set_func(validate, "validate")
         self.__set_func(callback, "callback")
     
+    def __str__(self):
+        """ Custom representation method. """
+        return "<{}: {}>".format(self.name, self.value)
+    
     def __set_func(self, func, name):
         """ Set a function, e.g. for manipulating option's value. """
         if func is None:
@@ -165,13 +128,39 @@ class Option(object):
     
     @property
     def value(self):
+        """ Normalized value attribute. """
         if hasattr(self, "config"):
-            _ = self.config[self]
-            if self.required and _ is None:
+            value = self.config[self]
+            if self.required and value is None:
                 raise ValueError("{} must be defined" .format(self.name))
-            if isinstance(self.transform, type(lambda:0)) and \
-                self.transform.__name__ == (lambda:0).__name__:
-                _ = self.transform(_)
-            elif _ is None:
-                _ = ""
-            return _
+        else:
+            raise Exception("Unbound option {}" .format(self.name))
+        try:
+            # try to expand format variables using console's attributes
+            kw = {}
+            for n in re.findall(r'\{([a-z]+)\}', str(value)):
+                kw[n] = self.config.console.__dict__.get(n, "")
+            try:
+                value = value.format(**kw)
+            except:
+                pass
+        except AttributeError as e:  # occurs when console is not linked to
+            pass                     #  config (i.e. at startup)
+        # expand and resolve paths
+        if self.name.endswith("FOLDER") or self.name.endswith("WORKSPACE"):
+            # this will ensure that every path is expanded
+            p = Path(value, create=True, expand=True)
+            value = str(p)
+        # convert common formats to their basic types
+        try:
+            if value.isdigit():
+                value = int(value)
+            if value.lower() in ["false", "true"]:
+                value = value.lower() == "true"
+        except AttributeError:  # occurs e.g. if value is already a bool
+            pass
+        # then try to transform using the user-defined function
+        if isinstance(self.transform, type(lambda:0)) and \
+            self.transform.__name__ == (lambda:0).__name__:
+            value = self.transform(value)
+        return value
