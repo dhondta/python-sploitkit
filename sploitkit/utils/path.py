@@ -119,9 +119,13 @@ class RandPath(Path):
     def choice(self, filetype=None):
         """ Return a random file from the current directory. """
         try:
-            return random.choice(list(self.iterfiles(filetype)))
+            return self.joinpath(random.choice(list(self.iterfiles(filetype))))
         except:
             return
+    
+    def generate(self, length=8, alphabet="0123456789abcdef"):
+        """ Generate a random folder name. """
+        return self.joinpath("".join(choice(alphabet) for i in range(length)))
 
 
 class PyFolderPath(Path):
@@ -149,20 +153,18 @@ class PyModulePath(Path):
             self.module = ImpImporter(str(self.resolve().parent)) \
                           .find_module(self.stem).load_module(self.stem)
 
-    def get_classes(self, base_cls):
-        """ Load a list of all subclasses inheriting from the given class from
+    def get_classes(self, *base_cls):
+        """ Yield a list of all subclasses inheriting from the given class from
              the Python module. """
         if not self.is_pymodule:
             return
-        c = []
         for n in dir(self.module):
             cls = getattr(self.module, n)
             try:
-                if issubclass(cls, base_cls) and cls is not base_cls:
-                    c.append(cls)
+                if issubclass(cls, base_cls) and cls not in base_cls:
+                    yield cls
             except TypeError:
                 pass
-        return c
 
     def has_class(self, base_cls):
         """ Check if the Python module has the given class. """
