@@ -29,7 +29,7 @@ __author__ = "Alexandre D'Hondt"
 logger = logging.getLogger('root')
 
 
-def input_password(silent=False, length=(8, 40),
+def input_password(silent=False, bypass=False, length=(8, 40),
                    bad=["/usr/local/share/john/password.lst",
                         "/usr/share/john/password.lst",
                         "/opt/john/run/password.lst"]):
@@ -38,6 +38,9 @@ def input_password(silent=False, length=(8, 40),
      policy.
 
     :param silent: if True, do not print error messages
+    :param bypass: if True, do not check the input password (i.e. useful if we
+                    want to load something requiring a password not compliant
+                    with the password policy hereafter)
     :param length: pair of lower/upper bounds for password length
     :param bad:    path to lists of bad passwords
     :return:       policy-compliant password
@@ -46,6 +49,8 @@ def input_password(silent=False, length=(8, 40),
     while pwd is None:
         logger.debug("Special conjunction characters are stripped")
         pwd = getpass("Please enter the password: ").strip()
+        if bypass:
+            break
         # check for undesired characters
         BAD_CHARS = " \n\t"
         if any(c in pwd for c in BAD_CHARS):
