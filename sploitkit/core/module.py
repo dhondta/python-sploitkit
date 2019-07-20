@@ -1,59 +1,18 @@
 from __future__ import unicode_literals
 
-import inspect
+from inspect import getfile
 
+from .entity import Entity, MetaEntity
 from ..utils.config import Config
-from ..utils.meta import Entity, MetaEntity
+from ..utils.dict import PathBasedDict
 from ..utils.misc import failsafe, flatten
-from ..utils.objects import BorderlessTable, NameDescription
-from ..utils.path import Path, PyFolderPath
+from ..utils.objects import BorderlessTable, NameDescription as NDescr
+from ..utils.path import Path
 
 
 __all__ = ["Module"]
 
 #TODO: association of a module to a set of specific commands (not module-level)
-
-
-def load_modules(*sources, **kwargs):
-    """ Load every Module subclass found in the given source folders.
-    
-    :param sources:      paths (either with ~, relative or absolute) to folders
-                          containing Module subclasses
-    :param include_base: include the base commands provided with sploitkit
-    """
-    sources = list(sources)
-    if kwargs.get("include_base", True):
-        # this allows to use sploitkit.base modules for starting a project with
-        #  a baseline of modules
-        _ = Path(__file__).parent.joinpath("../base/modules/").resolve()
-        sources.insert(0, str(_))
-    for source in sources:
-        try:
-            source = str(Path(source).expanduser().resolve())
-        except OSError:  # e.g. when the folder does not exist
-            continue
-        # bind the source to the Module main class as, when MetaModule.__new__
-        #  is called, the source is not passed from the PyFolderPath to child
-        #  PyModulePath instances ; this way, the module path can be determined
-        Module._source = source
-        # now, it loads every Python module from the list of source folders ;
-        #  when loading Module subclasses, these are registered to 
-        #  Module.modules and Module.subclasses for further direct access
-        #  (i.e. from the console)
-        PyFolderPath(source)
-    try:
-        delattr(Module, "_source")  # then clean up the temporary attribute
-    except AttributeError:  # i.e. if sources list is empty (when include_base
-        pass                #  is False)
-
-
-class CustomDict(dict):
-    def rget(self, path):
-        def _rget(p=path, d=self):
-            p = Path(str(p))
-            _ = p.parts
-            return _rget(p.child, d[_[0]]) if len(_) > 1 else d[_[0]]
-        return _rget()
 
 
 class MetaModule(MetaEntity):
@@ -62,7 +21,7 @@ class MetaModule(MetaEntity):
         subcls = type.__new__(meta, name, bases, clsdict)
         # compute module's path
         if not hasattr(subcls, "path") or subcls.path is None:
-            p = Path(inspect.getfile(subcls)).parent
+            p = Path(getfile(subcls)).parent
             # collect the source temporary attribute
             s = getattr(subcls, "_source", ".")
             try:
@@ -74,6 +33,11 @@ class MetaModule(MetaEntity):
         #  list of modules
         super(MetaModule, meta).__new__(meta, name, bases, clsdict, subcls)
         return subcls
+    
+    @property
+    def base(self):
+        """ Module's category. """
+        return str(Path(self.fullpath).child)
     
     @property
     def category(self):
@@ -92,8 +56,7 @@ class MetaModule(MetaEntity):
         t = str(BorderlessTable(self.options))
         if len(t) > 0:
             t = "\n\n" + t
-        return str(NameDescription(self.name, self.description, self.details)) \
-               + t
+        return str(NDescr(self.name, self.description, self.details)) + t
     
     @property
     def options(self):
@@ -117,7 +80,7 @@ class MetaModule(MetaEntity):
 
 class Module(Entity, metaclass=MetaModule):
     """ Main class handling console modules. """
-    modules = CustomDict()
+    modules = PathBasedDict()
     
     @property
     @failsafe
@@ -130,6 +93,18 @@ class Module(Entity, metaclass=MetaModule):
     def options(self):
         """ Module options (shorcut). """
         return self.config.keys()
+    
+    @property
+    @failsafe
+    def store(self):
+        """ Module console-bound store (shorcut). """
+        return self.console.store
+    
+    @classmethod
+    def get_count(cls, path=None, **attrs):
+        """ Count the number of modules under the given path and matching
+             attributes. """
+        return cls.modules.rcount(path, **attrs)
 
     @classmethod
     def get_help(cls, category=None):
@@ -138,10 +113,10 @@ class Module(Entity, metaclass=MetaModule):
         categories = _.keys() if category is None else [category]
         s, i = "", 0
         for c in categories:
-            d = [["Name", "Path", "Description"]]
+            d = [["Name", "Path", "Enabled", "Description"]]
             for n, m in sorted(flatten(_.get(c, {})).items(),
                                key=lambda x: x[0]):
-                d.append([m.name, m.path, m.description])
+                d.append([m.name, m.path, ["N", "Y"][m.enabled], m.description])
             t = BorderlessTable(d, "{} modules".format(c.capitalize()))
             s += t.table + "\n\n"
             i += 1
@@ -150,17 +125,12 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def get_list(cls):
         """ Get the list of modules' fullpath. """
-        return sorted([m.fullpath for m in Module.subclasses])
+        return sorted([m.fullpath for m in Module.subclasses if m.enabled])
     
     @classmethod
-    def get_modules(cls, path):
-        """ Recursively get a subdictionary of the list of modules or a Module
-             subclass from its full path. """
-        def _rget(p=path, d=cls.modules):
-            p = Path(str(p))
-            _ = p.parts
-            return _rget(p.child, d[_[0]]) if len(_) > 1 else d[_[0]]
-        return _rget()
+    def get_modules(cls, path=None):
+        """ Get the subdictionary of modules matching the given path. """
+        return cls.modules.rget(path)
 
     @classmethod
     def register_module(cls, subcls):
