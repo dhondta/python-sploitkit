@@ -9,7 +9,7 @@ __all__ = ["check_log_level", "get_logger", "null_handler"]
 
 logging.SUCCESS = logging.INFO + 5
 DATE_FORMAT = "%m/%d/%y %H:%M:%S"
-LOGFILE_FORMAT = "%(asctime)s %(name)s[%(process)d] %(levelname)s %(message)s"
+LOGFILE_FORMAT = "%(asctime)s [%(process)5d] %(levelname)8s %(name)s - %(message)s"
 LOG_FORMAT = "%(levelsymbol)s %(message)s"
 LOG_LEVEL_SYMBOLS = {
     logging.INFO:    colored("[*]", "blue"),
@@ -70,7 +70,7 @@ def get_logger(name, logfile=None, level="INFO"):
     """ Logger initialization function. """
     logger = logging.getLogger(name)
     level = getattr(logging, level)
-    logger.setLevel(level)
+    logger.setLevel(logging.DEBUG)
     if len(logger.handlers) == 0:
         # setup a StreamHandler for the console (at level INFO)
         ch = ConsoleHandler()
