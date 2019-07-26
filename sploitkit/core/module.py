@@ -1,5 +1,4 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 from inspect import getfile
 
 from .entity import Entity, MetaEntity
@@ -58,24 +57,9 @@ class MetaModule(MetaEntity):
             t = "\n\n" + t
         return str(NDescr(self.name, self.description, self.details)) + t
     
-    @property
-    def options(self):
-        """ Table of module options. """
-        if hasattr(self, "config") and isinstance(self.config, Config):
-            data = [["Name", "Value", "Description"]]
-            for k, d, v in sorted(self.config.items(), key=lambda x: x[0]):
-                data.append([k, v, d])
-            return data
-    
     def search(self, text):
         """ Search for text in module's attributes. """
-        return any(text in x for x in [
-            self.name,
-            self.description,
-            self.details,
-            self.fullpath,
-            self.category
-        ])
+        return any(text in v for v in self._metadata.values())
 
 
 class Module(Entity, metaclass=MetaModule):
@@ -87,12 +71,6 @@ class Module(Entity, metaclass=MetaModule):
     def logger(self):
         """ Module console-bound logger (shorcut). """
         return self.console.logger
-    
-    @property
-    @failsafe
-    def options(self):
-        """ Module options (shorcut). """
-        return self.config.keys()
     
     @property
     @failsafe
@@ -125,7 +103,8 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def get_list(cls):
         """ Get the list of modules' fullpath. """
-        return sorted([m.fullpath for m in Module.subclasses if m.enabled])
+        return sorted([m.fullpath for m in Module.subclasses if m._applicable \
+                                                            and m._enabled])
     
     @classmethod
     def get_modules(cls, path=None):
