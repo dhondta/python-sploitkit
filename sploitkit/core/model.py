@@ -1,15 +1,13 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 import datetime
 import re
-from ipaddress import ip_address
 from peewee import *
 
-from .components.store import Model as PeeweeModel, ModelBase, Trigger
+from .components.store import Model as PeeweeModel, ModelBase
 from .entity import Entity, MetaEntityBase
 
 
-__all__ = ["BaseModel", "Model", "IPAddressField", "MACAddressField"]
+__all__ = ["BaseModel", "Model", "StoreExtension"]
 
 
 class MetaModel(ModelBase, MetaEntityBase):
@@ -64,33 +62,32 @@ class Model(BaseModel):
         return super(Model, cls).get_or_create(**items)
 
 
-# ------------------------- ADDITIONAL DATABASE FIELDS -------------------------
-class IPAddressField(BigIntegerField):
-    """ IPv4/IPv6 address database field. """
-    def db_value(self, value):
-        if isinstance(value, (str, int)):
-            try:
-                return int(ip_address(value))
-            except Exception:
-                pass
-        raise ValueError("Invalid IPv4 or IPv6 Address")
-
-    def python_value(self, value):
-        return ip_address(value)
+class StoreExtension(Entity, metaclass=MetaEntityBase):
+    """ Dummy class handling store extensions for the Store class. """
+    pass
 
 
-class MACAddressField(BigIntegerField):
-    """ MAC address database field. """
-    def db_value(self, value):
-        if isinstance(value, int) and 0 <= value <= 0xffffffffffffffff:
-            return value
-        elif isinstance(value, str):
-            if re.search(r"^([0-9a-f]{2}[:-]){5}[0-9A-F]{2}$", value, re.I):
-                return int("".join(re.split(r"[:-]", value)), 16)
-        raise ValueError("Invalid MAC Address")
+# source: https://stackoverflow.com/questions/34142550/sqlite-triggers-datetime-defaults-in-sql-ddl-using-peewee-in-python
+class Trigger(object):
+    """Trigger template wrapper for use with peewee ORM."""
+    _template = """
+    {create} {name} {when} {trigger_op}
+    ON {tablename}
+    BEGIN
+        {op} {tablename} {sql} WHERE {pk}={old_new}.{pk};
+    END;
+    """
 
-    def python_value(self, value):
-        try:
-            return ":".join(re.findall("..", "%012x" % value))
-        except Exception:
-            raise ValueError("Invalid MAC Address")
+    def __init__(self, table, name, when, trigger_op, op, sql, safe=True):
+        self.create = "CREATE TRIGGER" + (" IF NOT EXISTS" if safe else "")
+        self.tablename = table._meta.name
+        self.pk = table._meta.primary_key.name
+        self.name = name
+        self.when = when
+        self.trigger_op = trigger_op
+        self.op = op
+        self.sql = sql
+        self.old_new = "new" if trigger_op.lower() == "insert" else "old"
+
+    def __str__(self):
+        return self._template.format(**self.__dict__)
