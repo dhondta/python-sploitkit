@@ -1,24 +1,74 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 import re
 import types
 from collections import OrderedDict
-
-try:
-    from playhouse.sqlcipher_ext import Model, ModelBase, SqlCipherDatabase as SqliteDB
-    enc_enabled = (True, "")
-except ImportError as e:
-    from peewee import Model, ModelBase, SqliteDatabase as SqliteDB
-    enc_enabled = (False, str(e))
-
-from ..entity import Entity, MetaEntityBase
-from ...utils.password import input_password
+from os import remove
+from shutil import copy
+from peewee import Model, ModelBase, SqliteDatabase
 
 
-__all__ = ["StoreExtension", "StoragePool"]
+__all__ = ["StoragePool"]
 
 
-class Store(SqliteDB):
+class StoragePool(object):
+    """ Storage pool class. """
+    __pool      = []
+    
+    def __init__(self, ext_class=None):
+        self.__entity_class = getattr(ext_class, "base_class", None)
+        self.__ext_class = ext_class
+    
+    def close(self, remove=False):
+        """ Close every database in the pool. """
+        for db in self.__pool[::-1]:
+            self.remove(db) if remove else db.close()
+    
+    def free(self):
+        """ Close and remove every database in the pool. """
+        self.close(True)
+    
+    def get(self, path, *args, **kwargs):
+        """ Get a database from the pool ; if the DB does not exist yet, create
+             and register it. """
+        path = str(path)  # ensure the input is str, e.g. not a Path instance
+        try:
+            db = [_ for _ in self.__pool if _.path == path][0]
+        except IndexError:
+            classes = tuple([Store] + self.extensions)
+            cls = type("ExtendedStore", classes, {})
+            db = cls(path, *args, **kwargs)
+            # as the store extension class should subclass Entity, in 'classes',
+            #  store extension subclasses will be present, therefore making
+            #  ExtendedStore registered in its list of subclasses ; this line
+            #  prevents from having multiple combined classes having the same
+            #  Store base class
+            if self.__ext_class is not None and \
+                hasattr(self.__ext_class, "unregister_subclass"):
+                self.__ext_class.unregister_subclass(cls)
+            self.__pool.append(db)
+            for m in self.models:
+                m.bind(db)
+            db.create_tables(self.models, safe=True)
+            db.close()  # commit and save the created tables
+            db.connect()
+        return db
+    
+    def remove(self, db):
+        """ Remove a database from the pool. """
+        db.close()
+        self.__pool.remove(db)
+        del db
+    
+    @property
+    def extensions(self):
+        """ Get the list of store extension subclasses. """
+        try:
+            return self.__ext_class.subclasses
+        except AttributeError:
+            return []
+
+
+class Store(SqliteDatabase):
     """ Storage database class. """
     def __init__(self, path, *args, **kwargs):
         self.path = str(path)  # ensure the input is str, e.g. not Path
@@ -49,102 +99,44 @@ class Store(SqliteDB):
                     return cls.get
                 elif hasattr(cls, "set"):
                     return cls.set
-        raise AttributeError
-    
+        raise AttributeError("%r object has no attribute %r" %
+                             (self.__name__, name))
+        
     def get_model(self, name, base=False):
         """ Get a model class from its name. """
-        return Entity.get_subclass("model", name) or \
-               Entity.get_subclass("basemodel", name)
+        return self.__entity_class.get_subclass("model", name) or \
+               self.__entity_class.get_subclass("basemodel", name)
+    
+    def snapshot(self, save=True):
+        """ Snapshot the store in order to be able to get back to this state
+             afterwards if the results are corrupted by a module OR provide
+             the reference number of the snapshot to get back to, and remove
+             every other snapshot after this number. """
+        if not save and self._last_snapshot == 0:
+            return
+        self.close()
+        if save:
+            if not hasattr(self, "_last_snapshot"):
+                self._last_snapshot = 0
+            self._last_snapshot += 1
+        s = "{}.snapshot{}".format(self.path, self._last_snapshot)
+        copy(self.path, s) if save else copy(s, self.path)
+        if not save:
+            remove("{}.snapshot{}".format(self.path, self._last_snapshot))
+            self._last_snapshot -= 1
+        self.connect()
         
     @property
     def basemodels(self):
         """ Shortcut for the list of BaseModel subclasses. """
-        return Entity._subclasses.key("basemodel")
+        return self.__entity_class._subclasses.key("basemodel")
         
     @property
     def models(self):
         """ Shortcut for the list of Model subclasses. """
-        return Entity._subclasses.key("model")
+        return self.__entity_class._subclasses.key("model")
     
     @property
     def volatile(self):
         """ Simple attribute for telling if the DB is in memory. """
         return self.path == ":memory:"
-
-
-class StoreExtension(Entity, metaclass=MetaEntityBase):
-    """ Dummy class handling store extensions for the Store class. """
-    pass
-
-
-class StoragePool(object):
-    """ Storage pool class. """
-    __pool    = []
-    encrypted = enc_enabled
-    models    = []
-    
-    def close(self, remove=False):
-        """ Close every database in the pool. """
-        for db in self.__pool[::-1]:
-            self.remove(db) if remove else db.close()
-    
-    def free(self):
-        """ Close and remove every database in the pool. """
-        self.close(True)
-    
-    def get(self, path, *args, **kwargs):
-        """ Get a database from the pool ; if the DB does not exist yet, create
-             and register it. """
-        path = str(path)  # ensure the input is str, e.g. not a Path instance
-        try:
-            db = [_ for _ in self.__pool if _.path == path][0]
-        except IndexError:
-            if enc_enabled[0]:
-                kwargs['passphrase'] = input_password()
-            classes = tuple([Store] + StoreExtension.subclasses)
-            db = Store(path, *args, **kwargs)
-            db.__class__ = type("ExtendedStore", classes, {})
-            # in 'classes', StoreExtension subclasses will be present, therefore
-            #  making ExtendedStore registered in its list of subclasses ; this
-            #  line prevents from having multiple combined classes having the
-            #  same Store base class
-            StoreExtension.unregister_subclass(db.__class__)
-            self.__pool.append(db)
-            for m in self.models:
-                m.bind(db)
-            db.create_tables(self.models, safe=True)
-            db.close()  # commit and save the created tables
-            db.connect()
-        return db
-    
-    def remove(self, db):
-        """ Remove a database from the pool. """
-        db.close()
-        self.__pool.remove(db)
-        del db
-
-
-# source: https://stackoverflow.com/questions/34142550/sqlite-triggers-datetime-defaults-in-sql-ddl-using-peewee-in-python
-class Trigger(object):
-    """Trigger template wrapper for use with peewee ORM."""
-    _template = """
-    {create} {name} {when} {trigger_op}
-    ON {tablename}
-    BEGIN
-        {op} {tablename} {sql} WHERE {pk}={old_new}.{pk};
-    END;
-    """
-
-    def __init__(self, table, name, when, trigger_op, op, sql, safe=True):
-        self.create = "CREATE TRIGGER" + (" IF NOT EXISTS" if safe else "")
-        self.tablename = table._meta.name
-        self.pk = table._meta.primary_key.name
-        self.name = name
-        self.when = when
-        self.trigger_op = trigger_op
-        self.op = op
-        self.sql = sql
-        self.old_new = "new" if trigger_op.lower() == "insert" else "old"
-
-    def __str__(self):
-        return self._template.format(**self.__dict__)
