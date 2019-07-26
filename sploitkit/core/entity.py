@@ -1,12 +1,13 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 import gc
 import re
 from importlib import find_loader
 from inspect import getfile, getmro
 from shutil import which
 
+from .components.config import Config, Option
 from ..utils.dict import ClassRegistry
+from ..utils.objects import BorderlessTable, NameDescription as NDescr
 from ..utils.path import *
 
 
@@ -41,22 +42,22 @@ def load_entities(entities, *sources, **kwargs):
             for m in kwargs.get("select", {}).get(n, [""]):
                 m = "../base/{}s/".format(n) + m + [".py", ""][m == ""]
                 _ = Path(__file__).parent.joinpath(m).resolve()
-                sources.insert(0, str(_))
+                if _.exists():
+                    sources.insert(0, str(_))
     # now load every single source (folder of modules or single module)
-    for source in sources:
-        try:
-            source = str(Path(source).expanduser().resolve())
-        except OSError:  # e.g. when the folder does not exist
+    for s in sources:
+        source = Path(s).expanduser().resolve()
+        if not source.exists():
             continue
         # bind the source to the entity main class as, when MetaEntity.__new__
         #  is called, the source is not passed from the PyFolderPath to child
         #  PyModulePath instances ; this way, the entity path can be determined
         for e in entities:
-            e._source = source
+            e._source = str(source)
         # now, it loads every Python module from the list of source folders ;
         #  when loading entity subclasses, these are registered to entity's
         #  registry for further use (i.e. from the console)
-        PyModulePath(source) if source.endswith(".py") else PyFolderPath(source)
+        PyModulePath(source) if source.suffix == ".py" else PyFolderPath(source)
     for e in entities:
         # clean up the temporary attribute
         try:
@@ -65,7 +66,7 @@ def load_entities(entities, *sources, **kwargs):
             pass                #  is False)
         # remove proxy classes
         n = e.__name__.lower()
-        for c in e.subclasses:
+        for c in e.subclasses[:]:
             if len(c.__subclasses__()) > 0:
                 getattr(e, "unregister_{}".format(n),
                         Entity.unregister_subclass)(c)
@@ -90,19 +91,41 @@ def load_entities(entities, *sources, **kwargs):
             if hasattr(o, "check"):
                 c._enabled = o.check()
             # populate metadata
-            c._metadata = kwargs.get("docstr_parser", lambda s: {})(self)
+            c._metadata = kwargs.get("docstr_parser", lambda s: {})(c)
+            # "meta" or "metadata" attributes will have precedence on the docstr
             for attr in ["meta", "metadata"]:
                 if hasattr(c, attr):
                     c._metadata.update(getattr(c, attr))
                     delattr(c, attr)
+            # if the metadata has options, create the config object
+            for option in c._metadata.pop("options", []):
+                try:
+                    name, default, required, description = option
+                except ValueError:
+                    raise ValueError("Bad option ; should be (name, default, "
+                                     "required, description)")
+                if not hasattr(c, "config"):
+                    c.config = Config()
+                c.config[Option(name, description, required)] = default
+            # dynamically declare properties for each metadata field
+            for attr, value in c._metadata.items():
+                # let the precedence to already existing attributes
+                try:
+                    getattr(c, attr)
+                except AttributeError:
+                    setattr(c, attr, value)
         # bind entity's subclasses to the given attributes for back-reference
         backrefs = kwargs.get("backref", {}).get(n)
         if backrefs is not None:
             for c in e.subclasses:
-                for a, bn in backrefs:
+                for br in backrefs:
+                    try:
+                        a, bn = br
+                    except ValueError:
+                        a, bn = None, br[0] if isinstance(br, tuple) else br
                     bc = list(filter(lambda _: _.__name__.lower() == bn,
                                      entities))[0]
-                    if a == "":
+                    if a is None:
                         setattr(c, bn, bc)
                     elif getattr(c, a, None):
                         setattr(getattr(c, a), bn, bc)
@@ -110,30 +133,59 @@ def load_entities(entities, *sources, **kwargs):
     gc.collect()
 
 
+class BadSource(Exception):
+    """ Custom exception for handling bad entity source. """
+    pass
+
+
 class Entity(object):
     """ Generic Entity class (i.e. a command or a module). """
-    _enabled = True
+    _applicable = True
+    _enabled    = True
     _fields     = {
         'head': ["author", "reference", "source", "version"],
         'body': ["description"],
     }
+    _metadata   = {}
     _subclasses = ClassRegistry()
     
     @property
+    def applicable(self):
+        """ Boolean indicating if the entity is applicable to the current
+             context (i.e. of attached entities). """
+        self.__class__.check()
+        return self.__class__._applicable
+    
+    @property
+    def base_class(self):
+        """ Shortcut for accessing the Entity class, for use instead of __base__
+             which only leads to the direct base class. """
+        return Entity
+    
+    @property
     def enabled(self):
-        """ Boolean indicating if the entity is enabled. """
+        """ Boolean indicating if the entity is enabled (i.e. if it has no
+             missing requirement. """
+        self.__class__.check()
         return self.__class__._enabled
     
+    @property
+    def issues(self):
+        """ List issues encountered while checking entities. """
+        return self.__class__.issues
+    
     @classmethod
-    def check(cls):
+    def check(cls, other_cls=None):
         """ Check for module's requirements. """
+        cls = other_cls or cls
         errors = {}
+        # check for requirements
         for k, v in getattr(cls, "requirements", {}).items():
             if k == "file":
-                for filepath in v:
-                    if not Path(filepath).exists():
+                for fpath in v:
+                    if not Path(cls.__file__).parent.joinpath(fpath).exists():
                         errors.setdefault("file", [])
-                        errors["file"].append(filepath)
+                        errors["file"].append(fpath)
                         cls._enabled = False
             elif k == "python":
                 for module in v:
@@ -157,11 +209,19 @@ class Entity(object):
                         cls._enabled = False
             else:
                 raise ValueError("Unknown requirement type '{}'".format(k))
-        if len(errors) > 0:
-            cls._errors = errors
-            return False
-        else:
-            return True
+        cls._errors = errors
+        # check for applicability
+        a = getattr(cls, "applies_to", [])
+        if len(a) > 0:
+            cls._applicable = False
+            for _ in getattr(cls, "applies_to", []):
+                _, must_match, value = list(_[:-1]), _[-1], cls
+                while len(_) > 0:
+                    value = getattr(value, _.pop(0), None)
+                if value and value == must_match:
+                    cls._applicable = True
+                    break
+        return len(errors) == 0 and cls._applicable
     
     @classmethod
     def get_class(cls, name):
@@ -178,20 +238,8 @@ class Entity(object):
     @classmethod
     def register_subclass(cls, subcls):
         """ Maintain a registry of subclasses inheriting from Entity. """
-        bases = list(getmro(subcls))
-        # do not register if no list of entities yet
-        if len(ENTITIES) == 0:
-            return
-        # do not register non-entity classes
-        while len(bases) > 0 and bases[-1] is not Entity:
-            bases.pop()
-        if len(bases) <= 2:
-            return
-        # do not register base entities
-        if subcls.__name__ in ENTITIES:
-            return
         # get the base entity class
-        ecls = [c for c in bases if c.__name__ in ENTITIES][0]
+        ecls = subcls._entity_class
         Entity._subclasses.setdefault(ecls, [])
         # now register the subcls, ensured to be an end-subclass of the entity,
         #  avoiding duplicates (based on the source path and the class name)
@@ -203,28 +251,6 @@ class Entity(object):
             #  trying getfile(...)
             subcls.__file__ = getfile(subcls)
             Entity._subclasses[ecls].append(subcls)
-        for f in Entity._fields['head']:
-            # search for the given field in the docstring
-            lines = (subcls.__doc__ or "").splitlines()
-            for i, l in enumerate(lines):
-                if f in l.lower():
-                    # compute offset to field's value
-                    o = l.lower().index(f) + len(f)
-                    while l[o] in ": ":
-                        o += 1
-                    value = l[o:]
-                    # search for split lines
-                    j = i + 1
-                    while i < len(lines) and lines[j].startswith(" " * o):
-                        value += lines[j][o:]
-                        j += 1
-                    setattr(subcls, f, value.strip())
-    
-    @classmethod
-    def run(self, *args, **kwargs):
-        """ Generic method for running Entity's logic. """
-        raise NotImplementedError("{}'s run() method is not implemented"
-                                  .format(self.__name__))
 
     @classmethod
     def unregister_subclass(cls, subcls):
@@ -240,60 +266,126 @@ class Entity(object):
         """ Remove entries from the registry of subclasses. """
         for subcls in subclss:
             cls.unregister_subclass(subcls)
+    
+    def run(self, *args, **kwargs):
+        """ Generic method for running Entity's logic. """
+        raise NotImplementedError("{}'s run() method is not implemented"
+                                  .format(self.__class__.__name__))
 
 
 class MetaEntityBase(type):
     """ Metaclass of an Entity, registering all its instances. """
     def __new__(meta, name, bases, clsdict, subcls=None):
         subcls = subcls or type.__new__(meta, name, bases, clsdict)
-        for b in bases:
-            for a in dir(b):
-                m = getattr(b, a)
-                if callable(m) and any(a == "register_{}".format(w.lower()) \
-                    for w in ["subclass"] + ENTITIES):
-                    m(subcls)
+        if len(ENTITIES) > 0:
+            mro_bases = list(getmro(subcls))
+            # do not register non-entity classes or base entities
+            while len(mro_bases) > 0 and mro_bases[-1] is not Entity:
+                mro_bases.pop()
+            if len(mro_bases) <= 2 or subcls.__name__ in ENTITIES:
+                return subcls
+            # set the base entity class
+            ecls = [c for c in mro_bases if c.__name__ in ENTITIES][0]
+            subcls._entity_class = ecls
+            # trigger class registration
+            for b in bases:
+                for a in dir(b):
+                    m = getattr(b, a)
+                    if callable(m) and any(a == "register_{}".format(w.lower())\
+                        for w in ["subclass"] + ENTITIES):
+                        m(subcls)
         return subcls
     
     @property
     def subclasses(self):
+        """ List of all classes of the current entity. """
         return Entity._subclasses.get(self, [])
 
 
 class MetaEntity(MetaEntityBase):
     """ Metaclass of an Entity, adding some particular properties. """
     @property
-    def description(self):
-        _ = re.split("\n\s*\n", (self.__doc__ or "").lstrip(), 1)[0]
-        _ = re.sub(r'\s*\n\s*', " ", _)
-        return _.strip().capitalize()
-    
-    @property
-    def details(self):
-        try:
-            _ = re.split("\n\s*\n", (self.__doc__ or "").lstrip(), 1)[1]
-            _ = re.sub(r'\s*\n\s*', " ", _)
-            return _.strip().capitalize()
-        except:
-            return ""
+    def applicable(self):
+        """ Boolean indicating if the entity is applicable to the current
+             context (i.e. of attached entities). """
+        self.check()
+        return self._applicable
     
     @property
     def enabled(self):
-        """ Boolean indicating if the entity class is enabled. """
+        """ Boolean indicating if the entity is enabled (i.e. if it has no
+             missing requirement. """
+        self.check()
         return self._enabled
-
+    
     @property
-    def info(self):
-        """ Display module's metadata and other information. """
-        s = []
-        for f in Entity._fields['head']:
-            if getattr(self, f, None) is not None:
-                s.append("\t{}: {}".format(f.capitalize(), getattr(self, f)))
-        for f in Entity._fields['body']:
-            if getattr(self, f, None) is not None:
-                s.append("\n" + f)
-        return "" if len(s) == 0 else "\n" + "\n".join(s) + "\n"
+    def entity(self):
+        """ Normalized base entity name. """
+        return self._entity_class.__name__.lower()
+    
+    @property
+    def issues(self):
+        """ List issues encountered while checking all the entities. """
+        for cls, l in Entity._subclasses.items():
+            for subcls in l:
+                if hasattr(subcls, "_errors") and len(subcls._errors) > 0:
+                    yield cls.__name__, subcls.__name__, subcls._errors
     
     @property
     def name(self):
+        """ Normalized entity subclass name. """
         _ = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', self.__name__)
         return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', _).lower()
+    
+    @property
+    def options(self):
+        """ Table of entity options. """
+        if hasattr(self, "config") and isinstance(self.config, Config):
+            data = [["Name", "Value", "Required", "Description"]]
+            for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
+                if value is None or n == value:
+                    data.append([n, v, ["N", "Y"][r], d])
+            return data
+    
+    def get_info(self, *fields, show_all=False):
+        """ Display entity's metadata and other information. """
+        t = ""
+        if len(fields) == 0:
+            fields = [("name", "description"),
+                      ("author", "version", "comments"),
+                      ("options", )]
+        # make a data table with the given fields and corresponding values
+        data, __used = [], []
+        _ = lambda s: s.capitalize() + ":"
+        for field in fields:
+            if not isinstance(field, (list, tuple)):
+                field = (field, )
+            add_blankline = False
+            for f in field:
+                try:
+                    f, alias = f.split("|", 1)
+                except:
+                    alias = f
+                __used.append(f)
+                v = getattr(self, f, "undefined")
+                if v is None or len(v) == 0:
+                    continue
+                elif isinstance(v, (list, tuple)):
+                    v = "- " + "\n- ".join(v)
+                data.append([_(alias), v])
+                add_blankline = True
+            if add_blankline:
+                data.append(["", ""])
+        t = BorderlessTable(data, header=False).table + "\n" if len(data) > 0 \
+            else ""
+        # add other metadata if relevant
+        if show_all:
+            unused = set(self._metadata.keys()) - set(__used)
+            if len(unused) > 0:
+                t += self.get_info(*sorted(list(unused)))
+        return t.rstrip() + "\n\n"
+    
+    def get_issues(self):
+        """ List issues for self's entity. """
+        if hasattr(self, "_errors") and len(self._errors) > 0:
+            yield self.entity, self.__name__, self._errors
