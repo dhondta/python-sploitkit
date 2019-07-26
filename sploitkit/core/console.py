@@ -1,29 +1,42 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
+import gc
 import os
 import random
 import re
 import shlex
 import string
+from bdb import BdbQuit
+from importlib import find_loader
+from inspect import isfunction
 from prompt_toolkit import print_formatted_text, PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError
+from shutil import move
 
-from .command import Command, FUNCTIONALITIES
+from .command import *
 from .components import *
 from .entity import *
-from .model import BaseModel, Model
-from .module import Module
-from ..utils.config import Config, Option
+from .model import *
+from .module import *
+from ..utils.docstring import parse_docstring
+from ..utils.misc import failsafe
 from ..utils.path import Path
 
 
-__all__ = ["BaseModel", "Command", "Model", "Module", "StoreExtension",
-           "Console", "ConsoleExit", "ConsoleDuplicate", "FrameworkConsole"]
-
+__all__ = [
+    "Entity",
+    # subclassable main entities
+    "BaseModel", "Model", "StoreExtension",
+    "Command",
+    "Console",
+    "Module",
+    # console-related classes
+    "Config", "ConsoleExit", "ConsoleDuplicate", "FrameworkConsole", "Option",
+]
 
 dcount = lambda d, n=0: sum([dcount(v, n) if isinstance(v, dict) else n + 1 \
                              for v in d.values()])
@@ -31,10 +44,11 @@ dcount = lambda d, n=0: sum([dcount(v, n) if isinstance(v, dict) else n + 1 \
 
 class Console(Entity, metaclass=MetaEntity):
     """ Base console class. """
-    # convention: mangled attributes are not customizable when subclassing
+    # convention: mangled attributes should not be customized when subclassing
     #              Console...
+    _issues   = []
     _recorder = Recorder()
-    _storage  = StoragePool()
+    _storage  = StoragePool(StoreExtension)
     # ... by opposition to public class attributes that can be tuned
     appname      = ""
     config       = Config()
@@ -57,42 +71,53 @@ class Console(Entity, metaclass=MetaEntity):
             # raise an exception in the context of command's .run() execution,
             #  to be propagated to console's .run() execution, setting the
             #  directly higher level console in argument
-            raise ConsoleDuplicate(parent)
+            raise ConsoleDuplicate(self, parent)
         # configure the console regarding its parenthood
         if self.parent is None:
             if Console.parent is not None:
                 raise Exception("Only one parent console can be used")
             Console.parent = self
             self.__init(**kwargs)
+        else:
+            self.parent.child = self
         self.reset()
         # setup the session with the custom completer and validator
         completer, validator = CommandCompleter(), CommandValidator()
-        completer.console = validator.console = self  # console back-reference
+        completer.console = validator.console = self
         message, style = self.prompt
-        self.__session = PromptSession(
+        hpath = Path(self.config.option("WORKSPACE").value).joinpath("history")
+        self._session = PromptSession(
             message,
             completer=completer,
+            history=FileHistory(hpath),
             validator=validator,
             style=Style.from_dict(style),
         )
     
     def __init(self, **kwargs):
         """ Initialize the parent console with commands and modules. """
-        # display a random banner from the banners folder
-        get_banner_func = kwargs.get('get_banner_func', get_banner)
-        print_formatted_text(get_banner_func(self._sources("banners")))
-        # display a random quote from quotes.csv (in the banners folder)
-        get_quote_func = kwargs.get('get_quote_func', get_quote)
-        print_formatted_text(get_quote_func(self._sources("banners")))
+        bsrc = self._sources("banners")
+        if bsrc is not None:
+            # display a random banner from the banners folder
+            get_banner_func = kwargs.get('get_banner_func', get_banner)
+            banner_color = kwargs.get('banner_colorized_sections', ())
+            text = get_banner_func(bsrc, banner_color)
+            if text:
+                print(text)
+            # display a random quote from quotes.csv (in the banners folder)
+            get_quote_func = kwargs.get('get_quote_func', get_quote)
+            text = get_quote_func(bsrc)
+            if text:
+                print(text)
         # setup entities
         load_entities(
             [BaseModel, Command, Console, Model, Module, StoreExtension],
             *self._sources("entities"),
             include_base=kwargs.get("include_base", True),
-            select=kwargs.get("select", {'command': FUNCTIONALITIES}),
+            select=kwargs.get("select", {'command': Command._functionalities}),
             exclude=kwargs.get("exclude", {}),
             backref=kwargs.get("backref", BACK_REFERENCES),
-            docstr_parser=kwargs.get("docstr_parser", lambda s: {}),
+            docstr_parser=kwargs.get("docstr_parser", parse_docstring),
         )
         Console._storage.models = Model.subclasses + BaseModel.subclasses
         # TODO: display a MOTD (i.e. with nmod)
@@ -116,12 +141,49 @@ class Console(Entity, metaclass=MetaEntity):
         # setup the prompt message
         self.message.insert(0, ('class:appname', self.appname))
         # display warnings
-        if not Console._storage.encrypted[0]:
-            self.logger.warning("Store encryption disabled")
-            r = Console._storage.encrypted[1]
-            if "No such file or directory" in r:
-                self.logger.debug("Reason: {}"
-                                  .format(r))
+        if len(Console._issues) > 0:
+            self.logger.warning("There are some issues ; use 'show issues' to "
+                                "see more details")
+    
+    def _close(self):
+        """ Gracefully close the console. """
+        self.logger.debug("Exiting {}[{}]".format(self.__class__.__name__,
+                                                  id(self)))
+        if hasattr(self, "close") and isfunction(self.close):
+            self.close()
+        # cleanup references for this console
+        self.detach()
+        if hasattr(self, "_session"):
+            delattr(self._session.completer, "console")
+            delattr(self._session.validator, "console")
+        for k in [_ for _ in self.__dict__.keys()]:
+            delattr(self, k)
+        del self.__dict__
+        if self.parent is not None:
+            # rebind entities to the parent console
+            self.parent.reset()
+        else:
+            # gracefully close every DB in the pool
+            self._storage.free()
+    
+    def _get_tokens(self, text, suffix=("", "\"", "'")):
+        """ Recursive token split function also handling ' and " (that is, when
+             'text' is a partial input with a string not closed by a quote). """
+        text = text.lstrip()
+        try:
+            tokens = shlex.split(text + suffix[0])
+        except ValueError:
+            return self._get_tokens(text, suffix[1:])
+        except IndexError:
+            return []
+        if len(tokens) > 0:
+            cmd = tokens[0]
+            if len(tokens) > 2 and \
+                getattr(self.commands.get(cmd), "single_arg", False):
+                tokens = [cmd, " ".join(tokens[1:])]
+            elif len(tokens) > 3:
+                tokens = [cmd, tokens[1], " ".join(tokens[2:])]
+        return tokens
     
     def _reset_logname(self):
         """ Reset logger's name according console's attributes. """
@@ -139,6 +201,34 @@ class Console(Entity, metaclass=MetaEntity):
         except KeyError:
             return Console.sources[items]
     
+    def attach(self, eccls, directref=False, backref=True):
+        """ Attach an entity child to the calling entity's instance. """
+        # handle direct reference from self to eccls
+        if directref:
+            # attach new class
+            setattr(self, eccls.entity, eccls)
+        # handle back reference from eccls to self
+        if backref:
+            setattr(eccls, self.__class__.entity, self)
+    
+    @failsafe
+    def detach(self, eccls=None):
+        """ Detach an entity child class from the console and remove its
+             back-reference. """
+        # if no argument, detech every class registered in self._attached
+        if eccls is None:
+            for subcls in Entity._subclasses:
+                self.detach(subcls)
+        elif eccls in ["command", "module"]:
+            for ec in [Command, Module][eccls == "module"].subclasses:
+                if ec.entity == eccls:
+                    self.detach(ec)
+        else:
+            if hasattr(self, eccls.entity):
+                delattr(self, eccls.entity)
+            if hasattr(eccls, self.__class__.entity):
+                delattr(eccls, self.__class__.entity)
+    
     def execute(self, cmd, abort=False):
         """ Alias for run. """
         return self.run(cmd, abort)
@@ -146,38 +236,39 @@ class Console(Entity, metaclass=MetaEntity):
     def reset(self):
         """ Setup commands for the current level, reset bindings between
              commands and the current console then update store's object. """
+        self.detach("command")
         # bind console class attributes with the Console class
         self.__class__.config.console = self.__class__
-        # setup level's commands
+        # setup level's commands, starting from general-purpose commands
         self.commands = {}
         self.commands.update(Command.commands.get("general", {}))
         for n, c in list(self.commands.items()):
             if c.level == "general" and \
                 self.level in getattr(c, "except_levels", []):
                 del self.commands[n]
-        self.commands.update(Command.commands.get(self.level, {}))
+        # add relevant commands from the specific level
+        for n, c in Command.commands.get(self.level, {}).items():
+            if c.check():
+                self.commands[n] = c
+        # now, attach the console with the commands
         for c in self.commands.values():
-            c.console = self
+            self.attach(c)
         # get the relevant store and bind it to loaded models
         p = Path(self.config.option('WORKSPACE').value).joinpath("store.db")
         Console.store = Console._storage.get(p)
     
     def run(self, cmd, abort=False):
         """ Run a framework console command. """
-        cmd = cmd.strip()
-        tokens = shlex.split(cmd)
+        tokens = self._get_tokens(cmd)
         # assign tokens (or abort if tokens' split gives [])
         try:
             name, args = tokens[0], tokens[1:]
-        except IndexError:  
+        except IndexError:
             return True
         # create a command instance (or abort if name not in self.commands) ;
         #  if command arguments should not be split, adapt args
         try:
             obj = self.commands[name]()
-            if not obj.splitargs:
-                _ = cmd[len(name):].strip()
-                args = (_, ) if len(_) > 0 else ()
         except KeyError:
             return True
         # now handle the command (and its validation if existing)
@@ -186,51 +277,71 @@ class Console(Entity, metaclass=MetaEntity):
                 obj.validate(*args)
             obj.run(*args)
             return True
+        except BdbQuit:  # when using pdb.set_trace()
+            return True
         except ConsoleDuplicate as e:
             # pass the higher console instance attached to the exception raised
             #  from within a command's .run() execution to console's .start(),
             #  keeping the current command to be reexecuted
-            raise ConsoleDuplicate(e.higher, cmd if e.cmd is None else e.cmd)
+            raise ConsoleDuplicate(e.current, e.higher,
+                                   cmd if e.cmd is None else e.cmd)
         except ConsoleExit:
             return False
         except Exception as e:
             self.logger.exception(e)
             return abort is False
+        finally:
+            gc.collect()
     
     def start(self):
         """ Start looping with console's session prompt. """
-        reexec, c = None, self.__class__.__name__
+        reexec = None
         self._reset_logname()
-        self.logger.debug("Starting {}[{}]".format(c, id(self)))
+        self.logger.debug("Starting {}[{}]".format(self.__class__.__name__,
+                                                   id(self)))
         while True:
             self._reset_logname()
             try:
                 _ = reexec if reexec is not None else \
-                    self.__session.prompt(auto_suggest=AutoSuggestFromHistory())
+                    self._session.prompt(auto_suggest=AutoSuggestFromHistory())
                 reexec = None
+                Console._recorder.save(_)
                 if not self.run(_):
                     break  # console run aborted
-                if Console._recorder.enabled:
-                    Console._recorder.save(_)
             except ConsoleDuplicate as e:
-                if self == e.higher:  # stop raising duplicate when reaching a
-                    reexec = e.cmd    #  console with a different level, then
-                    self.reset()      #  reset associated commands not to rerun
-                    continue          #  the erroneous command from the
-                                      #  just-exited console
-                self.logger.debug("Exiting {}[{}]".format(c, id(self)))
+                if self == e.higher:   # stop raising duplicate when reaching a
+                    reexec = e.cmd     #  console with a different level, then
+                    self.reset()       #  reset associated commands not to rerun
+                    e.current._close() #  the erroneous command from the
+                    continue           #  just-exited console
+                self._close()
                 raise e  # reraise up to the higher (level) console
             except EOFError:
+                Console._recorder.save("exit")
                 break
             except KeyboardInterrupt:
                 continue
-        self.logger.debug("Exiting {}[{}]".format(c, id(self)))
-        if self.parent is not None:
-            # rebind entities to the parent console
-            self.parent.reset()
-        else:
-            # gracefully close every DB in the pool
-            self._storage.free()
+        self._close()
+        return self
+
+    @property    
+    def issues(self):
+        """ List issues for the console, its bound commands and module. """
+        m = getattr(self, "module", None)
+        l = [self.__class__] + [] if m is None else [m]
+        l.extend(self.commands.values())
+        t = ""
+        for cls in l:
+            for cls, subcls, errors in cls.get_issues():
+                if value is None:
+                    t += "{}: {}\n- ".format(cls, subcls)
+                    t += "\n- ".join("[{}] {}".format(k, e) for k, err in \
+                                     errors.items() for e in err) + "\n"
+                else:
+                    for k, e in errors.items():
+                        if k == value:
+                            t += "- {}/{}: {}\n".format(cls, subcls, e)
+        return t + "\n"
     
     @property
     def logger(self):
@@ -267,8 +378,8 @@ class Console(Entity, metaclass=MetaEntity):
 
 class ConsoleDuplicate(Exception):
     """ Dedicated exception class for exiting a duplicate (sub)console. """
-    def __init__(self, higher, cmd=None):
-        self.cmd, self.higher = cmd, higher
+    def __init__(self, current, higher, cmd=None):
+        self.cmd, self.current, self.higher = cmd, current, higher
         super(ConsoleDuplicate, self).__init__("Another console of the same "
                                                "level is already running")
 
@@ -280,25 +391,34 @@ class ConsoleExit(Exception):
 
 class FrameworkConsole(Console):
     """ Framework console subclass for defining specific config options. """
-    aliases = []
-    config = Config({
+    _entity_class = Console
+    aliases       = []
+    config        = Config({
         Option(
             'APP_FOLDER',
-            "folder where application assets (i.e.  logs) are "
-            "saved",
+            "folder where application assets (i.e. logs) are saved",
             True,
+            callback=lambda o: move(o.old_value, o.value) \
+                               if o.old_value != o.value else None,
         ): "~/.{appname}",
         Option(
             'DEBUG',
             "debug mode",
             False,
-            callback=lambda o: o.config.console._set_logging(o.value)
+            bool,
+            callback=lambda o: o.config.console._set_logging(o.value),
         ): "false",
         Option(
             'WORKSPACE',
             "folder where results are saved",
-            True
+            True,
         ): "~/Notes",
+        Option(
+            'ENCRYPT_PROJECT',
+            "ask for a password to encrypt a project when archiving",
+            True,
+            bool,
+        ): "true",
     })
 
     def __init__(self, *args, **kwargs):
@@ -308,12 +428,12 @@ class FrameworkConsole(Console):
     @classmethod
     def _set_logging(cls, debug=False, to_file=True):
         """ Set a new logger with the input logging level. """
-        level = ["INFO", "DEBUG"][debug]
-        logfile = None
+        l, p = ["INFO", "DEBUG"][debug], None
         if to_file:
             # attach a logger to the console
-            logspath = Path(cls.config.option('APP_FOLDER').value)\
-                       .joinpath("logs")
-            logspath.mkdir(parents=True, exist_ok=True)
-            logfile = str(logspath.joinpath(cls.appname + ".log"))
-        Console.logger = get_logger(cls.name, logfile, level)
+            lpath = Path(cls.config.option('APP_FOLDER').value).joinpath("logs")
+            # at this point, 'config' is not bound yet ; so {appname} will not
+            #  be formatted in logfile
+            p = Path(str(lpath).format(appname=cls.appname), create=True)
+            p = str(p.joinpath("main.log"))
+        Console.logger = get_logger(cls.name, p, l)
