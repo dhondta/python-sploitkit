@@ -1,5 +1,4 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 import gc
 import re
 from inspect import getargspec
@@ -56,8 +55,10 @@ class MetaCommand(MetaEntity):
     def help(self, alias=None):
         """ Help message for the command, formatted as a row with its name and 
              description, with the alias instead of the name if defined. """
-        name = alias or self.name
-        return NameDescription(name, self.description, self.details)
+        self._alias = alias or self.name
+        h = self.get_info("_alias", "description", "comments")
+        delattr(self, "_alias")
+        return h
     
     @property
     def name(self):
@@ -76,13 +77,17 @@ class MetaCommand(MetaEntity):
 
 class Command(Entity, metaclass=MetaCommand):
     """ Main class handling console commands. """
-    aliases       = []
-    alias_only    = False
-    commands      = {}
-    level         = "general"
-    levels        = []
-    except_levels = []
-    splitargs     = True
+    # convention: mangled attributes should not be customized when subclassing
+    #              Command...
+    _functionalities = FUNCTIONALITIES
+    _levels          = []
+    # ... by opposition to public class attributes that can be tuned
+    aliases          = []
+    alias_only       = False
+    commands         = {}
+    level            = "general"
+    except_levels    = []
+    single_arg       = False
     
     @property
     def _nargs(self):
@@ -95,24 +100,40 @@ class Command(Entity, metaclass=MetaCommand):
     @property
     @failsafe
     def config(self):
-        """ Command console-bound config (shorcut). """
+        """ Shortcut to bound console's config instance. """
         return self.console.config
     
     @property
-    @failsafe
     def logger(self):
-        """ Command console-bound logger (shorcut). """
+        """ Shortcut to bound console's logger instance. """
         return self.console.logger
     
     @property
     @failsafe
-    def options(self):
-        """ Command console-bound options (shorcut). """
-        return self.console.config.keys()
+    def module(self):
+        """ Shortcut to bound console's module class. """
+        return self.console.module
+    
+    @property
+    def modules(self):
+        """ Shortcut to list of registered modules. """
+        return self.console.modules
+    
+    @property
+    def recorder(self):
+        """ Shortcut to global command recorder. """
+        return self.console.__class__._recorder
+    
+    @property
+    def workspace(self):
+        """ Shortcut to global command recorder. """
+        return Path(self.console.config.option("WORKSPACE").value)
 
     @classmethod
     def get_help(cls, *levels):
         """ Display commands' help(s), using its metaclass' properties. """
+        if len(levels) == 0:
+            levels = Command._levels
         if len(levels) == 2 and "general" in levels:
             # process a new dictionary of commands, handling levels in order (so
             #  that it resolves command name conflicts between levels by itself)
@@ -135,9 +156,9 @@ class Command(Entity, metaclass=MetaCommand):
         for l, cmds in sorted(levels.items(), key=lambda x: x[0]):
             if len(cmds) == 0:
                 continue
-            d = [["Name", "Description"]]
+            d = [["Command", "Description"]]
             for n, c in sorted(cmds.items(), key=lambda x: x[0]):
-                d.append([n, c.description])
+                d.append([n, getattr(c, "description", "")])
             t = BorderlessTable(d, "{} commands".format(l.capitalize()))
             s += t.table + "\n\n"
             i += 1
@@ -147,14 +168,16 @@ class Command(Entity, metaclass=MetaCommand):
     def register_command(cls, subcls):
         """ Register the command and its aliases in a dictionary according to
              its level. """
-        l = subcls.level
-        cls.commands.setdefault(l, {})
-        if l not in cls.levels:
-            cls.levels.append(l)
-        if not subcls.alias_only:
-            cls.commands[l][subcls.name] = subcls
-        for alias in subcls.aliases:
-            cls.commands[l][alias] = subcls
+        _ = subcls.level
+        levels = [_] if not isinstance(_, (list, tuple)) else _
+        for l in levels:
+            Command.commands.setdefault(l, {})
+            if l not in Command._levels:
+                Command._levels.append(l)
+            if not subcls.alias_only:
+                Command.commands[l][subcls.name] = subcls
+            for alias in subcls.aliases:
+                Command.commands[l][alias] = subcls
     
     @classmethod
     def set_style(cls, style):
@@ -167,13 +190,16 @@ class Command(Entity, metaclass=MetaCommand):
     def unregister_command(cls, subcls):
         """ Unregister a command class from the subclasses and the commands
              dictionary. """
-        l, n = subcls.level, subcls.name
+        _ = subcls.level
+        levels = [_] if not isinstance(_, (list, tuple)) else _
+        n = subcls.name
         # remove every reference in commands dictionary
-        for n in [n] + subcls.aliases:
-            try:
-                del Command.commands[l][n]
-            except KeyError:
-                pass
+        for l in levels:
+            for n in [n] + subcls.aliases:
+                try:
+                    del Command.commands[l][n]
+                except KeyError:
+                    pass
         # remove the subclass instance from the subclasses registry
         try:
             Command.subclasses.remove(subcls)
@@ -186,8 +212,9 @@ class Command(Entity, metaclass=MetaCommand):
             except KeyError:
                 pass
         # if the level of commands is become empty, remove it
-        if len(Command.commands[l]) == 0:
-            del Command.commands[l]
+        for l in levels:
+            if len(Command.commands[l]) == 0:
+                del Command.commands[l]
     
     @classmethod
     def unregister_commands(cls, *identifiers):
@@ -201,8 +228,8 @@ class Command(Entity, metaclass=MetaCommand):
                 f, n = _[0], None  # functionality
             # apply deletions
             if n is None:
-                if f not in FUNCTIONALITIES:
-                    raise ValueError("Non-existing functionality {}".format(f))
+                if f not in cls._functionalities:
+                    raise ValueError("Unknown functionality {}".format(f))
                 _ = "../base/commands/" + f + ".py"
                 _ = Path(__file__).parent.joinpath(_).resolve()
                 for c in PyModulePath(str(_)).get_classes(Command):
@@ -214,30 +241,26 @@ class Command(Entity, metaclass=MetaCommand):
                 except KeyError:
                     pass
     
-    def complete_options(self):
-        """ Default option completion method. """
-        if self._nargs[0] > 0:
-            return self.options or []
-        return []
+    def complete_keys(self):
+        """ Default option completion method.
+             (will be triggered if the number of run arguments is 2) """
+        return getattr(self, "keys", []) or \
+               list(getattr(self, "values", {}).keys())
     
     def complete_values(self, option=None):
         """ Default value completion method. """
-        if self._nargs[0] > 1:
-            try:
-                return self.values or []
-            except:
-                pass
+        if self._nargs[0] == 1:
+            if option is not None:
+                raise TypeError("complete_values() takes 1 positional argument "
+                                "but 2 were given")
+            return getattr(self, "values", [])
+        if self._nargs[0] == 2:
+            return getattr(self, "values", {}).get(option)
         return []
     
     def validate(self, *args):
         """ Default validation method. """
-        # first, check if the command has the splitargs flag, telling that the
-        #  arguments should not be split (e.g. in the case of 'shell' where
-        #  we don't want arguments to be parsed as they will be parsed by the OS
-        if not self.splitargs:
-            return
-        # then, start checking the signature and, if relevant, validating
-        #  options and arguments
+        # check for the signature and, if relevant, validating keys and values
         n_in = len(args)
         n, m = self._nargs
         if n_in < m or n_in > n:
@@ -245,10 +268,13 @@ class Command(Entity, metaclass=MetaCommand):
             raise TypeError("validate() takes %s positional argument%s but %d "
                             "were given" % (pargs, ["", "s"][n > 0], n_in))
         if n == 1:    # command format: COMMAND VALUE
-            if n_in == 1 and hasattr(self, "values"):
-                assert args[0] in self.values
+            l = self.complete_values()
+            if n_in == 1 and len(l) > 0 and args[0] not in l:
+                raise ValueError("invalid value")
         elif n == 2:  # command format: COMMAND OPTION VALUE
-            if n_in > 0 and self.options is not None:
-                assert args[0] in self.options
-            if n_in == 2 and hasattr(self, "values"):
-                assert args[1] in self.values
+            l = self.complete_keys()
+            if n_in > 0 and len(l) > 0 and args[0] not in l:
+                    raise ValueError("invalid key")
+            l = self.complete_values(args[0])
+            if n_in == 2 and len(l) > 0 and args[1] not in l:
+                raise ValueError("invalid value")
