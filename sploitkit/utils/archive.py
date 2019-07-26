@@ -1,16 +1,10 @@
 # -*- coding: utf8 -*-
-from __future__ import print_function
-"""
-Module for handling (un)encrypted archives using 7-zip (package '7z'). It
- provides functions for saving and loading such archives.
-"""
-
-import logging
 import os
 import shutil
-from os.path import isdir, join
-from subprocess import Popen, PIPE
+from os.path import abspath, dirname, isdir, join, relpath
+from pyminizip import *
 
+from .misc import catch_logger
 from .password import input_password
 
 
@@ -22,10 +16,10 @@ __all__ = [
 __author__ = "Alexandre D'Hondt"
 
 
-logger = logging.getLogger('root')
 LENGTH = (8, 64)
 
 
+@catch_logger
 def load_from_archive(src_arch, dst_path, pwd=None, ask=False, remove=False):
     """
     This function decompresses the given archive, eventually given a password.
@@ -37,19 +31,21 @@ def load_from_archive(src_arch, dst_path, pwd=None, ask=False, remove=False):
     :param remove:   remove after decompression
     """
     # handle password then decompress with 7-zip
-    pwd = input_password(silent=True, length=LENGTH) if ask else pwd
+    pwd = input_password(silent=True, length=LENGTH, logger=logger) \
+          if ask else pwd
     logger.debug("Loading {}archive".format(["encrypted ", ""][pwd is None]))
     logger.debug("> Decompressing '{}' to '{}'...".format(src_arch, dst_path))
-    cmd = ["7z", "x"] + [["-p{}".format(pwd)], []][pwd is None] + \
-          ["-o{}".format(dst_path), "-y", src_arch]
-    p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-    out, err = p.communicate()
-    if err.strip() != '':
-        logger.error(err)
-    elif remove:
-        os.remove(src_arch)
+    try:
+        uncompress(src_arch, pwd or "", dst_path, False)
+        if remove:
+            os.remove(src_arch)
+        return True
+    except Exception as e:
+        logger.error("Bad password" if "error -3" in str(e) else str(e))
+        return False
 
 
+@catch_logger
 def save_to_archive(src_path, dst_arch, pwd=None, ask=False, remove=False):
     """
     This function compresses the content of the given source path into the given
@@ -62,14 +58,20 @@ def save_to_archive(src_path, dst_arch, pwd=None, ask=False, remove=False):
     :param remove:   remove after compression
     """
     # handle password then compress with 7-zip
-    pwd = input_password(length=LENGTH) if ask else pwd
+    src = abspath(src_path)
+    pwd = input_password(length=LENGTH, logger=logger) if ask else pwd
     logger.debug("Saving {}archive".format(["encrypted ", ""][pwd is None]))
     logger.debug("> Compressing '{}' to '{}'...".format(src_path, dst_arch))
-    cmd = ["7z", "a"] + [["-p{}".format(pwd)], []][pwd is None] + \
-          ["-y", dst_arch, src_path]
-    p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-    out, err = p.communicate()
-    if err.strip() != '':
-        logger.error(err)
-    elif remove:
-        shutil.rmtree(src_path) if isdir(src_path) else os.remove(src_path)
+    src_list, dst_list = [], []
+    for root, dirs, files in os.walk(src):
+        for f in files:
+            src_list.append(join(root, f))
+            dst_list.append(relpath(root, dirname(src)))
+    try:
+        compress_multiple(src_list, dst_list, dst_arch, pwd or "", 9)
+        if remove:
+            shutil.rmtree(src_path) if isdir(src_path) else os.remove(src_path)
+        return True
+    except OSError as e:
+        logger.error(str(e))
+        return False
