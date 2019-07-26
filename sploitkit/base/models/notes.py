@@ -1,5 +1,5 @@
+# -*- coding: UTF-8 -*-
 from sploitkit import *
-
 from sploitkit.base.models.organization import Organization
 from sploitkit.base.models.systems import Host
 from sploitkit.base.models.users import User

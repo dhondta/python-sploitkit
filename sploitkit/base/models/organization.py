@@ -1,5 +1,5 @@
+# -*- coding: UTF-8 -*-
 from sploitkit import *
-
 from sploitkit.base.models.users import Email, User
 
 
