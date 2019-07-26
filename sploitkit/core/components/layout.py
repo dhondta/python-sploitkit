@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 
 __all__ = []

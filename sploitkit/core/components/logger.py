@@ -7,7 +7,7 @@ from termcolor import colored
 __all__ = ["check_log_level", "get_logger", "null_handler"]
 
 
-logging.SUCCESS = logging.INFO + 5
+logging.SUCCESS = logging.ERROR + 1
 DATE_FORMAT = "%m/%d/%y %H:%M:%S"
 LOGFILE_FORMAT = "%(asctime)s [%(process)5d] %(levelname)8s %(name)s - %(message)s"
 LOG_FORMAT = "%(levelsymbol)s %(message)s"
@@ -37,6 +37,10 @@ logger.setLevel(level=logging.WARNING)
 
 
 # add a custom log level for stepping
+def failure(self, message, *args, **kwargs):
+    if self.isEnabledFor(logging.ERROR):
+        self._log(logging.ERROR, message, args, **kwargs) 
+logging.Logger.failure = failure
 logging.addLevelName(logging.SUCCESS, "SUCCESS")
 def success(self, message, *args, **kwargs):
     if self.isEnabledFor(logging.SUCCESS):

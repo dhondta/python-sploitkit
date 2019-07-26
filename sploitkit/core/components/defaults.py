@@ -1,5 +1,4 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 
 ROOT_LEVEL = "root"  # console root level's name
 
@@ -13,9 +12,7 @@ SOURCES = {
 
 # dictionary of back-references to be made on entities
 BACK_REFERENCES = {
-    'commmand': [("", "console")],
-    'console':  [("config", "console")],
-    'module':   [("", "console")],
+    'console': [("config", "console")],
 }
 
 

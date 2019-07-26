@@ -1,5 +1,6 @@
 from .banner import *
 from .completer import *
+from .config import *
 from .defaults import *
 from .files import *
 from .layout import *
