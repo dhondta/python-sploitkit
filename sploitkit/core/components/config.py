@@ -1,8 +1,7 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 import re 
 
-from .path import Path
+from ...utils.path import Path
 
 
 __all__ = ["Config", "Option"]
@@ -17,11 +16,21 @@ class Config(dict):
         self.update(*args, **kwargs)
     
     def __getitem__(self, key):
+        """ Custom method for getting an item, returning the original value from
+             the current Config instance or, if the key does not exist and this
+             instance has a parent, try to get it from the parent. """
         if isinstance(key, Option):
             key = key.name
-        return self.__d[key][1]
+        try:
+            return self.__d[key][1]
+        except KeyError:
+            if hasattr(self, "console") and self.console.parent is not None:
+                return self.console.parent.config[key]
+            raise KeyError(key)
     
     def __setitem__(self, key, value):
+        """ Custom method for setting an item, keeping the original value in a
+             private dictionary. """
         if not isinstance(key, Option):
             if not isinstance(key, tuple):
                 key = (key, )
@@ -30,9 +39,12 @@ class Config(dict):
         key = key.bind(self)  # get an existing instance or the new one
         if tmp is not key: 
             del tmp  # if an instance already existed, remove the new one
+        # keep track of the previous value
+        key.old_value = key.value if self.__d.get(key.name) else None
+        # then assign the new one
+        self.__d[key.name] = (key, value)
         if not key.validate():
             raise ValueError("Invalid value")
-        self.__d[key.name] = (key, value)
         super(Config, self).__setitem__(key, value)
         try:
             self.option(key).callback()
@@ -46,18 +58,30 @@ class Config(dict):
 
     def items(self):
         """ Return (key, descr, value, required) instead of (key, value). """
-        return [(str(o.name), o.description or "", o.value, o.required) \
-                for o in sorted(self, key=lambda x: x.name)]
+        for o in sorted(self, key=lambda x: x.name):
+            yield str(o.name), o.description or "", o.value, o.required
 
     def keys(self):
         """ Return string keys (like original dict). """
-        return sorted(self.__d.keys())
+        for k in sorted(self.__d.keys()):
+            yield k
 
     def option(self, key):
         """ Return Option instance from key. """
         if isinstance(key, Option):
             key = key.name
-        return self.__d[key][0]
+        try:
+            return self.__d[key][0]
+        except KeyError:
+            if hasattr(self, "console") and self.console.parent is not None:
+                return self.console.parent.config.option(key)
+            raise KeyError(key)
+
+    def setdefault(self, key, value=None):
+        """ Custom method for forcing the use of the modified __setitem__. """
+        if key not in self:
+            self[key] = value
+        return self[key]
 
     def update(self, *args, **kwargs):
         """ Custom update method for handling update of another Config and
@@ -72,32 +96,34 @@ class Config(dict):
         for k, v in kwargs.items():
             self[k] = v
 
-    def setdefault(self, key, value=None):
-        """ Custom method for forcing the use of the modified __setitem__. """
-        if key not in self:
-            self[key] = value
-        return self[key]
-
 
 class Option(object):
     """ Class for handling an option with its parameters while using it as key
          for a Config dictionary. """
     _instances = {}
+    old_value  = None
     
     def __init__(self, name, description=None, required=False, choices=None,
                  transform=None, validate=None, callback=None):
         self.name = name
         self.description = description
         self.required = required
+        if choices is bool:
+            choices = ["true", "false"]
         self.choices = choices
         self.__set_func(transform, "transform")
         if validate is None and choices is not None:
-            validate = lambda x: x.value in x.choices
+            validate = lambda s: str(s.value).lower() in \
+                                 [str(_).lower() for _ in s.choices]
         self.__set_func(validate, "validate")
         self.__set_func(callback, "callback")
     
-    def __str__(self):
+    def __repr__(self):
         """ Custom representation method. """
+        return "<{}: {}>".format(self.name, self.value)
+    
+    def __str__(self):
+        """ Custom string method. """
         return "<{}: {}>".format(self.name, self.value)
     
     def __set_func(self, func, name):
@@ -127,14 +153,19 @@ class Option(object):
                       self.transform, self.validate, self.callback)
     
     @property
-    def value(self):
-        """ Normalized value attribute. """
+    def input(self):
+        """ Original input value. """
         if hasattr(self, "config"):
-            value = self.config[self]
-            if self.required and value is None:
-                raise ValueError("{} must be defined" .format(self.name))
+            return self.config[self]
         else:
             raise Exception("Unbound option {}" .format(self.name))
+    
+    @property
+    def value(self):
+        """ Normalized value attribute. """
+        value = self.input
+        if self.required and value is None:
+            raise ValueError("{} must be defined" .format(self.name))
         try:
             # try to expand format variables using console's attributes
             kw = {}
@@ -149,8 +180,7 @@ class Option(object):
         # expand and resolve paths
         if self.name.endswith("FOLDER") or self.name.endswith("WORKSPACE"):
             # this will ensure that every path is expanded
-            p = Path(value, create=True, expand=True)
-            value = str(p)
+            value = str(Path(value, expand=True))
         # convert common formats to their basic types
         try:
             if value.isdigit():
