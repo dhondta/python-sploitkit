@@ -1,5 +1,4 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 from inspect import isclass
 
 from .path import Path
@@ -10,6 +9,12 @@ __all__ = ["ClassRegistry", "PathBasedDict"]
 
 class ClassRegistry(dict):
     """ Custom dictionary class using class-based keys and list values. """
+    def __iter__(self):
+        """ Iter over subclasses of every registered class. """
+        for l in self.values():
+            for subcls in l:
+                yield subcls
+    
     def key(self, name):
         """ Get class-based key from its name. """
         for k in self.keys():

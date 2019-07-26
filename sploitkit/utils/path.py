@@ -1,5 +1,4 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 import os
 import random
 import shutil
@@ -22,16 +21,21 @@ class Path(BasePath):
     def __new__(cls, *args, **kwargs):
         if kwargs.pop("expand", False):
             _ = expanduser(str(BasePath(*args, **kwargs)))
-            p = BasePath(_, **kwargs).resolve()
-            if kwargs.pop("create", False):
-                p.mkdir(parents=True, exist_ok=True)
-            args = (str(p), )
+            p = BasePath(_, *args[1:], **kwargs).resolve()
+            args = (str(p), ) + args[1:]
+        if kwargs.pop("create", False):
+            BasePath(*args, **kwargs).mkdir(parents=True, exist_ok=True)
         return super(Path, cls).__new__(cls, *args, **kwargs)
     
     @property
     def child(self):
         """ Get the child path relative to self's one. """
         return Path(*self.parts[1:])
+    
+    @property
+    def filename(self):
+        """ Get the file name, without the complete path. """
+        return self.stem + self.suffix
     
     @property
     def size(self):

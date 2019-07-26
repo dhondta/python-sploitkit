@@ -1,12 +1,9 @@
-from __future__ import unicode_literals, print_function
-
-from six import u
+# -*- coding: UTF-8 -*-
 from terminaltables import AsciiTable
-from terminaltables.terminal_io import terminal_size
 from textwrap import wrap
 
 
-__all__ = ["BorderlessTable", "NameDescription", "Synopsis"]
+__all__ = ["BorderlessTable", "NameDescription"]
 
 
 class NoBorder(AsciiTable):
@@ -19,7 +16,7 @@ class NoBorder(AsciiTable):
 
     def __str__(self):
         t = self.table
-        return u("\n" + t + "\n") if len(t) > 0 else ""
+        return "\n" + t + "\n" if len(t) > 0 else ""
 
 
 class BorderlessTable(NoBorder):
@@ -41,10 +38,13 @@ class BorderlessTable(NoBorder):
         # wrap the text of the last column
         max_w = self.column_max_width(-1)
         for row in self.table_data:
-            row[-1] = '\n'.join(wrap(row[-1], max_w))
+            row[-1] = "\n".join(wrap(row[-1], max_w))
         # configure the title
         self.title_ = title  # define another title to format it differently
         self.title_ul_char = title_ul_char
+    
+    def __str__(self):
+        return self.table
     
     @property
     def table(self):
@@ -53,7 +53,7 @@ class BorderlessTable(NoBorder):
         t = self.title_
         s = ("{}\n{}\n".format(t, len(t) * self.title_ul_char) \
              if t is not None else "") + "\n{}\n"
-        return u(s.format(super(BorderlessTable, self).table))
+        return s.format(super(BorderlessTable, self).table)
 
 
 class NameDescription(NoBorder):
@@ -68,17 +68,11 @@ class NameDescription(NoBorder):
                                                 n, ""]])
         # now wrap the text of the last column
         max_w = self.column_max_width(-1)
-        self.table_data[0][2] = '\n'.join(wrap(descr, max_w))
+        self.table_data[0][2] = "\n".join(wrap(descr, max_w))
         self._details = details
     
     def __str__(self):
         _ = super(NameDescription, self).__str__()
         if self._details:
-            _ += u(str(NameDescription(" ", self._details,
-                                       nwidth=self.indent - 2)))
+            _ += str(NameDescription(" ", self._details, nwidth=self.indent-2))
         return _
-
-
-class Synopsis(object):
-    def __init__(self, text):
-        pass #terminal_size

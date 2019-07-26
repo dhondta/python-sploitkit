@@ -1,5 +1,4 @@
 # -*- coding: utf8 -*-
-from __future__ import print_function
 """
 Module for input of a password compliant with a simple password policy.
 
@@ -18,6 +17,8 @@ import logging
 import string
 from getpass import getpass
 
+from .misc import catch_logger
+
 
 __all__ = [
     'input_password',
@@ -26,9 +27,7 @@ __all__ = [
 __author__ = "Alexandre D'Hondt"
 
 
-logger = logging.getLogger('root')
-
-
+@catch_logger
 def input_password(silent=False, bypass=False, length=(8, 40),
                    bad=["/usr/local/share/john/password.lst",
                         "/usr/share/john/password.lst",
@@ -46,13 +45,17 @@ def input_password(silent=False, bypass=False, length=(8, 40),
     :return:       policy-compliant password
     """
     pwd, error = None, False
+    if bypass:
+        return
     while pwd is None:
         logger.debug("Special conjunction characters are stripped")
-        pwd = getpass("Please enter the password: ").strip()
-        if bypass:
+        try:
+            pwd = getpass("Please enter the password: ").strip()
+        except KeyboardInterrupt:
+            print("")
             break
         # check for undesired characters
-        BAD_CHARS = " \n\t"
+        BAD_CHARS = " \n\t\"\'"
         if any(c in pwd for c in BAD_CHARS):
             if not silent:
                 logger.error("Please do not use the following characters [{}]"
