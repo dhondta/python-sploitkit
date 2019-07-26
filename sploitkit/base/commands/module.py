@@ -1,5 +1,4 @@
-from __future__ import unicode_literals
-
+# -*- coding: UTF-8 -*-
 from sploitkit import *
 
 
@@ -19,13 +18,11 @@ class ModuleConsole(Console):
         'module': "#ff0000",
     }
     
-    def __init__(self, parent, fullpath):
-        self.path = fullpath
-        self.module = parent.modules.rget(fullpath)
-        self.logname = fullpath
+    def __init__(self, parent, module):
+        self.attach(module, True)
+        self.logname = module.fullpath
         self.message[1] = ('class:prompt', self.module.category)
         self.message[3] = ('class:module', self.module.base)
-        self.config.copy(parent.config, 'WORKSPACE')
         super(ModuleConsole, self).__init__(parent)
 
 
@@ -36,16 +33,11 @@ class Use(Command):
         return Module.get_list()
     
     def run(self, module):
-        fullpath = Module.get_modules(module).fullpath
-        cmodule = getattr(self.console, "module", None)
+        new_mod, old_mod = Module.get_modules(module), self.module
         # avoid starting a new subconsole for the same module
-        if cmodule is not None and cmodule.fullpath == fullpath:
+        if old_mod is not None and old_mod.fullpath == new_mod.fullpath:
             return
-        ModuleConsole(self.console, fullpath).start()
-    
-    def validate(self, value):
-        if value not in self.complete_values():
-            raise ValueError("'{}' does not exist".format(value))
+        ModuleConsole(self.console, new_mod).start()
 
 
 # ----------------------------- MODULE-LEVEL COMMANDS --------------------------
@@ -57,60 +49,40 @@ class ModuleCommand(Command):
 class Run(ModuleCommand):
     """ Run module """
     def run(self):
-        self.console.module().run()
+        if self.module.check():
+            self.module().run()
 
 
 class Show(ModuleCommand):
     """ Show module-relevant information or options """
-    options = ["info", "options"]
+    keys = ["info", "options"]
     
-    def complete_options(self):
-        return self.options
+    def __init__(self):
+        if self.module and len(list(self.module.issues)) > 0:
+            self.keys = self.keys + ["issues"]
     
-    def complete_values(self, option):
-        if option == "options":
+    def complete_values(self, key):
+        if key == "options":
             return self.config.keys()
+        elif key == "issues":
+            l = []
+            for attr in ["console", "module"]:
+                for cls, subcls, errors in getattr(self, attr).get_issues():
+                    l.extend(errors.keys())
+            return l
     
-    def run(self, option, value=None):
-        if option == "options" and value is None:
-            data = [["Option", "Value"]]
-            for k, v in sorted(self.config.items(), key=lambda x: x[0]):
-                data.append([k, v])
+    def run(self, key, value=None):
+        if key == "options":
+            data = [["Name", "Value", "Required", "Description"]]
+            for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
+                if value is None or n == value:
+                    data.append([n, v, ["N", "Y"][r], d])
             print_formatted_text(BorderlessTable(data, "Console options"))
-        elif option == "options":
-            print_formatted_text(NameDescription(option, self.config[option]))
-        elif option == "info":
-            i = self.console.module.info
+        elif key == "info":
+            i = self.console.module.get_info(("fullpath|path", "description"),
+                                             ("author", "version", "comments"),
+                                             ("options", ), show_all=True)
             if len(i.strip()) != "":
                 print_formatted_text(i)
-    
-    def validate(self, option, value=None):
-        if option not in self.options:
-            raise ValueError("'{}' not in options".format(option))
-        elif value is not None and option == "options" and \
-            value not in self.config.keys():
-            raise ValueError("'{}' not in options".format(value))
-
-
-"""
- Name: HackerTarget Lookup
- Path: modules/recon/domains-hosts/hackertarget.py
- Author: Michael Henriksen (@michenriksen)
-
-Description:
- Uses the HackerTarget.com API to find host names. Updates the 'hosts' table with the results.
-
-Options:
- Name Current Value Required Description
- ------ ------------- -------- -----------
- SOURCE default yes source of input (see 'show info' for details)
-
-Source Options:
-  default        SELECT DISTINCT domain FROM domains WHERE domain IS NOT NULL
-  <string>       string representing a single input
-  <path>         path to a file containing a list of inputs
-  query <sql>    database query returning one column of inputs
-
-Comments:
-  * [...]
-"""
+        elif key == "issues":
+            print_formatted_text(self.console.issues)

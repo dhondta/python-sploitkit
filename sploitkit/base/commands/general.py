@@ -1,12 +1,10 @@
-from __future__ import unicode_literals, print_function
-
+# -*- coding: UTF-8 -*-
 import shlex
 from sploitkit import *
 from subprocess import call
 
 
-projects = lambda c: [x.stem for x in Path(c.console.config['WORKSPACE'])\
-                      .expanduser().iterpubdir()]
+projects = lambda cmd: [x.filename for x in cmd.workspace.iterpubdir()]
 
 
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
@@ -63,33 +61,42 @@ class Search(Command):
 
 
 class Show(Command):
-    """ Show options, projects or modules """
+    """ Show options, projects, modules or issues (if any) """
     level = "root"
-    options = ["modules", "options", "projects"]
+    keys = ["modules", "options", "projects"]
     
-    def complete_values(self, option):
-        if option == "modules":
+    def __init__(self):
+        if len(list(Console.issues)) > 0:
+            self.keys = self.keys + ["issues"]
+    
+    def complete_values(self, key):
+        if key == "modules":
             return [m for m in self.console.modules.keys() \
                     if getattr(m, "enabled", True)]
-        elif option == "options":
+        elif key == "options":
             return self.config.keys()
-        elif option == "projects":
+        elif key == "projects":
             return projects(self)
+        elif key == "issues":
+            l = []
+            for cls, subcls, errors in Console.issues:
+                l.extend(errors.keys())
+            return l
     
-    def run(self, option, value=None):
-        if option == "modules":
+    def run(self, key, value=None):
+        if key == "modules":
             h = Module.get_help(value)
             if h.strip() != "":
                 print_formatted_text(h)
             else:
                 self.logger.warning("No module loaded")
-        elif option == "options":
+        elif key == "options":
             data = [["Name", "Value", "Required", "Description"]]
             for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
                 if value is None or n == value:
                     data.append([n, v, ["N", "Y"][r], d])
             print_formatted_text(BorderlessTable(data, "Console options"))
-        elif option == "projects":
+        elif key == "projects":
             if value is None:
                 data = [["Name"]]
                 for p in projects(self):
@@ -97,32 +104,66 @@ class Show(Command):
                 print_formatted_text(BorderlessTable(data, "Existing projects"))
             else:
                 print_formatted_text(value)
+        elif key == "issues":
+            m = lambda k, e: "'{}' {}".format(e, 
+                ["not found", "{} package is not installed".format(k)]\
+                    [k in ["system", "python"]])
+            for cls, subcls, errors in Console.issues:
+                if value is None:
+                    t = "{}: {}\n- ".format(cls, subcls)
+                    t += "\n- ".join(m(k, e) for k, err in errors.items() \
+                                             for e in err) + "\n"
+                else:
+                    t = ""
+                    for k, e in errors.items():
+                        if k == value:
+                            t += "- {}/{}: {}".format(cls, subcls, e)
+                print_formatted_text(t)
 
 
 # ---------------------------- OPTIONS-RELATED COMMANDS ------------------------
 class Set(Command):
     """ Set an option in the current context """
-    def complete_values(self, option):
-        if option.upper() == "WORKSPACE":
+    def complete_keys(self):
+        return list(self.console.config.keys())
+    
+    def complete_values(self, key):
+        if key.upper() == "WORKSPACE":
             return [str(x) for x in Path(".").home().iterpubdir()]
+        return self.config.option(key).choices or []
     
-    def run(self, option, value):
-        self.config[option] = value
-        print_formatted_text("{} => {}".format(option,
-                             self.config.option(option).value))
+    def run(self, key, value):
+        self.config[key] = value
+        print_formatted_text("{} => {}".format(key,
+                             self.config.option(key).value))
     
-    def validate(self, option, value):
-        assert option in self.config.keys(), "Invalid option"
-        r = self.config.option(option).required
-        assert not r or (r and value is not None), "A value is required"
+    def validate(self, key, value):
+        if key not in self.config.keys():
+            raise ValueError("invalid key")
+        r = self.config.option(key).required
+        if r and value is None:
+            raise ValueError("a value is required")
 
 
 class Unset(Command):
     """ Unset an option from the current context """
-    def run(self, option):
-        self.config[option] = None
-        self.logger.debug("Unset {}".format(option))
+    def complete_keys(self):
+        return list(self.console.config.keys())
     
-    def validate(self, option, value):
-        r = self.config.option(option).required
-        assert not r or (r and value is not None), "A value is required"
+    def run(self, key):
+        self.config[key] = None
+        self.logger.debug("{} => null".format(key))
+    
+    def validate(self, key):
+        if key not in self.config.keys():
+            raise ValueError("invalid key")
+        r = self.config.option(key).required
+        if r and value is None:
+            raise ValueError("a value is required")
+
+
+class Test(Command):
+    level = "module"
+    def run(self):
+        print(self.module.name)
+        print(self.module.description)

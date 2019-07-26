@@ -1,43 +1,33 @@
-from __future__ import unicode_literals, print_function
-
+# -*- coding: UTF-8 -*-
 import shlex
 from sploitkit import *
-from sploitkit.utils.objects import BorderlessTable, NameDescription, Synopsis
 
 
 # ----------------------- GENERAL-PURPOSE ROOT-LEVEL COMMANDS ------------------
 class Help(Command):
     """ Display help (commands or individual command/module) """
     level = "root"
-    options = ["command", "module"]
+    keys  = ["command"]
     
     def __init__(self):
-        if len(Console.parent.modules) > 0:
-            self.options = self.options + ["module"]
+        if len(Module.modules) > 0 and "module" not in self.keys:
+            self.keys += ["module"]
     
-    def complete_options(self):
-        return self.options
-    
-    def complete_values(self, option):
-        if option == "command":
-            return Console.parent.commands.keys()
-        elif option == "module":
+    def complete_values(self, key):
+        if key == "command":
+            return self.console.commands.keys()
+        elif key == "module":
             return sorted([x.fullpath for x in Module.subclasses])
     
-    def run(self, option=None, value=None):
-        if option is None:
-            print_formatted_text(Command.get_help(*self.levels))
-        elif option == "command":
-            print_formatted_text(Console.parent.commands[value].help(value))
-        elif option == "module":
-            print_formatted_text(Console.parent.modules.rget(value).help)
+    def run(self, key=None, value=None):
+        if key is None:
+            print_formatted_text(Command.get_help())
+        elif key == "command":
+            print_formatted_text(self.console.commands[value].help(value))
+        elif key == "module":
+            print_formatted_text(self.modules.rget(value).help)
     
-    def validate(self, option=None, value=None):
-        assert option is None or option in self.options, \
-            "Please enter help [{}] ...".format('|'.join(self.options))
-        if option == "command":
-            assert value in Console.parent.commands.keys(), \
-                "Please enter a valid command"
-        elif option == "module":
-            assert value in [x.fullpath for x in Module.subclasses], \
-                "Please enter a valid module"
+    def validate(self, key=None, value=None):
+        if key is None and value is None:
+            return
+        super(Help, self).validate(key, value)
