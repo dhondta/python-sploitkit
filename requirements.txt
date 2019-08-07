@@ -2,4 +2,7 @@ ipaddress
 pathlib
 peewee
 prompt_toolkit
+pyminizip
+pypager
+pyvim
 termcolor
