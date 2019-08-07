@@ -15,7 +15,6 @@ with open(join(currdir, 'README.md')) as f:
 requirements = parse_requirements("requirements.txt", session=False)
 setup(
   name = "sploitkit",
-  packages = find_packages(),
   author = "Alexandre D\'Hondt",
   author_email = "alexandre.dhondt@gmail.com",
   version = "0.1.2",
@@ -24,7 +23,11 @@ setup(
   description = "A toolkit for easilly building Metasploit-like consoles with "
                 "project management relying on prompt_toolkit",
   long_description=long_descr,
-  long_description_content_type='text/markdown',
+  long_description_content_type="text/markdown",
+  packages = find_packages(),
+  package_data={"asciiart": ["./fonts.txt"]},
+  include_package_data=True,
+  scripts = ["sploitkit-new"],
   keywords = ["CLI", "tool"],
   classifiers = [
     'Development Status :: 3 - Alpha',
