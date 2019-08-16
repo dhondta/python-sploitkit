@@ -93,7 +93,7 @@ class Select(ProjectRootCommand):
     def run(self, project):
         p = self.workspace.joinpath(project)
         loader = Load()
-        if project in loader.complete_values() and user_input("An archive "
+        if project in loader.complete_values() and confirm("An archive "
             "exists with this name ; load the archive instead ?"):
             loader.run(project)
         if not p.exists():
@@ -110,5 +110,5 @@ class Show(Command):
     values = ["options"]
     
     def run(self, value):
-        print_formatted_text(BorderlessTable(self.console.options,
+        print_formatted_text(BorderlessTable(self.console.__class__.options,
                                              "Console options"))

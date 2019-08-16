@@ -34,7 +34,7 @@ class Help(Command):
 
 class Search(Command):
     """ Search for text in modules """
-    splitargs = False
+    single_arg = True
     
     def run(self, text):
         keywords = shlex.split(text)
@@ -46,18 +46,17 @@ class Search(Command):
                         d = [["Name", "Path", "Description"]]
                         d.append([m.name, m.path, m.description])
                         t = BorderlessTable(d, "Matching modules")
-                        print("")
+                        print_formatted_text("")
                     else:
                         d = [[m.name, m.path, m.description]]
                         t = BorderlessTable(d)
-                    print(t.table)
+                    print_formatted_text(t.table)
                     i += 1
         if i == 0:
             self.logger.error("No match found")
         else:
             self.logger.debug("{} matching entr{}"
                               .format(i, ["y", "ies"][i > 1]))
-            print("")
 
 
 class Show(Command):
@@ -134,8 +133,8 @@ class Set(Command):
     
     def run(self, key, value):
         self.config[key] = value
-        print_formatted_text("{} => {}".format(key,
-                             self.config.option(key).value))
+        self.logger.success("{} => {}".format(key,
+                                              self.config.option(key).value))
     
     def validate(self, key, value):
         if key not in self.config.keys():
@@ -160,10 +159,3 @@ class Unset(Command):
         r = self.config.option(key).required
         if r and value is None:
             raise ValueError("a value is required")
-
-
-class Test(Command):
-    level = "module"
-    def run(self):
-        print(self.module.name)
-        print(self.module.description)

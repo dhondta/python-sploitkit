@@ -8,10 +8,51 @@ from sploitkit import *
 
 
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
+class Edit(Command):
+    """ Edit a file with PyVim """
+    requirements = {
+        'config': {'DEBUG': True},
+        'python': ["pyvim"],
+    }
+    single_arg   = True
+    
+    def complete_values(self):
+        f = Path(self.config.option("WORKSPACE").value).iterfiles()
+        return list(map(lambda p: str(p), f))
+    
+    def run(self, filename):
+        f = Path(self.config.option("WORKSPACE").value).joinpath(filename)
+        edit_file(str(f))
+
+
+class History(Command):
+    """ Inspect commands history """
+    requirements = {
+        'config': {'DEBUG': True},
+        'python': ["pypager"],
+    }
+    
+    def run(self):
+        h = Path(self.config.option("WORKSPACE").value).joinpath("history")
+        page_file(str(h))
+
+
+class Logs(Command):
+    """ Inspect console logs """
+    requirements = {
+        'config': {'DEBUG': True},
+        'python': ["pypager"],
+    }
+    
+    def run(self):
+        page_file(self.logger.__logfile__)
+
+
 class Memory(Command):
     """ Inspect memory consumption """
     keys         = ["graph", "growth", "info", "leaking", "objects", "refs"]
     requirements = {
+        'config': {'DEBUG': True},
         'python': ["objgraph", "psutil", "xdot"],
         'system': ["xdot"],
     }
@@ -36,17 +77,17 @@ class Memory(Command):
         elif key == "info":
             from psutil import Process
             p = Process(os.getpid())
-            print(p.memory_info())
+            print_formatted_text(p.memory_info())
         elif key == "leaking":
             from objgraph import get_leaking_objects
-            print(get_leaking_objects())
+            print_formatted_text(get_leaking_objects())
         elif key == "objects":
             for o in get_objects():
                 if isinstance(o, (Console, Module)):
-                    print(o)
+                    print_formatted_text(o)
         elif key == "refs":
             if value is not None:
-                print(getrefcount(obj), ":", get_referrers(obj))
+                print_formatted_text(getrefcount(obj), ":", get_referrers(obj))
     
     def validate(self, key, value=None):
         if key in ["graph", "refs"]:
@@ -58,7 +99,10 @@ class Memory(Command):
 
 class Pydbg(Command):
     """ Start a Python debugger session """
-    requirements = {'python': ["pdb"]}
+    requirements = {
+        'config': {'DEBUG': True},
+        'python': ["pdb"],
+    }
 
     def run(self):
         import pdb
@@ -67,7 +111,7 @@ class Pydbg(Command):
 
 class Shell(Command):
     """ Execute a shell command """
-    splitargs = False
+    single_arg = True
     
     def complete_values(self):
         l = []
@@ -84,6 +128,22 @@ class Shell(Command):
         return l
         
     def run(self, cmd=None):
-        from subprocess import call
-        call("/bin/bash" if cmd is None else cmd, shell=True)
-        print("")
+        if cmd is None:
+            from pty import spawn
+            spawn("/bin/bash")
+        else:
+            from subprocess import call
+            call(cmd, shell=True)
+        print_formatted_text("")
+
+
+class Stats(Command):
+    """ Display console's statistics """
+    def run(self):
+        d = [["Item", "Path", "Size"]]
+        _ = self.console.app_folder
+        d.append(["APP_FOLDER", str(_), human_readable_size(_.size)])
+        _ = self.workspace
+        d.append(["WORKSPACE", str(_), human_readable_size(_.size)])
+        t = BorderlessTable(d, "Statistics")
+        print_formatted_text("\n" + t.table + "\n")
