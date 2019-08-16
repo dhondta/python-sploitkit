@@ -33,14 +33,19 @@ class ClassRegistry(dict):
 
 class PathBasedDict(dict):
     """ Enhanced dictionary class. """
-    def rcount(self, path=None, **kwargs):
+    def count(self, path=None, **kwargs):
         """ Count the number of leaf values under the given path of keys. """
         def _rcount(d=self, a=0):
-            for k, v in d.items():
-                a += (1 if len(kwargs) == 0 or \
-                      all(getattr(v, attr, value) == value \
-                      for attr, value in kwargs.items()) else 0) \
-                     if not isinstance(v, dict) else _rcount(v)
+            if isinstance(d, dict):
+                for k, v in d.items():
+                    a += _rcount(v)
+            else:
+                # when not a dict, we are at a leaf of the object tree, kwargs
+                #  is then used as a set of criteria to be matched to include
+                #  the object in the count
+                a += 1 if len(kwargs) == 0 or \
+                          all(getattr(d, attr, value) == value \
+                          for attr, value in kwargs.items()) else 0
             return a
         return _rcount(self.rget(path))
 
