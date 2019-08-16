@@ -8,7 +8,7 @@ from pkgutil import ImpImporter
 from pygments.lexers import PythonLexer
 
 
-__all__ = ["Path", "PyFolderPath", "PyModulePath", "RandPath"]
+__all__ = ["Path", "PyFolderPath", "PyModulePath"]
 
 
 lexer = PythonLexer()
@@ -43,10 +43,13 @@ class Path(BasePath):
         if self.is_file() or self.is_symlink():
             return self.stat().st_size
         elif self.is_dir():
-            s = 0
-            for f in self.glob("**/*"):
-                s += os.stat(str(f)).st_size
+            s = 4096  # include the size of the directory itself
+            for root, dirs, files in os.walk(str(self)):
+                s += 4096 * len(dirs)
+                for f in files:
+                    s += os.stat(str(Path(root).joinpath(f))).st_size
             return s
+        raise AttributeError("object 'Path' has no attribute 'size'")
     
     def append_bytes(self, text):
         """ Allows to append bytes to the file, as only write_bytes is available
@@ -69,9 +72,25 @@ class Path(BasePath):
         with open(str(self), 'a') as f:
             f.write(text)
     
+    def choice(self, *filetypes):
+        """ Return a random file from the current directory. """
+        filetypes = list(filetypes)
+        while len(filetypes) > 0:
+            filetype = random.choice(filetypes)
+            filetypes.remove(filetype)
+            l = list(self.iterfiles(filetype, filename_only=True))
+            try:
+                return self.joinpath(random.choice(l))
+            except:
+                continue
+    
     def expanduser(self):
         """ Fixed expanduser() method, working for both Python 2 and 3. """
         return Path(expanduser(str(self)))
+    
+    def generate(self, length=8, alphabet="0123456789abcdef"):
+        """ Generate a random folder name. """
+        return self.joinpath("".join(choice(alphabet) for i in range(length)))
     
     def iterpubdir(self):
         """ List all public subdirectories from the current directory. """
@@ -79,12 +98,12 @@ class Path(BasePath):
             if i.is_dir() and not i.stem.startswith("."):
                 yield i
     
-    def iterfiles(self, filetype=None):
+    def iterfiles(self, filetype=None, filename_only=False):
         """ List all files from the current directory. """
         for i in self.iterdir():
             if i.is_file():
                 if filetype is None or i.suffix == filetype:
-                    yield i
+                    yield i.filename if filename_only else i
     
     def read_text(self):
         """ Fix to non-existing method in Python 2. """
@@ -118,37 +137,23 @@ class Path(BasePath):
                 f.write(text)
 
 
-class RandPath(Path):
-    """ Extension for choosing a random file amongst the current folder. """
-    def choice(self, filetype=None):
-        """ Return a random file from the current directory. """
-        try:
-            return self.joinpath(random.choice(list(self.iterfiles(filetype))))
-        except:
-            return
-    
-    def generate(self, length=8, alphabet="0123456789abcdef"):
-        """ Generate a random folder name. """
-        return self.joinpath("".join(choice(alphabet) for i in range(length)))
-
-
 class PyFolderPath(Path):
-    """ Extension for handling a Python module and loading all subclasses of a
-         given class from this module. """
+    """ Path extension for handling the dynamic import of every Python module
+         inside the given folder. """
     def __init__(self, path):
         super(PyFolderPath, self).__init__()
         self.modules = []
         if self.is_dir():
-            for d in self.glob("**/*.py"):
-                if d.is_file():
-                    p = PyModulePath(d)
-                    if p.is_pymodule:
-                        self.modules.append(p.module)
+            for root, dirs, files in os.walk(path):
+                for f in files:
+                    if f.endswith(".py"):
+                        p = PyModulePath(Path(root).joinpath(f))
+                        if p.is_pymodule:
+                            self.modules.append(p.module)
 
 
 class PyModulePath(Path):
-    """ Extension for handling a Python module and loading all subclasses of a
-         given class from this module. """
+    """ Path extension for handling the dynamic import of a Python module. """
     def __init__(self, path):
         super(PyModulePath, self).__init__()
         self.is_pymodule = self.is_file() and \
