@@ -1,0 +1,19 @@
+site_name: "SploitKit - Toolkit for building Metasploit-like consoles"
+repo_url: https://github.com/dhondta/sploitkit
+site_author: dhondta
+docs_dir: docs
+pages:
+  - Introduction: index.md
+  - 'Real-life examples':
+    - 'DroneSploit': examples/dronesploit.md
+extra:
+  mailto: alexandre.dhondt@gmail.com
+theme: readthedocs
+extra_javascript:
+  - js/collapsible-navbar.js
+use_directory_urls: false
+markdown_extensions:
+  - admonition
+  - codehilite:
+      linenums: true
+  - pymdownx.details

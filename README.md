@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
 And you can run it from the terminal:
 
-![](img/my-sploit-start.png)
+![](docs/img/my-sploit-start.png)
 
 ### Base features
 
