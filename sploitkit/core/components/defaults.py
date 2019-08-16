@@ -6,7 +6,7 @@ ROOT_LEVEL = "root"  # console root level's name
 # list of folders from which related items are to be loaded
 SOURCES = {
     'banners':  None,
-    'entities': ["commands", "modules"],
+    'entities': ["commands", "models", "modules"],
 }
 
 

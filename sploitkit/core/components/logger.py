@@ -82,11 +82,15 @@ def get_logger(name, logfile=None, level="INFO"):
         ch.setLevel(level)
         logger.addHandler(ch)
         if logfile is not None:
+            logger.__logfile__ = logfile
             # setup a FileHandler for logging to a file (at level DEBUG)
             fh = RotatingFileHandler(logfile)
-            fh.setFormatter(logging.Formatter(LOGFILE_FORMAT, datefmt=DATE_FORMAT))
+            fh.setFormatter(logging.Formatter(LOGFILE_FORMAT,
+                                              datefmt=DATE_FORMAT))
             fh.setLevel(logging.DEBUG)
             logger.addHandler(fh)
+        else:
+            logger.__logfile__ = None
     else:
         for h in logger.handlers:
             h.setLevel(level)

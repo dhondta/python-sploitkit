@@ -3,7 +3,8 @@ import csv
 import random
 import string
 import termcolor
-from collections import OrderedDict
+from collections import Counter, OrderedDict
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 from termcolor import colored
 from terminaltables.terminal_io import terminal_size as termsize
 from textwrap import wrap
@@ -14,8 +15,9 @@ try:
 except ImportError:
     _color_enabled = False
 
+from ...utils.asciiart import *
 from ...utils.misc import failsafe
-from ...utils.path import Path, RandPath
+from ...utils.path import Path
 
 
 __all__ = ["center", "get_banner", "get_quote"]
@@ -27,42 +29,40 @@ termcolor.ATTRIBUTES['strikethrough'] = 9
 center = lambda t: "\n".join(l.center(termsize()[0]) for l in t.split("\n"))
 
 
-class Banner(object):
-    """ Banner representation. """
-    def __init__(self, text, colorize=()):
-        if not all(c in string.printable for c in text):
-            raise ValueError("Invalid banner")
-        self.__sections = s = OrderedDict()
-        self.__colorize = colorize
-        section = "main"
-        for l in text.split("\n"):
-            s.setdefault(section, "")
-            if l.startswith(".section: "):
-                section = l.split(":", 1)[1].strip()
-            else:
-                s[section] += l.center(termsize()[0])
-
-    def __str__(self):
-        t = ""
-        for k, v in self.__sections.items():
-            if _color_enabled and k in self.__colorize:
-                v = "".join(random.choice(COLORS) + c for c in v)
-            t += v + "\x1b[37m"
-        return t
-
-
-@failsafe
-def get_banner(folder, colorize=()):
+#@failsafe
+def get_banner(text=None, folder=None, secstyles={}):
     """
-    Get a random file from the given folder and, if it only consists of
-     printable characters, consider it as a banner to be returned.
+    Display an ASCII art banner.
     
+    If text is not None, generate an ASCII art and use it only if 
+    
+    :param text:   text to be displayed
     :param folder: where the banners shall be searched for
     """
-    folder = RandPath(Path(folder, expand=True))
-    with folder.choice(".asc").open() as f:
-        banner = Banner(f.read(), colorize)
-    return "\n" + str(banner) + "\n\n"
+    if folder is None:
+        if text is None:
+            return
+        asc = AsciiFile()
+        asc["title", secstyles.get("title", {})] = AsciiBanner(text)
+    else:
+        p = Path(folder).choice(".asc", ".jpg", ".jpeg", ".png")
+        if p.suffix == ".asc":
+            asc = AsciiFile(p)
+            if asc.get("title") is None and text is not None:
+                _ = AsciiFile()
+                _["title", secstyles.get("title", {})] = AsciiBanner(text)
+                for k, v, p in asc.items():
+                    _[k, p] = v
+                asc = _
+        elif p.suffix in [".jpg", ".jpeg", ".png"]:
+            asc = AsciiFile()
+            if text is not None:
+                asc["title", secstyles.get("title", {})] = AsciiBanner(text)
+            asc["logo", secstyles.get("logo", {})] = AsciiImage(p)
+            asc["logo"][0].height = 5
+        else:
+            return get_banner(text, None, secstyles)
+    return str(asc)
 
 
 @failsafe

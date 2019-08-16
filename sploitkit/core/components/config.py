@@ -47,10 +47,12 @@ class Config(dict):
             raise ValueError("Invalid value")
         super(Config, self).__setitem__(key, value)
         try:
-            self.option(key).callback()
+            key.callback()
         except Exception as e:
             self._last_error = str(e)
             #self.console.logger.exception(e)
+        if key._reset:
+            self.console.reset()
     
     def copy(self, config, key):
         """ Copy an option based on its key from another Config instance. """
@@ -101,6 +103,7 @@ class Option(object):
     """ Class for handling an option with its parameters while using it as key
          for a Config dictionary. """
     _instances = {}
+    _reset     = False
     old_value  = None
     
     def __init__(self, name, description=None, required=False, choices=None,
