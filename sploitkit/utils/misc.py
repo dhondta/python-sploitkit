@@ -4,7 +4,8 @@ import logging
 from termcolor import colored
 
 
-__all__ = ["catch_logger", "failsafe", "flatten", "user_input"]
+__all__ = ["catch_logger", "confirm", "failsafe", "flatten",
+           "human_readable_size", "user_input"]
 
 
 def catch_logger(f):
@@ -17,6 +18,12 @@ def catch_logger(f):
         f.__globals__['logger'] = logger
         return f(*a, **kw)
     return _wrapper
+
+
+def confirm(txt="Are you sure ?", color=None):
+    """ Ask for confirmation. """
+    return user_input(txt, color=color, choices=("yes", "no"), default="no") \
+           == "yes"
 
 
 def failsafe(f):
@@ -43,34 +50,59 @@ def flatten(d, parent_key="", sep="/"):
     return dict(items)
 
 
-def user_input(txt="Are you sure ?", color=None,
-               choices=("yes", "no"), default="no"):
+def human_readable_size(size, precision=0):
+    """ Convert size in bytes to a more readable form. """
+    i, units = 0, ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
+    while size > 1024 and i < len(units):
+        i += 1
+        size /= 1024
+    return "%.*f%s" % (precision, size, units[i])
+
+
+def user_input(txt, color=None, choices=None, shortcuts=True, default=None):
     """ This helper function is aimed to simplify user input regarding
          raw_input() (Python 2.X) and input() (Python 3.Y).
 
-    :param txt:   text to be displayed at prompt
-    :param color: to be used when displaying the prompt
-    :return:      user input
+    :param txt:       text to be displayed at prompt
+    :param color:     to be used when displaying the prompt
+    :param choices:   list of possible choices
+    :param shortcuts: whether the first letter of each choice should be
+                       considered as a shortcut for the choice
+                       (if collisions, shortcuts are disabled)
+    :param default:   default value to be considered at empty input
+    :return:          user input
     """
     txt = txt.strip() + " "
-    if choices is not None:
-        txt += "({}) ".format("|".join(choices))
-    if default is not None:
-        txt += "[default: {}] ".format(default)
-    txt = txt if color is None else colored(txt, color)
     choices = None if not type(choices) in [list, tuple, set] or \
-                      len(choices) == 0 else choices
+                      len(choices) == 0 else list(choices)
+    # check for choices and shortcuts
+    if choices is not None:
+        if shortcuts and len(set(map(lambda x: x[0], choices))) == len(choices):
+            _ = map(lambda x: "[" + x[0].upper() + "]" + x[1:], choices)
+            txt += "({}) ".format("|".join(_))
+            shortcuts = [x[0].lower() for x in choices]
+        else:
+            txt += "({}) ".format("|".join(choices))
+            shortcuts = []
+    # then mention the default value if relevant
+    if default is not None and (choices is None or default in choices):
+        txt += "[default: {}] ".format(default)
+    # colorize the text if necessary
+    txt = txt if color is None else colored(txt, color)
+    # now, prompt for user input
     try:
         while True:
             try:
                 user_input = raw_input(txt)
             except NameError:
                 user_input = input(txt)
-            if user_input.strip() == "":
+            if user_input.strip() == "" and default is not None:
                 break
-            if choices is None or user_input in choices:
-                return user_input == "yes" if user_input in ["yes", "no"] else \
-                       user_input
+            if choices is None or user_input in choices or (shortcuts and \
+                user_input[0].lower() + user_input[1:] in choices):
+                return user_input
+            if shortcuts and user_input.lower() in shortcuts:
+                return choices[shortcuts.index(user_input.lower())]
     except KeyboardInterrupt:
         print("")
-    return default == "yes" if default in ["yes", "no"] else default
+    return default
