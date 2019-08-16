@@ -2,16 +2,11 @@
 from inspect import getfile
 
 from .entity import Entity, MetaEntity
-from ..utils.config import Config
+from ..utils import *
 from ..utils.dict import PathBasedDict
-from ..utils.misc import failsafe, flatten
-from ..utils.objects import BorderlessTable, NameDescription as NDescr
-from ..utils.path import Path
 
 
 __all__ = ["Module"]
-
-#TODO: association of a module to a set of specific commands (not module-level)
 
 
 class MetaModule(MetaEntity):
@@ -55,11 +50,12 @@ class MetaModule(MetaEntity):
         t = str(BorderlessTable(self.options))
         if len(t) > 0:
             t = "\n\n" + t
-        return str(NDescr(self.name, self.description, self.details)) + t
+        nd = NameDescription(self.name, self.description, self.details)
+        return str(nd) + t
     
     def search(self, text):
         """ Search for text in module's attributes. """
-        return any(text in v for v in self._metadata.values())
+        return any(text in "".join(v).lower() for v in self._metadata.values())
 
 
 class Module(Entity, metaclass=MetaModule):
@@ -67,22 +63,35 @@ class Module(Entity, metaclass=MetaModule):
     modules = PathBasedDict()
     
     @property
-    @failsafe
+    def config(self):
+        """ Shortcut to bound console's config instance. """
+        return self.console.config
+    
+    @property
+    def files(self):
+        """ Shortcut to bound console's file manager instance. """
+        return self.console.__class__._files
+    
+    @property
     def logger(self):
-        """ Module console-bound logger (shorcut). """
+        """ Shortcut to bound console's logger instance. """
         return self.console.logger
     
     @property
-    @failsafe
     def store(self):
-        """ Module console-bound store (shorcut). """
+        """ Shortcut to bound console's store instance. """
         return self.console.store
+    
+    @property
+    def workspace(self):
+        """ Shortcut to the current workspace. """
+        return self.console.workspace
     
     @classmethod
     def get_count(cls, path=None, **attrs):
         """ Count the number of modules under the given path and matching
              attributes. """
-        return cls.modules.rcount(path, **attrs)
+        return cls.modules.count(path, **attrs)
 
     @classmethod
     def get_help(cls, category=None):

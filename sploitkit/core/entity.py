@@ -153,7 +153,6 @@ class Entity(object):
     def applicable(self):
         """ Boolean indicating if the entity is applicable to the current
              context (i.e. of attached entities). """
-        self.__class__.check()
         return self.__class__._applicable
     
     @property
@@ -166,7 +165,6 @@ class Entity(object):
     def enabled(self):
         """ Boolean indicating if the entity is enabled (i.e. if it has no
              missing requirement. """
-        self.__class__.check()
         return self.__class__._enabled
     
     @property
@@ -180,7 +178,13 @@ class Entity(object):
         cls = other_cls or cls
         errors = {}
         # check for requirements
+        req = getattr(cls, "check_requirements", None)
+        if req is not None:
+            cls._enabled = cls.check_requirements()
         for k, v in getattr(cls, "requirements", {}).items():
+            if k in set(cls.requirements.keys()) - \
+                    set(["file", "python", "system"]):
+                continue
             if k == "file":
                 for fpath in v:
                     if not Path(cls.__file__).parent.joinpath(fpath).exists():
@@ -214,14 +218,18 @@ class Entity(object):
         a = getattr(cls, "applies_to", [])
         if len(a) > 0:
             cls._applicable = False
-            for _ in getattr(cls, "applies_to", []):
-                _, must_match, value = list(_[:-1]), _[-1], cls
-                while len(_) > 0:
-                    value = getattr(value, _.pop(0), None)
-                if value and value == must_match:
-                    cls._applicable = True
-                    break
-        return len(errors) == 0 and cls._applicable
+            chk = getattr(cls, "check_applicability", None)
+            if chk is not None:
+                cls._applicable = cls.check_applicability()
+            else:
+                for _ in getattr(cls, "applies_to", []):
+                    _, must_match, value = list(_[:-1]), _[-1], cls
+                    while len(_) > 0:
+                        value = getattr(value, _.pop(0), None)
+                    if value and value == must_match:
+                        cls._applicable = True
+                        break
+        return cls._enabled and cls._applicable
     
     @classmethod
     def get_class(cls, name):
@@ -343,7 +351,7 @@ class MetaEntity(MetaEntityBase):
         if hasattr(self, "config") and isinstance(self.config, Config):
             data = [["Name", "Value", "Required", "Description"]]
             for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
-                if value is None or n == value:
+                if v is None or n == v:
                     data.append([n, v, ["N", "Y"][r], d])
             return data
     

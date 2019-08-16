@@ -98,10 +98,19 @@ class Command(Entity, metaclass=MetaCommand):
         return n, n - len(argspec.defaults or ())
     
     @property
-    @failsafe
+    def app_folder(self):
+        """ Shortcut to the current application folder. """
+        return self.console.app_folder
+    
+    @property
     def config(self):
         """ Shortcut to bound console's config instance. """
         return self.console.config
+    
+    @property
+    def files(self):
+        """ Shortcut to bound console's file manager instance. """
+        return self.console.__class__._files
     
     @property
     def logger(self):
@@ -126,8 +135,26 @@ class Command(Entity, metaclass=MetaCommand):
     
     @property
     def workspace(self):
-        """ Shortcut to global command recorder. """
-        return Path(self.console.config.option("WORKSPACE").value)
+        """ Shortcut to the current workspace. """
+        return self.console.workspace
+    
+    @classmethod
+    def check_applicability(cls):
+        """ Check for Command's applicability. """
+        _ = getattr(cls, "applies_to", [])
+        return len(_) == 0 or not hasattr(cls, "console") or \
+               cls.console.module.fullpath in _
+    
+    @classmethod
+    def check_requirements(cls):
+        """ Check for specific requirements. """
+        if hasattr(cls, "console"):
+            _ = getattr(cls, "requirements", {}).get("config", {})
+            for k, v in _.items():
+                cls.console.config.option(k.upper())._reset = True
+                if cls.console.config.option(k.upper()).value != v:
+                    return False
+        return True
 
     @classmethod
     def get_help(cls, *levels):
@@ -135,8 +162,7 @@ class Command(Entity, metaclass=MetaCommand):
         if len(levels) == 0:
             levels = Command._levels
         if len(levels) == 2 and "general" in levels:
-            # process a new dictionary of commands, handling levels in order (so
-            #  that it resolves command name conflicts between levels by itself)
+            # process a new dictionary of commands, handling levels in order
             _ = {}
             for l in levels:
                 for n, c in cls.commands.get(l, {}).items():
@@ -158,6 +184,8 @@ class Command(Entity, metaclass=MetaCommand):
                 continue
             d = [["Command", "Description"]]
             for n, c in sorted(cmds.items(), key=lambda x: x[0]):
+                if not hasattr(c, "console"):
+                    continue
                 d.append([n, getattr(c, "description", "")])
             t = BorderlessTable(d, "{} commands".format(l.capitalize()))
             s += t.table + "\n\n"

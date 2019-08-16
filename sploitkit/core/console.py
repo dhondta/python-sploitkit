@@ -6,8 +6,10 @@ import re
 import shlex
 import string
 from bdb import BdbQuit
+from datetime import datetime
 from importlib import find_loader
 from inspect import isfunction
+from itertools import chain
 from prompt_toolkit import print_formatted_text, PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import WordCompleter
@@ -15,7 +17,6 @@ from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError
-from shutil import move
 
 from .command import *
 from .components import *
@@ -46,6 +47,7 @@ class Console(Entity, metaclass=MetaEntity):
     """ Base console class. """
     # convention: mangled attributes should not be customized when subclassing
     #              Console...
+    _files    = FilesManager()
     _issues   = []
     _recorder = Recorder()
     _storage  = StoragePool(StoreExtension)
@@ -72,14 +74,20 @@ class Console(Entity, metaclass=MetaEntity):
             #  to be propagated to console's .run() execution, setting the
             #  directly higher level console in argument
             raise ConsoleDuplicate(self, parent)
+        # back-reference the console to its configuration
+        self.config.console = self
         # configure the console regarding its parenthood
         if self.parent is None:
             if Console.parent is not None:
                 raise Exception("Only one parent console can be used")
             Console.parent = self
+            Console.parent._start_time = datetime.now()
+            Console.appdispname = Console.appname
+            Console.appname = Console.appname.lower()
             self.__init(**kwargs)
         else:
             self.parent.child = self
+        # reset commands and other bound stuffs
         self.reset()
         # setup the session with the custom completer and validator
         completer, validator = CommandCompleter(), CommandValidator()
@@ -93,6 +101,7 @@ class Console(Entity, metaclass=MetaEntity):
             validator=validator,
             style=Style.from_dict(style),
         )
+        CustomLayout(self)
     
     def __init(self, **kwargs):
         """ Initialize the parent console with commands and modules. """
@@ -100,8 +109,8 @@ class Console(Entity, metaclass=MetaEntity):
         if bsrc is not None:
             # display a random banner from the banners folder
             get_banner_func = kwargs.get('get_banner_func', get_banner)
-            banner_color = kwargs.get('banner_colorized_sections', ())
-            text = get_banner_func(bsrc, banner_color)
+            banner_colors = kwargs.get('banner_section_styles', {})
+            text = get_banner_func(self.appdispname, bsrc, banner_colors)
             if text:
                 print(text)
             # display a random quote from quotes.csv (in the banners folder)
@@ -123,7 +132,6 @@ class Console(Entity, metaclass=MetaEntity):
         # TODO: display a MOTD (i.e. with nmod)
         # display module stats
         m = []
-        width = max(len(str(len(m))) for m in self.modules.values())
         for category in self.modules.keys():
             l = "{} {}".format(Module.get_count(category), category)
             disabled = Module.get_count(category, enabled=False)
@@ -133,11 +141,11 @@ class Console(Entity, metaclass=MetaEntity):
         if len(m) > 0:
             mlen = max(map(len, m))
             s = ""
-            print("")
+            print_formatted_text("")
             for line in m:
                 line = ("-=[ {: <" + str(mlen) + "} ]=-").format(line)
                 print_formatted_text(FormattedText([("#00ff00", line)]))
-            print("")
+            print_formatted_text("")
         # setup the prompt message
         self.message.insert(0, ('class:appname', self.appname))
         # display warnings
@@ -194,8 +202,8 @@ class Console(Entity, metaclass=MetaEntity):
     
     def _sources(self, items):
         """ Return the list of sources for the related items
-             [commands|modules|banners], first trying subclass' one then Console
-             class' one. """
+             [banners|entities], first trying subclass' one then Console class'
+             one. """
         try:
             return self.sources[items]
         except KeyError:
@@ -209,7 +217,7 @@ class Console(Entity, metaclass=MetaEntity):
             setattr(self, eccls.entity, eccls)
         # handle back reference from eccls to self
         if backref:
-            setattr(eccls, self.__class__.entity, self)
+            setattr(eccls, "console", self)
     
     @failsafe
     def detach(self, eccls=None):
@@ -226,8 +234,8 @@ class Console(Entity, metaclass=MetaEntity):
         else:
             if hasattr(self, eccls.entity):
                 delattr(self, eccls.entity)
-            if hasattr(eccls, self.__class__.entity):
-                delattr(eccls, self.__class__.entity)
+            if hasattr(eccls, "console"):
+                delattr(eccls, "console")
     
     def execute(self, cmd, abort=False):
         """ Alias for run. """
@@ -237,25 +245,22 @@ class Console(Entity, metaclass=MetaEntity):
         """ Setup commands for the current level, reset bindings between
              commands and the current console then update store's object. """
         self.detach("command")
-        # bind console class attributes with the Console class
-        self.__class__.config.console = self.__class__
         # setup level's commands, starting from general-purpose commands
         self.commands = {}
-        self.commands.update(Command.commands.get("general", {}))
-        for n, c in list(self.commands.items()):
-            if c.level == "general" and \
-                self.level in getattr(c, "except_levels", []):
-                del self.commands[n]
-        # add relevant commands from the specific level
-        for n, c in Command.commands.get(self.level, {}).items():
-            if c.check():
-                self.commands[n] = c
-        # now, attach the console with the commands
-        for c in self.commands.values():
+        # add commands
+        for n, c in chain(Command.commands.get("general", {}).items(),
+                          Command.commands.get(self.level, {}).items()):
             self.attach(c)
+            if self.level not in getattr(c, "except_levels", []) and c.check():
+                self.commands[n] = c
+            else:
+                self.detach(c)
+        root = self.config.option('WORKSPACE').value
         # get the relevant store and bind it to loaded models
-        p = Path(self.config.option('WORKSPACE').value).joinpath("store.db")
+        p = Path(root).joinpath("store.db")
         Console.store = Console._storage.get(p)
+        # update command recorder's root directory
+        self._recorder.root_dir = root
     
     def run(self, cmd, abort=False):
         """ Run a framework console command. """
@@ -287,6 +292,9 @@ class Console(Entity, metaclass=MetaEntity):
                                    cmd if e.cmd is None else e.cmd)
         except ConsoleExit:
             return False
+        except ValueError as e:
+            self.logger.failure(e)
+            return abort is False
         except Exception as e:
             self.logger.exception(e)
             return abort is False
@@ -303,7 +311,12 @@ class Console(Entity, metaclass=MetaEntity):
             self._reset_logname()
             try:
                 _ = reexec if reexec is not None else \
-                    self._session.prompt(auto_suggest=AutoSuggestFromHistory())
+                    self._session.prompt(
+                        auto_suggest=AutoSuggestFromHistory(),
+                        bottom_toolbar="This is\na multiline toolbar",
+                        # important note: this disables terminal scrolling
+                        #mouse_support=True,
+                    )
                 reexec = None
                 Console._recorder.save(_)
                 if not self.run(_):
@@ -369,11 +382,24 @@ class Console(Entity, metaclass=MetaEntity):
         style = pstyle.copy()  # copy parent style dict
         style.update(self.style)
         return message, style
+    
+    @property
+    def uptime(self):
+        t = datetime.now() - Console.parent._start_time
+        s = t.total_seconds()
+        h, _ = divmod(s, 3600)
+        m, s = divmod(_, 60)
+        return "{:02}:{:02}:{:02}".format(int(h), int(m), int(s))
 
     @classmethod
     def register_console(cls, subcls):
-        """ Register console classes and link them with their configs. """
-        subcls.config.console = subcls
+        """ Register items to the console subclass. """
+        # ensure the subclassing console has its own config intance ; otherwise,
+        #  when it doesn't have one, Console's class config instance will be
+        #  retrieved, which would cause an infinite loop in getting config
+        #  options through the recursive mechanism in:
+        #    config.py:Config.option(key)
+        subcls.config = Config()
 
 
 class ConsoleDuplicate(Exception):
@@ -398,8 +424,7 @@ class FrameworkConsole(Console):
             'APP_FOLDER',
             "folder where application assets (i.e. logs) are saved",
             True,
-            callback=lambda o: move(o.old_value, o.value) \
-                               if o.old_value != o.value else None,
+            callback=lambda o: o.config.console._set_app_folder(),
         ): "~/.{appname}",
         Option(
             'DEBUG',
@@ -421,19 +446,48 @@ class FrameworkConsole(Console):
         ): "true",
     })
 
-    def __init__(self, *args, **kwargs):
-        self.__class__._set_logging()
+    def __init__(self, appname=None, *args, **kwargs):
+        Console.appname = appname or \
+                          getattr(self, "appname", Console.appname)
+        o = self.config.option('APP_FOLDER')
+        self.config['APP_FOLDER'] = Path(o.value.format(appname=self.appname))
+        o.old_value = None
+        # configure the file manager and the logger
+        self._set_app_folder()
         super(FrameworkConsole, self).__init__(*args, **kwargs)
     
-    @classmethod
-    def _set_logging(cls, debug=False, to_file=True):
+    def _set_app_folder(self):
+        """ Set a new APP_FOLDER, moving an old to the new one if necessary. """
+        o = self.config.option('APP_FOLDER')
+        old, new = o.old_value, o.value
+        if old == new:
+            return
+        try:
+            if old is not None:
+                os.rename(old, new)
+        except Exception as e:
+            pass
+        fpath = Path(new).joinpath("files")
+        fpath.mkdir(parents=True, exist_ok=True)
+        self._files.root_dir = new
+        self._set_logging()
+    
+    def _set_logging(self, debug=False, to_file=True):
         """ Set a new logger with the input logging level. """
         l, p = ["INFO", "DEBUG"][debug], None
         if to_file:
             # attach a logger to the console
-            lpath = Path(cls.config.option('APP_FOLDER').value).joinpath("logs")
-            # at this point, 'config' is not bound yet ; so {appname} will not
-            #  be formatted in logfile
-            p = Path(str(lpath).format(appname=cls.appname), create=True)
-            p = str(p.joinpath("main.log"))
-        Console.logger = get_logger(cls.name, p, l)
+            lpath = self.app_folder.joinpath("logs")
+            lpath.mkdir(parents=True, exist_ok=True)
+            p = str(lpath.joinpath("main.log"))
+        Console.logger = get_logger(self.__class__.name, p, l)
+    
+    @property
+    def app_folder(self):
+        """ Shortcut to the current application folder. """
+        return Path(self.config.option('APP_FOLDER').value)
+    
+    @property
+    def workspace(self):
+        """ Shortcut to the current workspace. """
+        return Path(self.config.option("WORKSPACE").value)
