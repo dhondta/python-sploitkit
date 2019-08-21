@@ -13,7 +13,7 @@ from itertools import chain
 from prompt_toolkit import print_formatted_text, PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.completion import WordCompleter
-from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.formatted_text import ANSI, FormattedText
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError
@@ -112,12 +112,12 @@ class Console(Entity, metaclass=MetaEntity):
             banner_colors = kwargs.get('banner_section_styles', {})
             text = get_banner_func(self.appdispname, bsrc, banner_colors)
             if text:
-                print(text)
+                print_formatted_text(ANSI(text))
             # display a random quote from quotes.csv (in the banners folder)
             get_quote_func = kwargs.get('get_quote_func', get_quote)
             text = get_quote_func(bsrc)
             if text:
-                print(text)
+                print_formatted_text(ANSI(text))
         # setup entities
         load_entities(
             [BaseModel, Command, Console, Model, Module, StoreExtension],

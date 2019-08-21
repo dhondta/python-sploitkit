@@ -43,7 +43,7 @@ class Config(dict):
         key.old_value = key.value if self.__d.get(key.name) else None
         # then assign the new one
         self.__d[key.name] = (key, value)
-        if not key.validate():
+        if not key.validate(value):
             raise ValueError("Invalid value")
         super(Config, self).__setitem__(key, value)
         try:
@@ -116,8 +116,8 @@ class Option(object):
         self.choices = choices
         self.__set_func(transform, "transform")
         if validate is None and choices is not None:
-            validate = lambda s: str(s.value).lower() in \
-                                 [str(_).lower() for _ in s.choices]
+            validate = lambda s, v: str(v).lower() in \
+                                    [str(_).lower() for _ in s.choices]
         self.__set_func(validate, "validate")
         self.__set_func(callback, "callback")
     
