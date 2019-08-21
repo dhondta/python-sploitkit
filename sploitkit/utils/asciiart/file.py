@@ -13,6 +13,7 @@ except ImportError:
 
 __all__ = ["AsciiFile"]
 
+DEFAULT_PARAMS = {'adjust': "center"}
 SECTION_LINE = re.compile(r"^\.section\:\s(?P<section>[a-z0-9]+)(?:\[(?P"
                           r"<params>([a-z]+\=[a-z]+)(\,[a-z]+\=[a-z]+)*)\])?")
 
@@ -78,9 +79,9 @@ class AsciiFile(object):
         params = {}
         if isinstance(name, tuple):
             name, params = name
-        # center every object by default
-        if not hasattr(params, "adjust"):
-            params["adjust"] = "center"
+        if not isinstance(params, dict):
+            raise ValueError("'{}' shall be a dictionary".format(params))
+        params.update(DEFAULT_PARAMS)
         self.__sections[name] = item
         self.__params.setdefault(name, {})
         self.__params[name].update(params)
@@ -113,10 +114,11 @@ class AsciiFile(object):
             with open(path, 'w') as f:
                 for section, text in self.__sections.items():
                     p = ",".join("{}={}".format(k, v) for k, v in \
-                                 self.__params[section].items())
+                                 self.__params[section].items() \
+                                 if k not in DEFAULT_PARAMS.keys())
                     p = ["", "[{}]".format(p)][len(p) > 0]
                     f.write(".section: {}{}\n".format(section, p))
-                    f.write(text + "\n")
+                    f.write(str(text) + "\n")
     
     @property
     def sections(self):
