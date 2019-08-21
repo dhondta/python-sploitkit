@@ -50,7 +50,7 @@ class MetaModule(MetaEntity):
         t = str(BorderlessTable(self.options))
         if len(t) > 0:
             t = "\n\n" + t
-        nd = NameDescription(self.name, self.description, self.details)
+        nd = NameDescription(self.name, self.description)
         return str(nd) + t
     
     def search(self, text):
@@ -118,15 +118,17 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def get_modules(cls, path=None):
         """ Get the subdictionary of modules matching the given path. """
-        return cls.modules.rget(path)
+        return cls.modules[path]
 
     @classmethod
     def register_module(cls, subcls):
         """ Register a Module subclass to the dictionary of modules. """
         if subcls.path is None:
             return  # do not consider orphan modules
-        d = cls.modules
-        for p in Path(subcls.path).parts:
-            d.setdefault(p, {})
-            d = d[p]
-        d[subcls.name] = subcls
+        cls.modules[subcls.path, subcls.name] = subcls
+
+    @classmethod
+    def unregister_module(cls, subcls):
+        """ Unregister a Module subclass from the dictionary of modules. """
+        del cls.modules[subcls.path, subcls.name]
+        Module.subclasses.remove(subcls)

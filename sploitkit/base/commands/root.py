@@ -25,7 +25,7 @@ class Help(Command):
         elif key == "command":
             print_formatted_text(self.console.commands[value].help(value))
         elif key == "module":
-            print_formatted_text(self.modules.rget(value).help)
+            print_formatted_text(self.modules[value].help)
     
     def validate(self, key=None, value=None):
         if key is None and value is None:

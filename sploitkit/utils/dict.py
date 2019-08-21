@@ -33,8 +33,51 @@ class ClassRegistry(dict):
 
 class PathBasedDict(dict):
     """ Enhanced dictionary class. """
+    def __convert_path(self, path):
+        """ Handle multiple path formats, e.g.:
+            - "a/b/c/d"     (string)
+            - Path("a/b/c/d")     (Path)
+            - "a", "b", "c" (tuple of strings) """
+        if not isinstance(path, tuple):
+            path = (str(path), )
+        return Path(*path).parts
+    
+    def __delitem__(self, path):
+        """ Remove the item at the given path of subdictionaries. """
+        d, parts = self, self.__convert_path(path)
+        del self[parts[:-1]][parts[-1]]
+        parts = parts[:-1]
+        while len(parts) > 1 and len(d[parts]) == 0:
+            del self[parts[:-1]][parts[-1]]
+            parts = parts[:-1]
+        if len(parts) == 1 and len(d[parts]) == 0:
+            super(PathBasedDict, self).__delitem__(parts[0])
+    
+    def __getitem__(self, path):
+        """ Get the item from the given path of subdictionaries. """
+        d, parts = self, self.__convert_path(path)
+        for p in parts:
+            d = d.get(p)
+        return d
+    
+    def __setitem__(self, path, value):
+        """ Set the value to the given path of subdictionaries. """
+        d, parts, curr = self, self.__convert_path(path), []
+        for p in parts[:-1]:
+            if not isinstance(d, dict):
+                raise ValueError("Path at '{}' already owns a value"
+                                 .format(str(Path(*curr))))
+            d.setdefault(p, {})
+            d = d[p]
+            curr.append(p)
+        if not isinstance(d, dict):
+            raise ValueError("Path at '{}' already owns a value"
+                             .format(str(Path(*curr))))
+        d[parts[-1]] = value
+
     def count(self, path=None, **kwargs):
-        """ Count the number of leaf values under the given path of keys. """
+        """ Count the number of leaf values (given the attributes matching
+             kwargs if any) under the given path of keys. """
         def _rcount(d=self, a=0):
             if isinstance(d, dict):
                 for k, v in d.items():
@@ -47,12 +90,4 @@ class PathBasedDict(dict):
                           all(getattr(d, attr, value) == value \
                           for attr, value in kwargs.items()) else 0
             return a
-        return _rcount(self.rget(path))
-
-    def rget(self, path=None):
-        """ Find the subdictionary matching the given path of keys. """
-        def _rget(p=path, d=self):
-            p = Path(str(p))
-            _ = p.parts
-            return _rget(p.child, d[_[0]]) if len(_) > 1 else d[_[0]]
-        return self if path is None else _rget()
+        return _rcount(self[path])
