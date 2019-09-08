@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 from termcolor import colored
 
 
-__all__ = ["check_log_level", "get_logger", "null_handler"]
+__all__ = ["check_log_level", "get_logger", "null_logger"]
 
 
 logging.SUCCESS = logging.ERROR + 1
@@ -49,8 +49,8 @@ logging.Logger.success = success
 
 
 # set a null logger
-null_handler = logging.getLogger("main")
-null_handler.addHandler(logging.NullHandler())
+null_logger = logging.getLogger("main")
+null_logger.addHandler(logging.NullHandler())
 
 
 # add a custom message handler for tuning the format with 'levelsymbol'
