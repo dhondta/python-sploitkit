@@ -6,9 +6,10 @@ from os.path import expanduser
 from pathlib import Path as BasePath
 from pkgutil import ImpImporter
 from pygments.lexers import PythonLexer
+from tempfile import gettempdir, NamedTemporaryFile as TempFile
 
 
-__all__ = ["Path", "PyFolderPath", "PyModulePath"]
+__all__ = ["Path", "PyFolderPath", "PyModulePath", "TempPath"]
 
 
 lexer = PythonLexer()
@@ -88,9 +89,11 @@ class Path(BasePath):
         """ Fixed expanduser() method, working for both Python 2 and 3. """
         return Path(expanduser(str(self)))
     
-    def generate(self, length=8, alphabet="0123456789abcdef"):
+    def generate(self, prefix="", suffix="", length=8,
+                 alphabet="0123456789abcdef"):
         """ Generate a random folder name. """
-        return self.joinpath("".join(choice(alphabet) for i in range(length)))
+        rname = "".join(random.choice(alphabet) for i in range(length))
+        return self.joinpath(prefix + rname + suffix)
     
     def iterpubdir(self):
         """ List all public subdirectories from the current directory. """
@@ -187,3 +190,53 @@ class PyModulePath(Path):
             except TypeError:
                 pass
         return False
+
+
+class TempPath(Path):
+    """ Extension of the class Path for handling a temporary path.
+    
+    :param length:   length for the folder name (if 0, do not generate a folder
+                      name, e.g. keeping /tmp)
+    :param alphabet: character set to be used for generating the folder name
+    """
+    def __new__(cls, **kwargs):
+        kw = {}
+        kw["prefix"]   = kwargs.pop("prefix", "")
+        kw["suffix"]   = kwargs.pop("suffix", "")
+        kw["length"]   = kwargs.pop("length", 0)
+        kw["alphabet"] = kwargs.pop("alphabet", "0123456789abcdef")
+        _ = Path(gettempdir())
+        kwargs["create"] = True   # force creation
+        kwargs["expand"] = False  # expansion is not necessary
+        if kw["length"] > 0:
+            while True:
+                # ensure this is a newly generated path
+                tmp = _.generate(**kw)
+                if not tmp.exists():
+                    break
+            return super(TempPath, cls).__new__(cls, tmp, **kwargs)
+        return super(TempPath, cls).__new__(cls, _, **kwargs)
+    
+    # FIXME: e.g. when using temp_path.iterfiles(), yielded objects will be
+    #         TempPath instances, therefore causing __del__ to be triggered for
+    #         each new temporary file
+    #def __del__(self):
+    #    """ Clean the temporary folder when the instance is deleted. """
+    #    if str(self) != gettempdir():
+    #        try:
+    #            self.rmtree()
+    #        except NotADirectoryError:
+    #            pass
+    
+    def joinpath(self, *args):
+        """ Modifed joinpath to return a Path instance instead of TempPath
+             (otherwise, it would trigger __del__ each time joinpath is called
+             without a variable reference). """
+        return Path(self).joinpath(*args)
+    
+    def tempfile(self, **kwargs):
+        """ Create a NamedTemporaryFile in the TempPath. """
+        kwargs.pop("dir", None)
+        tf = TempFile(dir=str(self), **kwargs)
+        tf.folder = self
+        return tf
