@@ -5,7 +5,7 @@ from pypager.pager import Pager
 from pypager.source import GeneratorSource
 from pyvim.editor import Editor
 
-from ...utils.path import Path
+from ...utils.path import Path, TempPath
 
 __all__ = ["FilesManager"]
 
@@ -80,6 +80,16 @@ class FilesManager(dict):
         """ Save a resource. """
         with open(dst, 'wb') as f:
             f.write(self[key])
+    
+    def tempdir(self):
+        """ Create a temporary directory. """
+        return TempPath(prefix="dronesploit-", length=16)
+    
+    def tempfile(self, root=None):
+        """ Create a temporary file. """
+        if root is None or not isinstance(root, Path):
+            root = TempPath(prefix="dronesploit-", length=16)
+        return root.tempfile()
     
     def view(self, key):
         """ View a file with PyPager. """
