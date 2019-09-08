@@ -2,6 +2,7 @@
 import os
 import stat
 from gc import get_objects, get_referrers
+from pprint import pprint
 from sys import getrefcount
 
 from sploitkit import *
@@ -134,6 +135,16 @@ class Shell(Command):
         else:
             from subprocess import call
             call(cmd, shell=True)
+        print_formatted_text("")
+
+
+class State(Command):
+    """ Display console's shared state """
+    requirements = {'config': {'DEBUG': True}}
+    def run(self):
+        for k, v in self.console.state.items():
+            print_formatted_text("\n{}:".format(k))
+            pprint(v)
         print_formatted_text("")
 
 

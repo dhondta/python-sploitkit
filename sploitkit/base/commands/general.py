@@ -94,7 +94,7 @@ class Show(Command):
             for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
                 if value is None or n == value:
                     data.append([n, v, ["N", "Y"][r], d])
-            print_formatted_text(BorderlessTable(data, "Console options"))
+            print_formatted_text(BorderlessTable(data, "Options"))
         elif key == "projects":
             if value is None:
                 data = [["Name"]]
@@ -124,7 +124,7 @@ class Show(Command):
 class Set(Command):
     """ Set an option in the current context """
     def complete_keys(self):
-        return list(self.console.config.keys())
+        return list(self.config.keys())
     
     def complete_values(self, key):
         if key.upper() == "WORKSPACE":

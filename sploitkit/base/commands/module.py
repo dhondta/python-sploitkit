@@ -50,7 +50,7 @@ class Run(ModuleCommand):
     """ Run module """
     def run(self):
         if self.module.check():
-            self.module().run()
+            self.module._instance.run()
 
 
 class Show(ModuleCommand):
