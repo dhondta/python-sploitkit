@@ -49,7 +49,10 @@ class Console(Entity, metaclass=MetaEntity):
     #              Console...
     _files    = FilesManager()
     _issues   = []
+    _jobs     = JobsPool()
     _recorder = Recorder()
+    _sessions = None #FIXME: SessionsPool
+    _state    = {}  # state shared between all the consoles
     _storage  = StoragePool(StoreExtension)
     # ... by opposition to public class attributes that can be tuned
     appname      = ""
@@ -129,7 +132,6 @@ class Console(Entity, metaclass=MetaEntity):
             docstr_parser=kwargs.get("docstr_parser", parse_docstring),
         )
         Console._storage.models = Model.subclasses + BaseModel.subclasses
-        # TODO: display a MOTD (i.e. with nmod)
         # display module stats
         m = []
         for category in self.modules.keys():
@@ -152,6 +154,9 @@ class Console(Entity, metaclass=MetaEntity):
         if len(Console._issues) > 0:
             self.logger.warning("There are some issues ; use 'show issues' to "
                                 "see more details")
+        # console's components binding
+        for attr in ["_files", "_jobs"]:
+            setattr(getattr(Console, attr), "console", self)
     
     def _close(self):
         """ Gracefully close the console. """
@@ -218,6 +223,8 @@ class Console(Entity, metaclass=MetaEntity):
         # handle back reference from eccls to self
         if backref:
             setattr(eccls, "console", self)
+        # create a singleton instance of the entity
+        eccls._instance = eccls()
     
     @failsafe
     def detach(self, eccls=None):
@@ -236,6 +243,8 @@ class Console(Entity, metaclass=MetaEntity):
                 delattr(self, eccls.entity)
             if hasattr(eccls, "console"):
                 delattr(eccls, "console")
+        # remove the singleton instance of the entity previously opened
+        del eccls._instance
     
     def execute(self, cmd, abort=False):
         """ Alias for run. """
@@ -270,10 +279,10 @@ class Console(Entity, metaclass=MetaEntity):
             name, args = tokens[0], tokens[1:]
         except IndexError:
             return True
-        # create a command instance (or abort if name not in self.commands) ;
-        #  if command arguments should not be split, adapt args
+        # get the command singleton instance (or abort if name not in
+        #  self.commands) ; if command arguments should not be split, adapt args
         try:
-            obj = self.commands[name]()
+            obj = self.commands[name]._instance
         except KeyError:
             return True
         # now handle the command (and its validation if existing)
@@ -307,13 +316,15 @@ class Console(Entity, metaclass=MetaEntity):
         self._reset_logname()
         self.logger.debug("Starting {}[{}]".format(self.__class__.__name__,
                                                    id(self)))
+        if hasattr(self, "module") and hasattr(self.module, "preamble"):
+            self.module._instance.preamble()
         while True:
             self._reset_logname()
             try:
                 _ = reexec if reexec is not None else \
                     self._session.prompt(
                         auto_suggest=AutoSuggestFromHistory(),
-                        bottom_toolbar="This is\na multiline toolbar",
+                        #bottom_toolbar="This is\na multiline toolbar",
                         # important note: this disables terminal scrolling
                         #mouse_support=True,
                     )
@@ -334,6 +345,8 @@ class Console(Entity, metaclass=MetaEntity):
                 break
             except KeyboardInterrupt:
                 continue
+        if hasattr(self, "module") and hasattr(self.module, "postamble"):
+            self.module._instance.postamble()
         self._close()
         return self
 
@@ -361,7 +374,7 @@ class Console(Entity, metaclass=MetaEntity):
         try:
             return Console.logger
         except:
-            return null_handler
+            return null_logger
     
     @property
     def modules(self):
@@ -384,7 +397,13 @@ class Console(Entity, metaclass=MetaEntity):
         return message, style
     
     @property
+    def state(self):
+        """ Getter for the shared state. """
+        return Console._state
+    
+    @property
     def uptime(self):
+        """ Get application's uptime. """
         t = datetime.now() - Console.parent._start_time
         s = t.total_seconds()
         h, _ = divmod(s, 3600)

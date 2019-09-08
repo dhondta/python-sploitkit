@@ -106,7 +106,9 @@ class Command(Entity, metaclass=MetaCommand):
     @property
     def config(self):
         """ Shortcut to bound console's config instance. """
-        return self.console.config
+        return self.module.config if hasattr(self, "module") and \
+                                     self.module is not None else \
+               self.console.config
     
     @property
     def files(self):

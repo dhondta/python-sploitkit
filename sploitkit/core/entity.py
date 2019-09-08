@@ -181,6 +181,9 @@ class Entity(object):
         req = getattr(cls, "check_requirements", None)
         if req is not None:
             cls._enabled = cls.check_requirements()
+        # FIXME: handle requirement in string ;
+        #   e.g. {'system': "test"} will give issues 't', 'e', 's', 't' not
+        #                            installed
         for k, v in getattr(cls, "requirements", {}).items():
             if k in set(cls.requirements.keys()) - \
                     set(["file", "python", "system"]):
@@ -201,6 +204,11 @@ class Entity(object):
                         errors.setdefault("python", [])
                         errors["python"].append(package)
                         cls._enabled = False
+            #elif k == "state":
+            #    for key in v:
+            #        if ...
+            # FIXME: get the reference to Console class for Console._state and
+            #         check if the state key is defined
             elif k == "system":
                 for tool in v:
                     if isinstance(tool, tuple):

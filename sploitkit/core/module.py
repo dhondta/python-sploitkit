@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 from inspect import getfile
 
+from .components import ProxyConfig
 from .entity import Entity, MetaEntity
 from ..utils import *
 from ..utils.dict import PathBasedDict
@@ -28,6 +29,22 @@ class MetaModule(MetaEntity):
         super(MetaModule, meta).__new__(meta, name, bases, clsdict, subcls)
         return subcls
     
+    def __getattribute__(self, name):
+        if name == "config":
+            # gather the configs from the module and its proxy class(es)
+            proxy = ProxyConfig()
+            try:
+                proxy.append(super(MetaModule, self).__getattribute__("config"))
+            except AttributeError:
+                pass
+            if self.__base__:
+                try:
+                    proxy.append(self.__base__.config)
+                except AttributeError:
+                    pass
+            return proxy
+        return super(MetaModule, self).__getattribute__(name)
+
     @property
     def base(self):
         """ Module's category. """
@@ -62,10 +79,35 @@ class Module(Entity, metaclass=MetaModule):
     """ Main class handling console modules. """
     modules = PathBasedDict()
     
-    @property
-    def config(self):
-        """ Shortcut to bound console's config instance. """
-        return self.console.config
+    def __getattribute__(self, name):
+        if name == "config":
+            # gather the configs from the module and its proxy class(es)
+            proxy = ProxyConfig()
+            try:
+                proxy.append(self.__class__.config)
+            except AttributeError:
+                pass
+            if self.__class__.__base__:
+                try:
+                    proxy.append(self.__class__.__base__.config)
+                except AttributeError:
+                    pass
+            return proxy
+        return super(Module, self).__getattribute__(name)
+    
+#    def __getattribute__(self, name):
+#        if name == "config":
+#            return self.__class__.config
+#            # gather the configs from the module and its proxy class(es)
+#            cls = self.__class__
+#            config = Config()
+#            if hasattr(cls, "config"):
+#                config.update(cls.config)
+#            print(cls)
+#            if cls.__base__:
+#                config.update(super(cls.__base__, self).__getattribute__("config"))
+#            return config
+#        return super(Module, self).__getattribute__(name)
     
     @property
     def files(self):
