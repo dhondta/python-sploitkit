@@ -43,7 +43,12 @@ dcount = lambda d, n=0: sum([dcount(v, n) if isinstance(v, dict) else n + 1 \
                              for v in d.values()])
 
 
-class Console(Entity, metaclass=MetaEntity):
+class MetaConsole(MetaEntity):
+    """ Metaclass of a Console. """
+    _has_config = True
+
+
+class Console(Entity, metaclass=MetaConsole):
     """ Base console class. """
     # convention: mangled attributes should not be customized when subclassing
     #              Console...
@@ -110,6 +115,7 @@ class Console(Entity, metaclass=MetaEntity):
         """ Initialize the parent console with commands and modules. """
         bsrc = self._sources("banners")
         if bsrc is not None:
+            print_formatted_text("")
             # display a random banner from the banners folder
             get_banner_func = kwargs.get('get_banner_func', get_banner)
             banner_colors = kwargs.get('banner_section_styles', {})
@@ -443,14 +449,14 @@ class FrameworkConsole(Console):
             'APP_FOLDER',
             "folder where application assets (i.e. logs) are saved",
             True,
-            callback=lambda o: o.config.console._set_app_folder(),
+            set_callback=lambda o: o.config.console._set_app_folder(),
         ): "~/.{appname}",
         Option(
             'DEBUG',
             "debug mode",
             False,
             bool,
-            callback=lambda o: o.config.console._set_logging(o.value),
+            set_callback=lambda o: o.config.console._set_logging(o.value),
         ): "false",
         Option(
             'WORKSPACE',
