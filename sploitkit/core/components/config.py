@@ -18,6 +18,12 @@ class Config(dict):
         #  instances based on the given ones
         self.update(*args, **kwargs)
     
+    def __delitem__(self, key):
+        """ Custom method for deleting an item, for triggering an unset callback
+             from an Option. """
+        key = self.__getkey(key)
+        self.__run_callback(key, "unset")
+    
     def __getitem__(self, key):
         """ Custom method for getting an item, returning the original value from
              the current Config instance or, if the key does not exist and this
@@ -34,11 +40,7 @@ class Config(dict):
     def __setitem__(self, key, value):
         """ Custom method for setting an item, keeping the original value in a
              private dictionary. """
-        if not isinstance(key, Option):
-            if not isinstance(key, tuple):
-                key = (key, )
-            key = Option(*key)
-        tmp = key
+        key = tmp = self.__getkey(key)
         # get an existing instance or the new one
         key = key.bind(self if not hasattr(key, "config") else key.config)
         if tmp is not key: 
@@ -50,13 +52,32 @@ class Config(dict):
         if not key.validate(value):
             raise ValueError("Invalid value")
         super(Config, self).__setitem__(key, value)
-        try:
-            key.callback()
-        except Exception as e:
-            self._last_error = str(e)
-            #self.console.logger.exception(e)
+        # when the value is validated and assigned, run the callback function
+        self.__run_callback(key, "set")
         if key._reset:
             self.console.reset()
+    
+    def __getkey(self, key):
+        """ Proxy method for ensuring that the key is an Option instance. """
+        if not isinstance(key, Option):
+            if not isinstance(key, tuple):
+                key = (key, )
+            key = Option(*key)
+        return key
+    
+    def __run_callback(self, key, name):
+        """ Method for executing a callback and updating the current value with
+             its return value if any. """
+        retval = None
+        try:
+            retval = getattr(key, "{}_callback".format(name))()
+        except Exception as e:
+            self._last_error = str(e)
+        if retval is not None:
+            key.old_value = key.value
+            if not key.validate(retval):
+                raise ValueError("Invalid value")
+            self.__d[key.name] = (key, retval)
     
     def copy(self, config, key):
         """ Copy an option based on its key from another Config instance. """
@@ -120,19 +141,20 @@ class Option(object):
     old_value  = None
     
     def __init__(self, name, description=None, required=False, choices=None,
-                 transform=None, validate=None, callback=None):
+                 set_callback=None, unset_callback=None,
+                 transform=None, validate=None):
         self.name = name
         self.description = description
         self.required = required
         if choices is bool:
             choices = ["true", "false"]
-        self.choices = choices
+        self._choices = choices
         self.__set_func(transform, "transform")
         if validate is None and choices is not None:
             validate = lambda s, v: str(v).lower() in \
                                     [str(_).lower() for _ in s.choices]
         self.__set_func(validate, "validate")
-        self.__set_func(callback, "callback")
+        self.__set_func(set_callback, "set_callback")
     
     def __repr__(self):
         """ Custom representation method. """
@@ -162,13 +184,19 @@ class Option(object):
             o[i][self.name] = self
         else:
             o[i][self.name].config = parent
-        #print(i, getattr(self, "config", None), self.name, self.required, self.description)
         return o[i][self.name]
     
     def copy(self):
         """ Copy option information to a new Option instance. """
-        return Option(self.name, self.description, self.required, self.choices,
-                      self.transform, self.validate, self.callback)
+        return Option(self.name, self.description, self.required, self.choices, 
+                      self.set_callback, self.unset_callback,
+                      self.transform, self.validate)
+    
+    @property
+    def choices(self):
+        """ Pre- or lazy-computed list of choices. """
+        c = self._choices
+        return c() if isinstance(c, type(lambda:0)) else c
     
     @property
     def input(self):
