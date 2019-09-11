@@ -17,7 +17,7 @@ setup(
   name = "sploitkit",
   author = "Alexandre D\'Hondt",
   author_email = "alexandre.dhondt@gmail.com",
-  version = "0.2.0",
+  version = "0.2.3",
   license = "AGPLv3",
   url = "https://github.com/dhondta/sploitkit",
   description = "A toolkit for easilly building Metasploit-like consoles with "
@@ -25,7 +25,7 @@ setup(
   long_description=long_descr,
   long_description_content_type="text/markdown",
   packages = find_packages(),
-  package_data={"asciiart": ["./fonts.txt"]},
+  package_data={"asciiart": ["fonts.txt"]},
   include_package_data=True,
   scripts = ["sploitkit-new"],
   keywords = ["CLI", "tool"],
