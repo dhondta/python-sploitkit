@@ -5,7 +5,7 @@ from importlib import find_loader
 from inspect import getfile, getmro
 from shutil import which
 
-from .components.config import Config, Option
+from .components.config import Config, Option, ProxyConfig
 from ..utils.dict import ClassRegistry
 from ..utils.objects import BorderlessTable, NameDescription as NDescr
 from ..utils.path import *
@@ -149,6 +149,22 @@ class Entity(object):
     _metadata   = {}
     _subclasses = ClassRegistry()
     
+    def __getattribute__(self, name):
+        if getattr(self.__class__, "_has_config", False) and name == "config":
+            # gather the configs from the entity and its proxy class(es)
+            proxy = ProxyConfig()
+            try:
+                proxy.append(self.__class__.config)
+            except AttributeError:
+                pass
+            if self.__class__.__base__:
+                try:
+                    proxy.append(self.__class__.__base__.config)
+                except AttributeError:
+                    pass
+            return proxy
+        return super(Entity, self).__getattribute__(name)
+    
     @property
     def applicable(self):
         """ Boolean indicating if the entity is applicable to the current
@@ -174,7 +190,7 @@ class Entity(object):
     
     @classmethod
     def check(cls, other_cls=None):
-        """ Check for module's requirements. """
+        """ Check for entity's requirements. """
         cls = other_cls or cls
         errors = {}
         # check for requirements
@@ -319,7 +335,23 @@ class MetaEntityBase(type):
 
 
 class MetaEntity(MetaEntityBase):
-    """ Metaclass of an Entity, adding some particular properties. """
+    """ Metaclass of an Entity, adding some particular properties. """    
+    def __getattribute__(self, name):
+        if getattr(self, "_has_config", False) and name == "config":
+            # gather the configs from the entity and its proxy class(es)
+            proxy = ProxyConfig()
+            try:
+                proxy.append(super(MetaEntity, self).__getattribute__("config"))
+            except AttributeError:
+                pass
+            if self.__base__:
+                try:
+                    proxy.append(self.__base__.config)
+                except AttributeError:
+                    pass
+            return proxy
+        return super(MetaEntity, self).__getattribute__(name)
+
     @property
     def applicable(self):
         """ Boolean indicating if the entity is applicable to the current
