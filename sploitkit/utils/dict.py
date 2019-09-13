@@ -130,7 +130,10 @@ class PathBasedDict(dict):
         if not isinstance(d, dict):
             raise ValueError("Path at '{}' already owns a value"
                              .format(str(Path(*curr))))
-        d[parts[-1]] = value
+        if isinstance(d, PathBasedDict):
+            super(PathBasedDict, self).__setitem__(parts[-1], value)
+        else:
+            d[parts[-1]] = value
 
     def count(self, path=None, **kwargs):
         """ Count the number of leaf values (given the attributes matching
