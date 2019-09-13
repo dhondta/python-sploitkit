@@ -34,12 +34,16 @@ class MetaModule(MetaEntity):
     @property
     def base(self):
         """ Module's category. """
-        return str(Path(self.fullpath).child)
+        return str(Path(self.fullpath).child) if self.category != "" else \
+               self.name
     
     @property
     def category(self):
         """ Module's category. """
-        return str(Path(self.path).parts[0])
+        try:
+            return str(Path(self.path).parts[0])
+        except IndexError:
+            return ""
     
     @property
     def fullpath(self):
