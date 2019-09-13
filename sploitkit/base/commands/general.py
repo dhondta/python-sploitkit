@@ -104,9 +104,10 @@ class Show(Command):
             else:
                 print_formatted_text(value)
         elif key == "issues":
-            m = lambda k, e: "'{}' {}".format(e, 
-                ["not found", "{} package is not installed".format(k)]\
-                    [k in ["system", "python"]])
+            m = lambda k, e: \
+                "'{}' not found".format(e) if k == "file" else \
+                "'{}' package is not installed".format(e) if k in \
+                    ["system", "python"] else str(e)
             for cls, subcls, errors in Console.issues:
                 if value is None:
                     t = "{}: {}\n- ".format(cls, subcls)
