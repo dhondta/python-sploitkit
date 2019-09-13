@@ -1,8 +1,12 @@
 ipaddress
 pathlib
 peewee
+Pillow
 prompt_toolkit
+pyfiglet
 pyminizip
 pypager
 pyvim
+requests
 termcolor
+terminaltables
