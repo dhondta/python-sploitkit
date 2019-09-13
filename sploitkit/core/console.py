@@ -24,7 +24,6 @@ from .entity import *
 from .model import *
 from .module import *
 from ..utils.docstring import parse_docstring
-from ..utils.misc import failsafe
 from ..utils.path import Path
 
 
@@ -160,7 +159,7 @@ class Console(Entity, metaclass=MetaConsole):
         if len(Console._issues) > 0:
             self.logger.warning("There are some issues ; use 'show issues' to "
                                 "see more details")
-        # console's components binding
+        # console's components back-referencing
         for attr in ["_files", "_jobs"]:
             setattr(getattr(Console, attr), "console", self)
     
@@ -232,11 +231,10 @@ class Console(Entity, metaclass=MetaConsole):
         # create a singleton instance of the entity
         eccls._instance = eccls()
     
-    @failsafe
     def detach(self, eccls=None):
         """ Detach an entity child class from the console and remove its
              back-reference. """
-        # if no argument, detech every class registered in self._attached
+        # if no argument, detach every class registered in self._attached
         if eccls is None:
             for subcls in Entity._subclasses:
                 self.detach(subcls)
@@ -245,12 +243,13 @@ class Console(Entity, metaclass=MetaConsole):
                 if ec.entity == eccls:
                     self.detach(ec)
         else:
-            if hasattr(self, eccls.entity):
+            if hasattr(eccls, "entity") and hasattr(self, eccls.entity):
                 delattr(self, eccls.entity)
             if hasattr(eccls, "console"):
                 delattr(eccls, "console")
         # remove the singleton instance of the entity previously opened
-        del eccls._instance
+        if hasattr(eccls, "_instance"):
+            del eccls._instance
     
     def execute(self, cmd, abort=False):
         """ Alias for run. """
@@ -415,16 +414,6 @@ class Console(Entity, metaclass=MetaConsole):
         h, _ = divmod(s, 3600)
         m, s = divmod(_, 60)
         return "{:02}:{:02}:{:02}".format(int(h), int(m), int(s))
-
-    @classmethod
-    def register_console(cls, subcls):
-        """ Register items to the console subclass. """
-        # ensure the subclassing console has its own config intance ; otherwise,
-        #  when it doesn't have one, Console's class config instance will be
-        #  retrieved, which would cause an infinite loop in getting config
-        #  options through the recursive mechanism in:
-        #    config.py:Config.option(key)
-        subcls.config = Config()
 
 
 class ConsoleDuplicate(Exception):
