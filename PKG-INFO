@@ -1,6 +1,6 @@
-Metadata-Version: 0.2.3
+Metadata-Version: 0.2.4
 Name: tinyscript
-Version: 0.2.3
+Version: 0.2.4
 Summary: A toolkit for building Metasploit-like consoles
 Home-page: https://github.com/dhondta/sploitkit
 Author: Alexandre D'Hondt

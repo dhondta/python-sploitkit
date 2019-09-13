@@ -17,7 +17,7 @@ setup(
   name = "sploitkit",
   author = "Alexandre D\'Hondt",
   author_email = "alexandre.dhondt@gmail.com",
-  version = "0.2.3",
+  version = "0.2.4",
   license = "AGPLv3",
   url = "https://github.com/dhondta/sploitkit",
   description = "A toolkit for easilly building Metasploit-like consoles with "
