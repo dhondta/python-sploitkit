@@ -5,7 +5,7 @@ from importlib import find_loader
 from inspect import getfile, getmro
 from shutil import which
 
-from .components.config import Config, Option, ProxyConfig
+from .components.config import Config, Option
 from ..utils.dict import ClassRegistry
 from ..utils.objects import BorderlessTable, NameDescription as NDescr
 from ..utils.path import *
@@ -150,20 +150,13 @@ class Entity(object):
     _subclasses = ClassRegistry()
     
     def __getattribute__(self, name):
-        if getattr(self.__class__, "_has_config", False) and name == "config":
-            # gather the configs from the entity and its proxy class(es)
-            proxy = ProxyConfig()
-            try:
-                proxy.append(self.__class__.config)
-            except AttributeError:
-                pass
-            if self.__class__.__base__:
-                try:
-                    proxy.append(self.__class__.__base__.config)
-                except AttributeError:
-                    pass
-            return proxy
-        return super(Entity, self).__getattribute__(name)
+        if name == "config" and getattr(self.__class__, "_has_config", False):
+            c = self.__class__.config
+            if hasattr(self, "parent") and self.parent is not None and \
+                self.parent is not self:
+                c += self.parent.config
+            return c
+        return super().__getattribute__(name)
     
     @property
     def applicable(self):
@@ -192,6 +185,7 @@ class Entity(object):
     def check(cls, other_cls=None):
         """ Check for entity's requirements. """
         cls = other_cls or cls
+        cls._enabled = True
         errors = {}
         # check for requirements
         req = getattr(cls, "check_requirements", None)
@@ -201,10 +195,19 @@ class Entity(object):
         #   e.g. {'system': "test"} will give issues 't', 'e', 's', 't' not
         #                            installed
         for k, v in getattr(cls, "requirements", {}).items():
-            if k in set(cls.requirements.keys()) - \
-                    set(["file", "python", "system"]):
-                continue
-            if k == "file":
+            if k == "config":
+                for opt, exp_val in v.items():
+                    try:
+                        o = cls.config.option(opt.upper())
+                    except KeyError:
+                        cls._enabled = False
+                        break
+                    o._reset = True
+                    cur_val = o.value       # current value
+                    if cur_val != exp_val:  # expected value
+                        cls._enabled = False
+                        break
+            elif k == "file":
                 for fpath in v:
                     if not Path(cls.__file__).parent.joinpath(fpath).exists():
                         errors.setdefault("file", [])
@@ -337,20 +340,11 @@ class MetaEntityBase(type):
 class MetaEntity(MetaEntityBase):
     """ Metaclass of an Entity, adding some particular properties. """    
     def __getattribute__(self, name):
-        if getattr(self, "_has_config", False) and name == "config":
-            # gather the configs from the entity and its proxy class(es)
-            proxy = ProxyConfig()
-            try:
-                proxy.append(super(MetaEntity, self).__getattribute__("config"))
-            except AttributeError:
-                pass
-            if self.__base__:
-                try:
-                    proxy.append(self.__base__.config)
-                except AttributeError:
-                    pass
-            return proxy
-        return super(MetaEntity, self).__getattribute__(name)
+        if name == "config" and getattr(self, "_has_config", False):
+            return self.__dict__.get("config", Config()) + \
+                   (getattr(self.__base__, "config", Config()) \
+                    if self.__base__ else Config())
+        return super().__getattribute__(name)
 
     @property
     def applicable(self):
