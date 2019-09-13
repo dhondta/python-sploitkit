@@ -9,6 +9,12 @@ __all__ = ["CommandValidator"]
 
 class CommandValidator(Validator):
     """ Completer for console's commands and arguments. """
+    def __del__(self):
+        """ Custom deletion method, for removing back-references. """
+        if hasattr(self, "console"):
+            delattr(self, "console")
+        super().__del__()
+
     def validate(self, document):
         # first, tokenize document.text
         tokens = self.console._get_tokens(document.text.strip())
