@@ -3,6 +3,7 @@ import gc
 import re
 from inspect import getargspec
 
+from .components.config import Config
 from .entity import Entity, MetaEntity
 from ..utils.misc import failsafe
 from ..utils.objects import BorderlessTable, NameDescription
@@ -62,6 +63,14 @@ class MetaCommand(MetaEntity):
         return h.replace(a, "Name")
     
     @property
+    def config(self):
+        """ Shortcut to bound console's config instance. """
+        try:
+            return self.console.config
+        except AttributeError:
+            return Config()
+    
+    @property
     def name(self):
         """ Command name, according to the defined style. """
         _ = self.__name__
@@ -108,7 +117,7 @@ class Command(Entity, metaclass=MetaCommand):
         """ Shortcut to bound console's config instance. """
         return self.module.config if hasattr(self, "module") and \
                                      self.module is not None else \
-               self.console.config
+               self.__class__.console.__class__.config
     
     @property
     def files(self):
@@ -147,17 +156,6 @@ class Command(Entity, metaclass=MetaCommand):
         _ = getattr(cls, "applies_to", [])
         return len(_) == 0 or not hasattr(cls, "console") or \
                cls.console.module.fullpath in _
-    
-    @classmethod
-    def check_requirements(cls):
-        """ Check for specific requirements. """
-        if hasattr(cls, "console"):
-            _ = getattr(cls, "requirements", {}).get("config", {})
-            for k, v in _.items():
-                cls.console.config.option(k.upper())._reset = True
-                if cls.console.config.option(k.upper()).value != v:
-                    return False
-        return True
 
     @classmethod
     def get_help(cls, *levels):
