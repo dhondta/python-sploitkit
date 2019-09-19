@@ -51,7 +51,7 @@ class BorderlessTable(NoBorder):
         if self.data is None:
             return ""
         t = self.title_
-        s = ("{}\n{}\n".format(t, len(t) * self.title_ul_char) \
+        s = ("\n{}\n{}\n".format(t, len(t) * self.title_ul_char) \
              if t is not None else "") + "\n{}\n"
         return s.format(super(BorderlessTable, self).table)
 

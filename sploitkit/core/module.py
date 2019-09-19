@@ -11,7 +11,8 @@ __all__ = ["Module"]
 
 class MetaModule(MetaEntity):
     """ Metaclass of a Module. """
-    _has_config = True
+    _has_config       = True
+    _inherit_metadata = True
     
     def __new__(meta, name, bases, clsdict):
         subcls = type.__new__(meta, name, bases, clsdict)

@@ -77,7 +77,7 @@ class Show(ModuleCommand):
             for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
                 if value is None or n == value:
                     data.append([n, v, ["N", "Y"][r], d])
-            print_formatted_text(BorderlessTable(data, "Console options"))
+            print_formatted_text(BorderlessTable(data, "Module options"))
         elif key == "info":
             i = self.console.module.get_info(("fullpath|path", "description"),
                                              ("author", "version", "comments"),

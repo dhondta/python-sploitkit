@@ -94,7 +94,7 @@ class Show(Command):
             for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
                 if value is None or n == value:
                     data.append([n, v, ["N", "Y"][r], d])
-            print_formatted_text(BorderlessTable(data, "Options"))
+            print_formatted_text(BorderlessTable(data, "Console options"))
         elif key == "projects":
             if value is None:
                 data = [["Name"]]

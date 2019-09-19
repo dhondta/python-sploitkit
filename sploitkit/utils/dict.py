@@ -102,7 +102,8 @@ class PathBasedDict(dict):
     def __delitem__(self, path):
         """ Remove the item at the given path of subdictionaries. """
         d, parts = self, self.__convert_path(path)
-        del self[parts[:-1]][parts[-1]]
+        if len(parts[:-1]) > 0:
+            del self[parts[:-1]][parts[-1]]
         parts = parts[:-1]
         while len(parts) > 1 and len(d[parts]) == 0:
             del self[parts[:-1]][parts[-1]]

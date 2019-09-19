@@ -5,6 +5,7 @@ import random
 import re
 import shlex
 import string
+import sys
 from bdb import BdbQuit
 from datetime import datetime
 from importlib import find_loader
@@ -112,6 +113,7 @@ class Console(Entity, metaclass=MetaConsole):
     
     def __init(self, **kwargs):
         """ Initialize the parent console with commands and modules. """
+        # setup banners
         bsrc = self._sources("banners")
         if bsrc is not None:
             print_formatted_text("")
@@ -137,6 +139,14 @@ class Console(Entity, metaclass=MetaConsole):
             docstr_parser=kwargs.get("docstr_parser", parse_docstring),
         )
         Console._storage.models = Model.subclasses + BaseModel.subclasses
+        # setup libraries
+        lsrc = self._sources("libraries")
+        if lsrc is not None:
+            if isinstance(lsrc, str):
+                lsrc = [lsrc]
+            if isinstance(lsrc, (list, tuple, set)):
+                for lib in map(lambda p: os.path.abspath(p), lsrc[::-1]):
+                    sys.path.insert(0, lib)
         # display module stats
         m = []
         for category in self.modules.keys():
@@ -212,8 +222,8 @@ class Console(Entity, metaclass=MetaConsole):
     
     def _sources(self, items):
         """ Return the list of sources for the related items
-             [banners|entities], first trying subclass' one then Console class'
-             one. """
+             [banners|entities|libraries], first trying subclass' one then
+             Console class' one. """
         try:
             return self.sources[items]
         except KeyError:

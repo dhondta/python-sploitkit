@@ -7,6 +7,7 @@ ROOT_LEVEL = "root"  # console root level's name
 SOURCES = {
     'banners':  None,
     'entities': ["commands", "models", "modules"],
+    'libraries': ".",
 }
 
 

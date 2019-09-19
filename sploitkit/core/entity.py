@@ -28,7 +28,7 @@ def load_entities(entities, *sources, **kwargs):
     :param exclude:       list of entity identifiers (in custom format, or
                            simply the entity class) to be excluded (useful when
                            including the base but not every entity is required)
-    :param backref:       list of attributes to get entity's class to be bound to
+    :param backref:       list of attrs to get entity's class to be bound to
     :param docstr_parser: user-defined docstring parser for populating metadata
     """
     global ENTITIES
@@ -91,29 +91,7 @@ def load_entities(entities, *sources, **kwargs):
             if hasattr(o, "check"):
                 c._enabled = o.check()
             # populate metadata
-            c._metadata = kwargs.get("docstr_parser", lambda s: {})(c)
-            # "meta" or "metadata" attributes will have precedence on the docstr
-            for attr in ["meta", "metadata"]:
-                if hasattr(c, attr):
-                    c._metadata.update(getattr(c, attr))
-                    delattr(c, attr)
-            # if the metadata has options, create the config object
-            for option in c._metadata.pop("options", []):
-                try:
-                    name, default, required, description = option
-                except ValueError:
-                    raise ValueError("Bad option ; should be (name, default, "
-                                     "required, description)")
-                if not hasattr(c, "config"):
-                    c.config = Config()
-                c.config[Option(name, description, required)] = default
-            # dynamically declare properties for each metadata field
-            for attr, value in c._metadata.items():
-                # let the precedence to already existing attributes
-                try:
-                    getattr(c, attr)
-                except AttributeError:
-                    setattr(c, attr, value)
+            set_metadata(c, kwargs.get("docstr_parser", lambda s: {}))
         # bind entity's subclasses to the given attributes for back-reference
         backrefs = kwargs.get("backref", {}).get(n)
         if backrefs is not None:
@@ -131,6 +109,44 @@ def load_entities(entities, *sources, **kwargs):
                         setattr(getattr(c, a), bn, bc)
     # then trigger garbage collection (for removed classes)
     gc.collect()
+
+
+def set_metadata(c, docstr_parser):
+    """ Set the metadata for an entity class given a docstring parser
+    """
+    # populate metadata starting by parsing entity class' docstring
+    c._metadata = docstr_parser(c)
+    # "meta" or "metadata" attributes then have precedence on the docstr
+    #  (because of .update())
+    for attr in ["meta", "metadata"]:
+        if hasattr(c, attr):
+            c._metadata.update(getattr(c, attr))
+            delattr(c, attr)
+    # if the metadata has options, create the config object
+    for option in c._metadata.pop("options", []):
+        try:
+            name, default, required, description = option
+        except ValueError:
+            raise ValueError("Bad option ; should be (name, default, "
+                             "required, description)")
+        if not hasattr(c, "config"):
+            c.config = Config()
+        c.config[Option(name, description, required)] = default
+    # dynamically declare properties for each metadata field
+    for attr, value in c._metadata.items():
+        # let the precedence to already existing attributes
+        try:
+            getattr(c, attr)
+        except AttributeError:
+            setattr(c, attr, value)
+    # add inherited entity classes' metadata
+    b = c.__base__
+    if b and getattr(c, "_inherit_metadata", False):
+        for b in c.__bases__:
+            set_metadata(b, docstr_parser)
+            for k, v in b._metadata.items():
+                if k not in c._metadata.keys():
+                    c._metadata[k] = v
 
 
 class BadSource(Exception):
@@ -341,9 +357,12 @@ class MetaEntity(MetaEntityBase):
     """ Metaclass of an Entity, adding some particular properties. """    
     def __getattribute__(self, name):
         if name == "config" and getattr(self, "_has_config", False):
-            return self.__dict__.get("config", Config()) + \
-                   (getattr(self.__base__, "config", Config()) \
-                    if self.__base__ else Config())
+            c = self.__dict__.get("config", Config())
+            for b in self.__bases__:
+                config = getattr(b, "config", None)
+                if config is not None:
+                    c += config
+            return c
         return super().__getattribute__(name)
 
     @property
