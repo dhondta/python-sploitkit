@@ -1,0 +1,9 @@
+language: python
+sudo: required
+python:
+  - "3.5"
+  - "3.6"
+  - "3.7"
+cache: pip
+install:
+  - python setup.py install
