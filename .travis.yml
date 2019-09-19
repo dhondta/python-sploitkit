@@ -6,4 +6,5 @@ python:
   - "3.7"
 cache: pip
 install:
+  - pip install -r requirements
   - python setup.py install
