@@ -67,6 +67,7 @@ target/
 .idea
 .vagrant
 .test
+.pytest_cache
 tmp
 TODO
 script.py
