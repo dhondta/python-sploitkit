@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-import shlex
 from sploitkit import *
 
 
@@ -13,21 +12,21 @@ class Help(Command):
         if len(Module.modules) > 0 and "module" not in self.keys:
             self.keys += ["module"]
     
-    def complete_values(self, key):
-        if key == "command":
+    def complete_values(self, category):
+        if category == "command":
             return self.console.commands.keys()
-        elif key == "module":
+        elif category == "module":
             return sorted([x.fullpath for x in Module.subclasses])
     
-    def run(self, key=None, value=None):
-        if key is None:
+    def run(self, category=None, value=None):
+        if category is None:
             print_formatted_text(Command.get_help())
-        elif key == "command":
+        elif category == "command":
             print_formatted_text(self.console.commands[value].help(value))
-        elif key == "module":
+        elif category == "module":
             print_formatted_text(self.modules[value].help)
     
-    def validate(self, key=None, value=None):
-        if key is None and value is None:
+    def validate(self, category=None, value=None):
+        if category is None and value is None:
             return
-        super(Help, self).validate(key, value)
+        super(Help, self).validate(category, value)

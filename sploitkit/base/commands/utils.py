@@ -141,6 +141,7 @@ class Shell(Command):
 class State(Command):
     """ Display console's shared state """
     requirements = {'config': {'DEBUG': True}}
+
     def run(self):
         for k, v in self.console.state.items():
             print_formatted_text("\n{}:".format(k))
@@ -150,6 +151,8 @@ class State(Command):
 
 class Stats(Command):
     """ Display console's statistics """
+    level = "root"
+    
     def run(self):
         d = [["Item", "Path", "Size"]]
         _ = self.console.app_folder

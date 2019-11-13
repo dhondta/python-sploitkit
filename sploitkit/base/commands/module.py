@@ -80,8 +80,9 @@ class Show(ModuleCommand):
             print_formatted_text(BorderlessTable(data, "Module options"))
         elif key == "info":
             i = self.console.module.get_info(("fullpath|path", "description"),
-                                             ("author", "version", "comments"),
-                                             ("options", ), show_all=True)
+                                             ("author", "email", "version"),
+                                             ("comments", ), ("options", ),
+                                             show_all=True)
             if len(i.strip()) != "":
                 print_formatted_text(i)
         elif key == "issues":
