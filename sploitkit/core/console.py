@@ -6,6 +6,7 @@ import re
 import shlex
 import string
 import sys
+from asciistuff import get_banner, get_quote
 from bdb import BdbQuit
 from datetime import datetime
 from importlib import find_loader
@@ -120,14 +121,17 @@ class Console(Entity, metaclass=MetaConsole):
             # display a random banner from the banners folder
             get_banner_func = kwargs.get('get_banner_func', get_banner)
             banner_colors = kwargs.get('banner_section_styles', {})
-            text = get_banner_func(self.appdispname, bsrc, banner_colors)
+            text = get_banner_func(self.appdispname, bsrc, styles=banner_colors)
             if text:
                 print_formatted_text(ANSI(text))
             # display a random quote from quotes.csv (in the banners folder)
             get_quote_func = kwargs.get('get_quote_func', get_quote)
-            text = get_quote_func(bsrc)
-            if text:
-                print_formatted_text(ANSI(text))
+            try:
+                text = get_quote_func(os.path.join(bsrc, "quotes.csv"))
+                if text:
+                    print_formatted_text(ANSI(text))
+            except ValueError:
+                pass
         # setup entities
         load_entities(
             [BaseModel, Command, Console, Model, Module, StoreExtension],

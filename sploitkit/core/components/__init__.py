@@ -1,4 +1,3 @@
-from .banner import *
 from .completer import *
 from .config import *
 from .defaults import *
