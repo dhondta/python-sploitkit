@@ -53,13 +53,8 @@ class MetaModule(MetaEntity):
     
     @property
     def help(self):
-        """ Help message for the module, formatted as a row with its name and 
-             description then its list of options. """
-        t = str(BorderlessTable(self.options))
-        if len(t) > 0:
-            t = "\n\n" + t
-        nd = NameDescription(self.name, self.description)
-        return str(nd) + t
+        """ Help message for the module. """
+        return self.get_info(("name", "description"), "comments")
     
     def search(self, text):
         """ Search for text in module's attributes. """
@@ -133,5 +128,8 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def unregister_module(cls, subcls):
         """ Unregister a Module subclass from the dictionary of modules. """
-        del cls.modules[subcls.path, subcls.name]
-        Module.subclasses.remove(subcls)
+        try:
+            del cls.modules[subcls.path, subcls.name]
+            Module.subclasses.remove(subcls)
+        except KeyError:
+            pass

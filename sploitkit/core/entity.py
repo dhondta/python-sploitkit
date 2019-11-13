@@ -112,20 +112,23 @@ def load_entities(entities, *sources, **kwargs):
 
 
 def set_metadata(c, docstr_parser):
-    """ Set the metadata for an entity class given a docstring parser
+    """ Set the metadata for an entity class given a docstring parser.
+    
+    :param c:             entity subclass
+    :param docstr_parser: parsing function, taking 'c' as its input
     """
     # populate metadata starting by parsing entity class' docstring
     c._metadata = docstr_parser(c)
     # "meta" or "metadata" attributes then have precedence on the docstr
     #  (because of .update())
-    for attr in ["meta", "metadata"]:
-        if hasattr(c, attr):
-            c._metadata.update(getattr(c, attr))
-            delattr(c, attr)
+    for a in ["meta", "metadata"]:
+        if hasattr(c, a):
+            c._metadata.update(getattr(c, a))
+            delattr(c, a)
     # if the metadata has options, create the config object
-    for option in c._metadata.pop("options", []):
+    for o in c._metadata.pop("options", []):
         try:
-            name, default, required, description = option
+            name, default, required, description = o
         except ValueError:
             raise ValueError("Bad option ; should be (name, default, "
                              "required, description)")
@@ -135,14 +138,14 @@ def set_metadata(c, docstr_parser):
     # dynamically declare properties for each metadata field
     for attr, value in c._metadata.items():
         # let the precedence to already existing attributes
-        try:
-            getattr(c, attr)
-        except AttributeError:
+        if attr not in c.__dict__.keys():
             setattr(c, attr, value)
     # add inherited entity classes' metadata
     b = c.__base__
     if b and getattr(c, "_inherit_metadata", False):
         for b in c.__bases__:
+            if b is Entity:
+                continue
             set_metadata(b, docstr_parser)
             for k, v in b._metadata.items():
                 if k not in c._metadata.keys():
@@ -409,11 +412,16 @@ class MetaEntity(MetaEntityBase):
             return data
     
     def get_info(self, *fields, show_all=False):
-        """ Display entity's metadata and other information. """
+        """ Display entity's metadata and other information.
+        
+        :param fields:   metadata fields to be output
+        :param show_all: also include unselected fields, to be output behind the
+                          list of selected fields
+        """
         t = ""
         if len(fields) == 0:
             fields = [("name", "description"),
-                      ("author", "version", "comments"),
+                      ("author", "email", "version", "comments"),
                       ("options", )]
         # make a data table with the given fields and corresponding values
         data, __used = [], []

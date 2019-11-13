@@ -54,13 +54,8 @@ class MetaCommand(MetaEntity):
         self.args, self.defaults = args, defs
     
     def help(self, alias=None):
-        """ Help message for the command, formatted as a row with its name and 
-             description, with the alias instead of the name if defined. """
-        a = "_temp_alias"
-        setattr(self, a, alias or self.name)
-        h = self.get_info(a, "description", "comments")
-        delattr(self, a)
-        return h.replace(a, "Name")
+        """ Help message for the command. """
+        return self.get_info(("name", "description"), "comments")
     
     @property
     def config(self):
