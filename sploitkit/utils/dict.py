@@ -97,6 +97,7 @@ class PathBasedDict(dict):
             - "a", "b", "c" (tuple of strings) """
         if not isinstance(path, tuple):
             path = (str(path), )
+        path = tuple(filter(lambda x: x is not None, path))
         return Path(*path).parts
     
     def __delitem__(self, path):

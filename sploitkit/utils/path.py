@@ -101,12 +101,13 @@ class Path(BasePath):
             if i.is_dir() and not i.stem.startswith("."):
                 yield i
     
-    def iterfiles(self, filetype=None, filename_only=False):
+    def iterfiles(self, filetype=None, filename_only=False, relative=False):
         """ List all files from the current directory. """
         for i in self.iterdir():
             if i.is_file():
                 if filetype is None or i.suffix == filetype:
-                    yield i.filename if filename_only else i
+                    yield i.filename if filename_only else \
+                          i.relative_to(self) if relative else i
     
     def read_text(self):
         """ Fix to non-existing method in Python 2. """
