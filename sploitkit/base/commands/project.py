@@ -101,6 +101,7 @@ class Select(ProjectRootCommand):
             p.mkdir()
             self.logger.success("'{}' created".format(project))
         ProjectConsole(self.console, project).start()
+        self.config['WORKSPACE'] = str(Path(self.config['WORKSPACE']).parent)
 
 
 # ---------------------------- PROJECT-LEVEL COMMANDS --------------------------

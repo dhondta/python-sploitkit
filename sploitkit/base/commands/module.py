@@ -1,5 +1,7 @@
 # -*- coding: UTF-8 -*-
+from prompt_toolkit.formatted_text import ANSI
 from sploitkit import *
+from termcolor import colored
 
 
 # ----------------------------- SUBCONSOLE DEFINITION --------------------------
@@ -58,7 +60,7 @@ class Show(ModuleCommand):
     keys = ["info", "options"]
     
     def __init__(self):
-        if self.module and len(list(self.module.issues)) > 0:
+        if self.module and self.module.has_issues():
             self.keys = self.keys + ["issues"]
     
     def complete_values(self, key):
@@ -74,10 +76,17 @@ class Show(ModuleCommand):
     def run(self, key, value=None):
         if key == "options":
             data = [["Name", "Value", "Required", "Description"]]
-            for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
+            for n, d, v, r in sorted(self.config.items(False),
+                                     key=lambda x: x[0]):
+                r = ["N", "Y"][r]
                 if value is None or n == value:
-                    data.append([n, v, ["N", "Y"][r], d])
-            print_formatted_text(BorderlessTable(data, "Module options"))
+                    if v == "undefined":
+                        n = colored(n, "red", attrs=['bold'])
+                        v = colored(v, "red", attrs=['bold'])
+                        r = colored(r, "red", attrs=['bold'])
+                    data.append([n, v, r, d])
+            t = BorderlessTable(data, "Module options")
+            print_formatted_text(ANSI(t.table))
         elif key == "info":
             i = self.console.module.get_info(("fullpath|path", "description"),
                                              ("author", "email", "version"),
@@ -86,4 +95,14 @@ class Show(ModuleCommand):
             if len(i.strip()) != "":
                 print_formatted_text(i)
         elif key == "issues":
-            print_formatted_text(self.console.issues)
+            for cls, subcls, errors in self.console.module.get_issues():
+                if value is None:
+                    t = "{}: {}\n- ".format(cls, subcls)
+                    t += "\n- ".join(m(k, e) for k, err in errors.items() \
+                                             for e in err) + "\n"
+                else:
+                    t = ""
+                    for k, e in errors.items():
+                        if k == value:
+                            t += "- {}/{}: {}".format(cls, subcls, e)
+                print_formatted_text(t)

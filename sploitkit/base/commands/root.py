@@ -20,7 +20,7 @@ class Help(Command):
     
     def run(self, category=None, value=None):
         if category is None:
-            print_formatted_text(Command.get_help())
+            print_formatted_text(Command.get_help(except_levels="module"))
         elif category == "command":
             print_formatted_text(self.console.commands[value].help(value))
         elif category == "module":

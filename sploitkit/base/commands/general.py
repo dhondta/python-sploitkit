@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+import re
 import shlex
 from sploitkit import *
 from subprocess import call
@@ -38,25 +39,18 @@ class Search(Command):
     
     def run(self, text):
         keywords = shlex.split(text)
-        i = 0
+        data = [["Name", "Path", "Description"]]
         for m in Module.subclasses:
             for k in keywords:
                 if m.search(k):
-                    if i == 0:
-                        d = [["Name", "Path", "Description"]]
-                        d.append([m.name, m.path, m.description])
-                        t = BorderlessTable(d, "Matching modules")
-                        print_formatted_text("")
-                    else:
-                        d = [[m.name, m.path, m.description]]
-                        t = BorderlessTable(d)
-                    print_formatted_text(t.table)
-                    i += 1
-        if i == 0:
+                    data.append([m.name, m.path, m.description])
+        if len(data) == 1:
             self.logger.error("No match found")
         else:
-            self.logger.debug("{} matching entr{}"
-                              .format(i, ["y", "ies"][i > 1]))
+            t = BorderlessTable(data, "Matching modules")
+            print_formatted_text(t.table)
+            n = len(data) - 1
+            self.logger.info("{} match{} found".format(n, ["", "es"][n > 0]))
 
 
 class Show(Command):
@@ -65,20 +59,19 @@ class Show(Command):
     keys = ["modules", "options", "projects"]
     
     def __init__(self):
-        if len(list(Console.issues)) > 0:
+        if Entity.has_issues():
             self.keys = self.keys + ["issues"]
     
     def complete_values(self, key):
         if key == "modules":
-            return [m for m in self.console.modules.keys() \
-                    if getattr(m, "enabled", True)]
+            return [m for m in self.console.modules.keys()]
         elif key == "options":
             return self.config.keys()
         elif key == "projects":
             return projects(self)
         elif key == "issues":
             l = []
-            for cls, subcls, errors in Console.issues:
+            for cls, subcls, errors in Entity.get_issues():
                 l.extend(errors.keys())
             return l
     
@@ -104,15 +97,33 @@ class Show(Command):
             else:
                 print_formatted_text(value)
         elif key == "issues":
-            m = lambda k, e: \
-                "'{}' not found".format(e) if k == "file" else \
-                "'{}' package is not installed".format(e) if k in \
-                    ["system", "python"] else str(e)
-            for cls, subcls, errors in Console.issues:
+            # message formatting function
+            def msg(key, item):
+                if key == "file":
+                    return "'{}' not found".format(item)
+                elif key == "packages":
+                    return "'{}' system package is not installed".format(item)
+                elif key == "python":
+                    return "'{}' Python package is not installed".format(item)
+                elif key == "tools":
+                    return "'{}' tool is not installed".format(item)
+                elif key == "state":
+                    item = re.split(r"(\=|\?)", item, 1)
+                    if len(item) == 1:
+                        return "'{}' state key is not defined".format(item[0])
+                    elif item[1] == "=":
+                        return "'{}' state key does not match the expected " \
+                               "value '{}'".format(item[0], item[2])
+                    elif item[1] == "?":
+                        return "'{}' state key is expected to have value '{}'" \
+                               " at least once".format(item[0], item[2])
+            if Entity.has_issues():
+                print("")
+            for cls, subcls, errors in Entity.get_issues():
                 if value is None:
                     t = "{}: {}\n- ".format(cls, subcls)
-                    t += "\n- ".join(m(k, e) for k, err in errors.items() \
-                                             for e in err) + "\n"
+                    t += "\n- ".join(msg(k, e) for k, err in errors.items() \
+                                               for e in err) + "\n"
                 else:
                     t = ""
                     for k, e in errors.items():
@@ -134,15 +145,20 @@ class Set(Command):
     
     def run(self, key, value):
         self.config[key] = value
-        self.logger.success("{} => {}".format(key,
-                                              self.config.option(key).value))
+        self.logger.success("{} => {}"
+                            .format(key, self.config.option(key).value))
+        if hasattr(self.config, "_last_error"):
+            self.logger.warning("Callback error: {}"
+                                .format(self.config._last_error))
     
     def validate(self, key, value):
         if key not in self.config.keys():
             raise ValueError("invalid key")
-        r = self.config.option(key).required
-        if r and value is None:
+        o = self.config.option(key)
+        if o.required and value is None:
             raise ValueError("a value is required")
+        if not o.validate(value):
+            raise ValueError("invalid value")
 
 
 class Unset(Command):
