@@ -1,8 +1,9 @@
 # -*- coding: UTF-8 -*-
 import os
 import stat
-from gc import get_objects, get_referrers
+from gc import collect, get_objects, get_referrers
 from pprint import pprint
+from subprocess import call
 from sys import getrefcount
 
 from sploitkit import *
@@ -11,15 +12,13 @@ from sploitkit import *
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
 class Edit(Command):
     """ Edit a file with PyVim """
-    requirements = {
-        'config': {'DEBUG': True},
-        'python': ["pyvim"],
-    }
+    requirements = {'python': ["pyvim"]}
     single_arg   = True
     
     def complete_values(self):
-        f = Path(self.config.option("WORKSPACE").value).iterfiles()
-        return list(map(lambda p: str(p), f))
+        p = self.config.option("WORKSPACE").value
+        f = Path(p).iterfiles(relative=True)
+        return list(map(lambda _: str(_), f))
     
     def run(self, filename):
         f = Path(self.config.option("WORKSPACE").value).joinpath(filename)
@@ -28,16 +27,60 @@ class Edit(Command):
 
 class History(Command):
     """ Inspect commands history """
-    requirements = {
-        'config': {'DEBUG': True},
-        'python': ["pypager"],
-    }
+    requirements = {'python': ["pypager"]}
     
     def run(self):
         h = Path(self.config.option("WORKSPACE").value).joinpath("history")
         page_file(str(h))
 
 
+class Shell(Command):
+    """ Execute a shell command """
+    single_arg = True
+    
+    def complete_values(self):
+        l = []
+        e = stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
+        for p in os.environ['PATH'].split(":"):
+            if not os.path.isdir(p):
+                continue
+            for f in os.listdir(p):
+                fp = os.path.join(p, f)
+                if os.path.isfile(fp):
+                    st = os.stat(fp)
+                    if st.st_mode & e and f not in l:
+                        l.append(f)
+        return l
+        
+    def run(self, cmd=None):
+        if cmd is None:
+            from pty import spawn
+            spawn("/bin/bash")
+        else:
+            call(cmd, shell=True)
+        print_formatted_text("")
+    
+    def validate(self, cmd):
+        _ = cmd.split()
+        if len(_) <= 1 and _[0] not in self.complete_values():
+            raise ValueError("bad shell command")
+
+
+class Stats(Command):
+    """ Display console's statistics """
+    level = "root"
+    
+    def run(self):
+        d = [["Item", "Path", "Size"]]
+        _ = self.console.app_folder
+        d.append(["APP_FOLDER", str(_), human_readable_size(_.size)])
+        _ = self.workspace
+        d.append(["WORKSPACE", str(_), human_readable_size(_.size)])
+        t = BorderlessTable(d, "Statistics")
+        print_formatted_text(t.table)
+
+
+# ------------------------------- DEBUGGING COMMANDS ---------------------------
 class Logs(Command):
     """ Inspect console logs """
     requirements = {
@@ -49,11 +92,52 @@ class Logs(Command):
         page_file(self.logger.__logfile__)
 
 
-class Memory(Command):
+class Pydbg(Command):
+    """ Start a Python debugger session """
+    requirements = {
+        'config': {'DEBUG': True},
+        'python': ["pdb"],
+    }
+
+    def run(self):
+        import pdb
+        pdb.set_trace()
+
+
+class State(Command):
+    """ Display console's shared state """
+    requirements = {'config': {'DEBUG': True}}
+
+    def run(self):
+        for k, v in self.console.state.items():
+            print_formatted_text("\n{}:".format(k))
+            pprint(v)
+        print_formatted_text("")
+
+
+# ------------------------------ DEVELOPMENT COMMANDS --------------------------
+class DevCommand(Command):
+    """ Proxy class for development commands """
+    def condition(self):
+        return getattr(Console, "_dev_mode", False)
+
+
+class Collect(DevCommand):
+    """ Garbage-collect """
+    def run(self):
+        collect()
+
+
+class Dict(DevCommand):
+    """ Show console's dictionary of attributes """
+    def run(self):
+        pprint(self.console.__dict__)
+
+
+class Memory(DevCommand):
     """ Inspect memory consumption """
     keys         = ["graph", "growth", "info", "leaking", "objects", "refs"]
     requirements = {
-        'config': {'DEBUG': True},
         'python': ["objgraph", "psutil", "xdot"],
         'system': ["xdot"],
     }
@@ -83,12 +167,16 @@ class Memory(Command):
             from objgraph import get_leaking_objects
             print_formatted_text(get_leaking_objects())
         elif key == "objects":
+            data = [["Object", "#References"]]
             for o in get_objects():
                 if isinstance(o, (Console, Module)):
-                    print_formatted_text(o)
+                    data.append([str(o), str(getrefcount(o))])
+            t = BorderlessTable(data, "Consoles/Modules")
+            print_formatted_text(t.table)
         elif key == "refs":
             if value is not None:
-                print_formatted_text(getrefcount(obj), ":", get_referrers(obj))
+                print_formatted_text(getrefcount(obj), ":")
+                pprint(get_referrers(obj))
     
     def validate(self, key, value=None):
         if key in ["graph", "refs"]:
@@ -96,68 +184,3 @@ class Memory(Command):
                 raise ValueError("bad object")
         elif value:
             raise ValueError("this key takes no value")
-
-
-class Pydbg(Command):
-    """ Start a Python debugger session """
-    requirements = {
-        'config': {'DEBUG': True},
-        'python': ["pdb"],
-    }
-
-    def run(self):
-        import pdb
-        pdb.set_trace()
-
-
-class Shell(Command):
-    """ Execute a shell command """
-    single_arg = True
-    
-    def complete_values(self):
-        l = []
-        e = stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
-        for p in os.environ['PATH'].split(":"):
-            if not os.path.isdir(p):
-                continue
-            for f in os.listdir(p):
-                fp = os.path.join(p, f)
-                if os.path.isfile(fp):
-                    st = os.stat(fp)
-                    if st.st_mode & e and f not in l:
-                        l.append(f)
-        return l
-        
-    def run(self, cmd=None):
-        if cmd is None:
-            from pty import spawn
-            spawn("/bin/bash")
-        else:
-            from subprocess import call
-            call(cmd, shell=True)
-        print_formatted_text("")
-
-
-class State(Command):
-    """ Display console's shared state """
-    requirements = {'config': {'DEBUG': True}}
-
-    def run(self):
-        for k, v in self.console.state.items():
-            print_formatted_text("\n{}:".format(k))
-            pprint(v)
-        print_formatted_text("")
-
-
-class Stats(Command):
-    """ Display console's statistics """
-    level = "root"
-    
-    def run(self):
-        d = [["Item", "Path", "Size"]]
-        _ = self.console.app_folder
-        d.append(["APP_FOLDER", str(_), human_readable_size(_.size)])
-        _ = self.workspace
-        d.append(["WORKSPACE", str(_), human_readable_size(_.size)])
-        t = BorderlessTable(d, "Statistics")
-        print_formatted_text("\n" + t.table + "\n")
