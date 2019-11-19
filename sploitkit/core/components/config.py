@@ -6,7 +6,7 @@ from itertools import chain
 from ...utils.path import Path
 
 
-__all__ = ["Config", "Option", "ProxyConfig"]
+__all__ = ["Config", "Option", "ProxyConfig", "ROption"]
 
 
 class Config(dict):
@@ -25,8 +25,8 @@ class Config(dict):
     
     def __del__(self):
         """ Custom deletion method, for removing back-references. """
-        if hasattr(self, "console"):
-            delattr(self, "console")
+        if self.bound:
+            delattr(self, "_console")
 
     def __delitem__(self, key):
         """ Custom method for deleting an item, for triggering an unset callback
@@ -43,7 +43,7 @@ class Config(dict):
         try:
             return self.__d[key][1]
         except KeyError:
-            if hasattr(self, "console") and self.console.parent is not None:
+            if self.bound and self.console.parent is not None:
                 return self.console.parent.config[key]
             raise KeyError(key)
     
@@ -53,20 +53,22 @@ class Config(dict):
         key = tmp = self.__getkey(key)
         # get an existing instance or the new one
         key = key.bind(self if not hasattr(key, "config") else key.config)
-        if tmp is not key: 
+        if tmp is not key:
             del tmp  # if an instance already existed, remove the new one
         # keep track of the previous value
-        key.old_value = key.value if self.__d.get(key.name) else None
-        # then assign the new one
+        key.old_value = self.__d.get(key.name)
+        # then assign the new one if it is valid
         self.__d[key.name] = (key, value)
-        if not key.validate(value):
+        if value and not key.validate(value):
             raise ValueError("Invalid value '{}'".format(value))
         super(Config, self).__setitem__(key, value)
         # when the value is validated and assigned, run the callback function
         self.__run_callback(key, "set")
         if key._reset:
-            if hasattr(self, "console"):
+            try:
                 self.console.reset()
+            except AttributeError:
+                pass
     
     def __getkey(self, key):
         """ Proxy method for ensuring that the key is an Option instance. """
@@ -80,10 +82,12 @@ class Config(dict):
         """ Method for executing a callback and updating the current value with
              its return value if any. """
         retval = None
+        if hasattr(self, "_last_error"):
+            del self._last_error
         try:
             retval = getattr(key, "{}_callback".format(name))()
         except Exception as e:
-            self._last_error = str(e)
+            self._last_error = e
         if retval is not None:
             key.old_value = key.value
             if not key.validate(retval):
@@ -94,10 +98,17 @@ class Config(dict):
         """ Copy an option based on its key from another Config instance. """
         self[config.option(key)] = config[key]
 
-    def items(self):
+    def items(self, fail=True):
         """ Return (key, descr, value, required) instead of (key, value). """
         for o in sorted(self, key=lambda x: x.name):
-            yield str(o.name), o.description or "", o.value, o.required
+            try:
+                n = str(o.name)
+                v = o.value
+            except ValueError as e:
+                if fail:
+                    raise e
+                v = "undefined"
+            yield n, o.description or "", v, o.required
 
     def keys(self):
         """ Return string keys (like original dict). """
@@ -111,7 +122,7 @@ class Config(dict):
         try:
             return self.__d[key][0]
         except KeyError:
-            if hasattr(self, "console") and self.console.parent is not None:
+            if self.bound and self.console.parent is not None:
                 return self.console.parent.config.option(key)
             raise KeyError(key)
 
@@ -142,6 +153,30 @@ class Config(dict):
         #                  values (description, required, ...)
         for k, v in kwargs.items():
             self[k] = v
+    
+    @property
+    def bound(self):
+        return hasattr(self, "_console")
+    
+    @property
+    def console(self):
+        if hasattr(self, "parent"):
+            # reference the callee to let ProxyConfig.__getattribute__ avoid
+            #  trying to get the console attribute from the current config
+            #  object, ending in an infinite loop
+            self.parent._callee = self
+            try:
+                return self.parent.console
+            except AttributeError:
+                pass
+        if self.bound:
+            _ = self._console
+            return _() if isinstance(_, type(lambda:0)) else _
+        raise AttributeError("'Config' object has no attribute 'console'")
+    
+    @console.setter
+    def console(self, value):
+        self._console = value
 
 
 class Option(object):
@@ -168,19 +203,13 @@ class Option(object):
         self.__set_func(set_callback, "set_callback", lambda *a, **kw: None)
         self.__set_func(unset_callback, "unset_callback", lambda *a, **kw: None)
     
-    def __del__(self):
-        """ Custom deletion method, for removing back-references. """
-        if hasattr(self, "console"):
-            delattr(self, "console")
-    
     def __repr__(self):
         """ Custom representation method. """
         return str(self)
     
     def __str__(self):
         """ Custom string method. """
-        return "<{}[required={}]: {}>" \
-               .format(self.name, self.required, self.value)
+        return "<{}[{}]>".format(self.name, ["N", "Y"][self.required])
     
     def __set_func(self, func, name, default_func=None):
         """ Set a function, e.g. for manipulating option's value. """
@@ -204,17 +233,16 @@ class Option(object):
             o[i][self.name].config = parent
         return o[i][self.name]
     
-    def copy(self):
-        """ Copy option information to a new Option instance. """
-        return Option(self.name, self.description, self.required, self.choices, 
-                      self.set_callback, self.unset_callback,
-                      self.transform, self.validate)
-    
     @property
     def choices(self):
         """ Pre- or lazy-computed list of choices. """
         c = self._choices
-        return c() if isinstance(c, type(lambda:0)) else c
+        if not isinstance(c, type(lambda:0)):
+            return c
+        try:
+            return c()
+        except TypeError:
+            return c(self)
     
     @property
     def input(self):
@@ -222,14 +250,14 @@ class Option(object):
         if hasattr(self, "config"):
             return self.config[self]
         else:
-            raise Exception("Unbound option {}" .format(self.name))
+            raise Exception("Unbound option {}".format(self.name))
     
     @property
     def value(self):
         """ Normalized value attribute. """
         value = self.input
         if self.required and value is None:
-            raise ValueError("{} must be defined" .format(self.name))
+            raise ValueError("{} must be defined".format(self.name))
         try:
             # try to expand format variables using console's attributes
             kw = {}
@@ -274,39 +302,46 @@ class ProxyConfig(object):
         self.append(config)
         return self
     
-    def __del__(self):
-        """ Custom deletion method, for removing back-references. """
-        try:
-            super().__delattr__("console")
-        except AttributeError:
-            pass
-    
     def __getattribute__(self, name):
         """ Custom getattribute method for aggregating Config instances for some
              specific methods and attributes. """
+        # try to get it from this class first
+        try:
+            return super(ProxyConfig, self).__getattribute__(name)
+        except AttributeError:
+            pass
         # for these methods, create an aggregated config and get its attribute
         #  from this new instance
         if name in ["items", "keys", "options"]:
             try:
                 c = Config()
-                for config in self.configs:
+                for config in self.__configs:
                     c.update(config)
             except IndexError:
                 c = Config()
             return c.__getattribute__(name)
-        # for any other, try to get it from this class, otherwise get this of
-        #  the first config in the list
-        try:
-            return super().__getattribute__(name)
-        except AttributeError:
-            pass
-        for config in self.configs:
-            try:
-                return config.__getattribute__(name)
-            except AttributeError:
-                continue
-        msg = "'ProxyConfig' object has no attribute '{}'".format(name)
-        raise AttributeError(msg)
+        # for this attribute, only try to get this of the first config
+        if name == "console":
+            c = self.__configs[0]
+            if c is not getattr(self, "_callee", None):
+                # check first that the console is back-referenced on an attached
+                #  module instance
+                if hasattr(self, "module") and hasattr(self.module, "console"):
+                    return self.module.console
+                # then check for a direct reference
+                if c.bound:
+                    return c.console
+        # for any other, get the first one found from the list of configs
+        else:
+            for c in self.__configs:
+                if name != "_callee" and c is getattr(self, "_callee", None):
+                    continue
+                try:
+                    return c.__getattribute__(name)
+                except AttributeError:
+                    continue
+        raise AttributeError("'ProxyConfig' object has no attribute '{}'"
+                             .format(name))
     
     def __getitem__(self, key):
         """ Get method for returning the first occurrence of a key among the
@@ -323,14 +358,14 @@ class ProxyConfig(object):
     def __setattr__(self, name, value):
         """ Custom setattr method for handling the backref to a console. """
         if name == "console":
-            for config in self.configs:
-                if not hasattr(config, "console"):
-                    config.console = value
-        super().__setattr__(name, value)
+            if len(self.configs) > 0:
+                self.configs[0].console = value
+        else:
+            super(ProxyConfig, self).__setattr__(name, value)
     
     def __setitem__(self, key, value):
         """ Set method setting a key-value pair in the right Config among the
-             list of Config instances. It first tries to get the option
+             list of Config instances. First, it tries to get the option
              corresponding to the given key and if it exists, it sets the value.
              Otherwise, it sets a new key in the first Config among the list """
         try:
@@ -349,8 +384,9 @@ class ProxyConfig(object):
     def append(self, config):
         """ Method for apending a config to the list (if it does not exist). """
         for c in ([config] if isinstance(config, Config) else config.configs):
-            if c not in self.configs and len(c) > 0:
+            if c not in self.configs:
                 self.configs.append(c)
+                c.parent = self
     
     def get(self, key, default=None):
         """ Adapted get method (wrt Config). """
@@ -373,5 +409,11 @@ class ProxyConfig(object):
     
     @property
     def configs(self):
-        """ List of configs. """
         return self.__configs
+
+
+class ROption(Option):
+    """ Class for handling a reset option (that is, an option that triggers a
+         console reset after change) with its parameters while using it as key
+         for a Config dictionary. """
+    _reset     = True
