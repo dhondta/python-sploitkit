@@ -4,20 +4,22 @@ from logging.handlers import RotatingFileHandler
 from termcolor import colored
 
 
-__all__ = ["check_log_level", "get_logger", "null_logger"]
+__all__ = ["get_logger", "null_logger"]
 
 
-logging.SUCCESS = logging.ERROR + 1
-DATE_FORMAT = "%m/%d/%y %H:%M:%S"
-LOGFILE_FORMAT = "%(asctime)s [%(process)5d] %(levelname)8s %(name)s - %(message)s"
+SUCCESS = logging.ERROR + 1
+DATETIME_FORMAT = "%m/%d/%y %H:%M:%S"
+LOGFILE_FORMAT  = "%(asctime)s [%(process)5d] %(levelname)8s %(name)s - " \
+                  "%(message)s"
 LOG_FORMAT = "%(levelsymbol)s %(message)s"
 LOG_LEVEL_SYMBOLS = {
-    logging.INFO:    colored("[*]", "blue"),
-    logging.SUCCESS: colored("[+]", "green", attrs=['bold']),
-    logging.WARNING: colored("[!]", "yellow"),
-    logging.ERROR:   colored("[-]", "red", attrs=['bold']),
-    logging.DEBUG:   colored("[#]", "white"),
-    None:            colored("[?]", "grey"),
+    logging.DEBUG:    colored("[#]", "white"),
+    logging.INFO:     colored("[*]", "blue"),
+    logging.WARNING:  colored("[!]", "yellow"),
+    SUCCESS:          colored("[+]", "green", attrs=['bold']),
+    logging.ERROR:    colored("[-]", "red", attrs=['bold']),
+    logging.CRITICAL: colored("[X]", "red", attrs=['bold']),
+    None:             colored("[?]", "grey"),
 }
 
 
@@ -36,16 +38,21 @@ logger = logging.getLogger('sh.stream_bufferer')
 logger.setLevel(level=logging.WARNING)
 
 
-# add a custom log level for stepping
+# define a specific logger class
+class SploitkitLogger(logging.Logger):
+    pass
+
+
+# add custom log levels
 def failure(self, message, *args, **kwargs):
     if self.isEnabledFor(logging.ERROR):
         self._log(logging.ERROR, message, args, **kwargs) 
-logging.Logger.failure = failure
-logging.addLevelName(logging.SUCCESS, "SUCCESS")
+SploitkitLogger.failure = failure
+logging.addLevelName(SUCCESS, "SUCCESS")
 def success(self, message, *args, **kwargs):
-    if self.isEnabledFor(logging.SUCCESS):
-        self._log(logging.SUCCESS, message, args, **kwargs) 
-logging.Logger.success = success
+    if self.isEnabledFor(SUCCESS):
+        self._log(SUCCESS, message, args, **kwargs) 
+SploitkitLogger.success = success
 
 
 # set a null logger
@@ -60,18 +67,11 @@ class ConsoleHandler(logging.StreamHandler):
         super(ConsoleHandler, self).emit(record)
 
 
-# log level checking
-def check_log_level(level):
-    """ Log level check function. """
-    try:
-        return isinstance(getattr(logging, level), int)
-    except:
-        return False
-
-
 # logging configuration
 def get_logger(name, logfile=None, level="INFO"):
     """ Logger initialization function. """
+    tmp = logging.getLoggerClass()
+    logging.setLoggerClass(SploitkitLogger)
     logger = logging.getLogger(name)
     level = getattr(logging, level)
     logger.setLevel(logging.DEBUG)
@@ -86,7 +86,7 @@ def get_logger(name, logfile=None, level="INFO"):
             # setup a FileHandler for logging to a file (at level DEBUG)
             fh = RotatingFileHandler(logfile)
             fh.setFormatter(logging.Formatter(LOGFILE_FORMAT,
-                                              datefmt=DATE_FORMAT))
+                                              datefmt=DATETIME_FORMAT))
             fh.setLevel(logging.DEBUG)
             logger.addHandler(fh)
         else:
@@ -94,4 +94,5 @@ def get_logger(name, logfile=None, level="INFO"):
     else:
         for h in logger.handlers:
             h.setLevel(level)
+    logging.setLoggerClass(tmp)
     return logger
