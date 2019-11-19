@@ -1,11 +1,12 @@
 # -*- coding: UTF-8 -*-
 import gc
 import re
+import sys
 from importlib import find_loader
 from inspect import getfile, getmro
 from shutil import which
 
-from .components.config import Config, Option
+from .components.config import Config, Option, ProxyConfig
 from ..utils.dict import ClassRegistry
 from ..utils.objects import BorderlessTable, NameDescription as NDescr
 from ..utils.path import *
@@ -44,6 +45,8 @@ def load_entities(entities, *sources, **kwargs):
                 _ = Path(__file__).parent.joinpath(m).resolve()
                 if _.exists():
                     sources.insert(0, str(_))
+    # include the launcher script itself to include the subclassed console
+    sources.insert(0, str(Path(sys.argv[0]).resolve()))
     # now load every single source (folder of modules or single module)
     for s in sources:
         source = Path(s).expanduser().resolve()
@@ -59,11 +62,10 @@ def load_entities(entities, *sources, **kwargs):
         #  registry for further use (i.e. from the console)
         PyModulePath(source) if source.suffix == ".py" else PyFolderPath(source)
     for e in entities:
+        tbr = []
         # clean up the temporary attribute
-        try:
+        if hasattr(e, "_source"):
             delattr(e, "_source")
-        except AttributeError:  # i.e. if sources list is empty (when include_base
-            pass                #  is False)
         # remove proxy classes
         n = e.__name__.lower()
         for c in e.subclasses[:]:
@@ -77,20 +79,14 @@ def load_entities(entities, *sources, **kwargs):
             getattr(e, "unregister_{}s".format(n),
                     Entity.unregister_subclasses)(*excludes)
         # handle conditional entities ; this will remove entities having a
-        #  "condition" and/or a "check" method returning False
-        for c in e.subclasses:
-            try:
-                c, o = c, c()
-            except TypeError:
-                break
+        #  "condition" method returning False
+        for c in e.subclasses[:]:
             # convention: conditional entities are unregistered and removed
-            if hasattr(o, "condition") and not o.condition():
+            if hasattr(c, "condition") and not c().condition():
                 getattr(e, "unregister_{}".format(n),
                         Entity.unregister_subclass)(c)
-            # convention: entities with missing requirements are disabled
-            if hasattr(o, "check"):
-                c._enabled = o.check()
-            # populate metadata
+        # now populate metadata for each class
+        for c in e.subclasses:
             set_metadata(c, kwargs.get("docstr_parser", lambda s: {}))
         # bind entity's subclasses to the given attributes for back-reference
         backrefs = kwargs.get("backref", {}).get(n)
@@ -98,15 +94,15 @@ def load_entities(entities, *sources, **kwargs):
             for c in e.subclasses:
                 for br in backrefs:
                     try:
-                        a, bn = br
+                        a, bn = br  # [a]ttribute, [b]ackref [n]ame
                     except ValueError:
                         a, bn = None, br[0] if isinstance(br, tuple) else br
                     bc = list(filter(lambda _: _.__name__.lower() == bn,
-                                     entities))[0]
-                    if a is None:
-                        setattr(c, bn, bc)
-                    elif getattr(c, a, None):
-                        setattr(getattr(c, a), bn, bc)
+                                     entities))[0]  # [b]ackref [c]lass
+                    v = lambda: bc._instance
+                    if a and getattr(c, a, None):
+                        c = getattr(c, a)
+                    setattr(c, bn, v)
     # then trigger garbage collection (for removed classes)
     gc.collect()
 
@@ -159,7 +155,6 @@ class BadSource(Exception):
 
 class Entity(object):
     """ Generic Entity class (i.e. a command or a module). """
-    _applicable = True
     _enabled    = True
     _fields     = {
         'head': ["author", "reference", "source", "version"],
@@ -168,20 +163,20 @@ class Entity(object):
     _metadata   = {}
     _subclasses = ClassRegistry()
     
+    def __init__(self, *args, **kwargs):
+        self.__class__._instance = self
+    
     def __getattribute__(self, name):
         if name == "config" and getattr(self.__class__, "_has_config", False):
-            c = self.__class__.config
+            c = ProxyConfig(self.__class__.config)
+            # merge parent config if relevant
             if hasattr(self, "parent") and self.parent is not None and \
                 self.parent is not self:
                 c += self.parent.config
+            # back-reference the entity
+            setattr(c, self.__class__.entity, self)
             return c
-        return super().__getattribute__(name)
-    
-    @property
-    def applicable(self):
-        """ Boolean indicating if the entity is applicable to the current
-             context (i.e. of attached entities). """
-        return self.__class__._applicable
+        return super(Entity, self).__getattribute__(name)
     
     @property
     def base_class(self):
@@ -193,12 +188,7 @@ class Entity(object):
     def enabled(self):
         """ Boolean indicating if the entity is enabled (i.e. if it has no
              missing requirement. """
-        return self.__class__._enabled
-    
-    @property
-    def issues(self):
-        """ List issues encountered while checking entities. """
-        return self.__class__.issues
+        return self.__class__.enabled
     
     @classmethod
     def check(cls, other_cls=None):
@@ -210,10 +200,9 @@ class Entity(object):
         req = getattr(cls, "check_requirements", None)
         if req is not None:
             cls._enabled = cls.check_requirements()
-        # FIXME: handle requirement in string ;
-        #   e.g. {'system': "test"} will give issues 't', 'e', 's', 't' not
-        #                            installed
         for k, v in getattr(cls, "requirements", {}).items():
+            if isinstance(v, str):
+                v = [v]
             if k == "config":
                 for opt, exp_val in v.items():
                     try:
@@ -221,7 +210,6 @@ class Entity(object):
                     except KeyError:
                         cls._enabled = False
                         break
-                    o._reset = True
                     cur_val = o.value       # current value
                     if cur_val != exp_val:  # expected value
                         cls._enabled = False
@@ -242,46 +230,160 @@ class Entity(object):
                         errors.setdefault("python", [])
                         errors["python"].append(package)
                         cls._enabled = False
-            #elif k == "state":
-            #    for key in v:
-            #        if ...
-            # FIXME: get the reference to Console class for Console._state and
-            #         check if the state key is defined
+            elif k == "state":
+                if isinstance(v, (list, tuple, set)):
+                    skeys = {sk: None for sk in v}
+                elif isinstance(v, dict):
+                    skeys = v
+                else:
+                    raise ValueError("Bad state requirement")
+                # catch Console from Entity's registered subclasses as Console
+                #  cannot be imported in this module (cfr circular import)
+                Console = [c for c in Entity._subclasses.keys() \
+                           if c.__name__ == "Console"][0]
+                _tmp = []
+                for sk, sv in skeys.items():
+                    # check if the state key exists
+                    if sk not in Console._state.keys():
+                        _tmp.append(sk)
+                    # check if the value (if defined) matches
+                    elif sv is not None:
+                        cs = Console._state[sk]
+                        # special case: state value is a dict
+                        if isinstance(sv, dict) and isinstance(cs, dict):
+                            check_key, _ = True, list(sv.items())
+                            if len(_) == 1 and _[0][0] is None:
+                                check_key = False
+                            # case 1: classical dict
+                            if check_key:
+                                for ssk, ssv in sv.items():
+                                    if ssk not in cs.keys() or cs[ssk] != ssv:
+                                        _tmp.append("{}={}".format(sk, sv))
+                                        break
+                            # case 2: {None: value}, meaning that we expect to
+                            #         find 'value' at least once for any key
+                            else:
+                                if _[0][1] not in cs.values():
+                                    _tmp.append("{}?{}".format(sk, _[0][1]))
+                                    break
+                        # exact match between any other type than dict
+                        else:
+                            if sv != Console._state[sk]:
+                                _tmp.append("{}={}".format(sk, sv))
+                if len(_tmp) > 0:
+                    errors.setdefault("state", [])
+                    errors['state'].extend(_tmp)
+                    cls._enabled = False
             elif k == "system":
                 for tool in v:
-                    if isinstance(tool, tuple):
-                        tool, package = tool
+                    _ = tool.split("/")
+                    if len(_) == 1:
+                        package = None
+                    elif len(_) == 2:
+                        package, tool = _
                     else:
-                        package = tool
+                        raise ValueError("Bad system requirement")
                     if which(tool) is None:
-                        errors.setdefault("system", [])
-                        errors["system"].append(package)
+                        if package is None:
+                            errors.setdefault("tools", [])
+                            errors["tools"].append(tool)
+                        else:
+                            errors.setdefault("packages", [])
+                            errors["packages"].append(package)
                         cls._enabled = False
             else:
                 raise ValueError("Unknown requirement type '{}'".format(k))
         cls._errors = errors
-        # check for applicability
-        a = getattr(cls, "applies_to", [])
-        if len(a) > 0:
-            cls._applicable = False
-            chk = getattr(cls, "check_applicability", None)
-            if chk is not None:
-                cls._applicable = cls.check_applicability()
-            else:
-                for _ in getattr(cls, "applies_to", []):
-                    _, must_match, value = list(_[:-1]), _[-1], cls
-                    while len(_) > 0:
-                        value = getattr(value, _.pop(0), None)
-                    if value and value == must_match:
-                        cls._applicable = True
-                        break
-        return cls._enabled and cls._applicable
+        return cls._enabled
     
     @classmethod
     def get_class(cls, name):
         """ Get a class (key) from _subclasses by name (useful when the related
              class is not imported in the current scope). """
         return Entity._subclasses.key(name)
+    
+    @classmethod
+    def get_info(cls, *fields, show_all=False):
+        """ Display entity's metadata and other information.
+        
+        :param fields:   metadata fields to be output
+        :param show_all: also include unselected fields, to be output behind the
+                          list of selected fields
+        """
+        t = ""
+        if len(fields) == 0:
+            fields = [("name", "description"),
+                      ("author", "email", "version", "comments"),
+                      ("options", )]
+        # make a data table with the given fields and corresponding values
+        data, __used = [], []
+        _ = lambda s: s.capitalize() + ":"
+        for field in fields:
+            if not isinstance(field, (list, tuple)):
+                field = (field, )
+            add_blankline = False
+            for f in field:
+                try:
+                    f, alias = f.split("|", 1)
+                except:
+                    alias = f
+                __used.append(f)
+                v = getattr(cls, f, "undefined")
+                if v is None or len(v) == 0:
+                    continue
+                elif isinstance(v, (list, tuple)):
+                    v = "- " + "\n- ".join(v)
+                data.append([_(alias), v])
+                add_blankline = True
+            if add_blankline:
+                data.append(["", ""])
+        t = BorderlessTable(data, header=False).table + "\n" if len(data) > 0 \
+            else ""
+        # add other metadata if relevant
+        if show_all:
+            unused = set(cls._metadata.keys()) - set(__used)
+            if len(unused) > 0:
+                t += cls.get_info(*sorted(list(unused)))
+        return t.rstrip() + "\n"
+    
+    @classmethod
+    def get_issues(cls):
+        """ List issues encountered while checking all the entities. """
+        for cls, l in Entity._subclasses.items() if cls is Entity else \
+                      cls.subclasses if cls in Entity._subclasses.keys() \
+                      else [(cls._entity_class, [cls])]:
+            for subcls in l:
+                e = {}
+                for b in subcls.__bases__:
+                    # do not consider base classes without the get_issues method
+                    #  (e.g. mixin classes)
+                    if not hasattr(b, "get_issues"):
+                        continue
+                    # break when at parent entity level
+                    if b in Entity._subclasses.keys() or b is Entity:
+                        break
+                    # update the errors dictionary starting with proxy classes
+                    for issues in b.get_issues():
+                        for c, i in issues[-1].items():
+                            e.setdefault(c, [])
+                            e[c].extend(i)
+                if hasattr(subcls, "_errors") and len(subcls._errors) > 0:
+                    for c, i in subcls._errors.items():
+                        e.setdefault(c, [])
+                        e[c].extend(i)
+                if len(e) > 0:
+                    for c, i in e.items():
+                        e[c] = list(sorted(set(i)))
+                    yield cls.__name__, subcls.__name__, e
+    
+    @classmethod
+    def has_issues(cls):
+        """ Tell if issues were encountered while checking all the entities. """
+        try:
+            next(iter(cls.get_issues()))
+            return True
+        except StopIteration:
+            return False
 
     @classmethod
     def get_subclass(cls, key, name):
@@ -305,6 +407,11 @@ class Entity(object):
             #  trying getfile(...)
             subcls.__file__ = getfile(subcls)
             Entity._subclasses[ecls].append(subcls)
+        # back-reference the entity from its config if existing
+        if getattr(cls, "_has_config", False):
+            print("SET _{} TO {}".format(subcls.entity, subcls))
+            setattr(subcls.config, "_" + subcls.entity,
+                    lambda: subcls._instance)
 
     @classmethod
     def unregister_subclass(cls, subcls):
@@ -360,21 +467,23 @@ class MetaEntity(MetaEntityBase):
     """ Metaclass of an Entity, adding some particular properties. """    
     def __getattribute__(self, name):
         if name == "config" and getattr(self, "_has_config", False):
-            c = self.__dict__.get("config", Config())
-            for b in self.__bases__:
-                config = getattr(b, "config", None)
-                if config is not None:
-                    c += config
+            if "config" not in self.__dict__:
+                setattr(self, "config", Config())
+            c = self.__dict__['config']
+            # back-reference the entity
+            if hasattr(self, "_instance"):
+                setattr(c, self.entity, self._instance)
+            c = ProxyConfig(c)
+            if hasattr(self, "_entity_class"):
+                for b in self.__bases__:
+                    if b == self._entity_class:
+                        break
+                    _ = getattr(b, "config", None)
+                    if _:
+                        c += _
             return c
-        return super().__getattribute__(name)
+        return super(MetaEntity, self).__getattribute__(name)
 
-    @property
-    def applicable(self):
-        """ Boolean indicating if the entity is applicable to the current
-             context (i.e. of attached entities). """
-        self.check()
-        return self._applicable
-    
     @property
     def enabled(self):
         """ Boolean indicating if the entity is enabled (i.e. if it has no
@@ -386,14 +495,6 @@ class MetaEntity(MetaEntityBase):
     def entity(self):
         """ Normalized base entity name. """
         return self._entity_class.__name__.lower()
-    
-    @property
-    def issues(self):
-        """ List issues encountered while checking all the entities. """
-        for cls, l in Entity._subclasses.items():
-            for subcls in l:
-                if hasattr(subcls, "_errors") and len(subcls._errors) > 0:
-                    yield cls.__name__, subcls.__name__, subcls._errors
     
     @property
     def name(self):
@@ -410,51 +511,3 @@ class MetaEntity(MetaEntityBase):
                 if v is None or n == v:
                     data.append([n, v, ["N", "Y"][r], d])
             return data
-    
-    def get_info(self, *fields, show_all=False):
-        """ Display entity's metadata and other information.
-        
-        :param fields:   metadata fields to be output
-        :param show_all: also include unselected fields, to be output behind the
-                          list of selected fields
-        """
-        t = ""
-        if len(fields) == 0:
-            fields = [("name", "description"),
-                      ("author", "email", "version", "comments"),
-                      ("options", )]
-        # make a data table with the given fields and corresponding values
-        data, __used = [], []
-        _ = lambda s: s.capitalize() + ":"
-        for field in fields:
-            if not isinstance(field, (list, tuple)):
-                field = (field, )
-            add_blankline = False
-            for f in field:
-                try:
-                    f, alias = f.split("|", 1)
-                except:
-                    alias = f
-                __used.append(f)
-                v = getattr(self, f, "undefined")
-                if v is None or len(v) == 0:
-                    continue
-                elif isinstance(v, (list, tuple)):
-                    v = "- " + "\n- ".join(v)
-                data.append([_(alias), v])
-                add_blankline = True
-            if add_blankline:
-                data.append(["", ""])
-        t = BorderlessTable(data, header=False).table + "\n" if len(data) > 0 \
-            else ""
-        # add other metadata if relevant
-        if show_all:
-            unused = set(self._metadata.keys()) - set(__used)
-            if len(unused) > 0:
-                t += self.get_info(*sorted(list(unused)))
-        return t.rstrip() + "\n\n"
-    
-    def get_issues(self):
-        """ List issues for self's entity. """
-        if hasattr(self, "_errors") and len(self._errors) > 0:
-            yield self.entity, self.__name__, self._errors

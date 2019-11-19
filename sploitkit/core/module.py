@@ -59,6 +59,11 @@ class MetaModule(MetaEntity):
     def search(self, text):
         """ Search for text in module's attributes. """
         return any(text in "".join(v).lower() for v in self._metadata.values())
+    
+    @property
+    def subpath(self):
+        """ First child path of the module. """
+        return str(Path(self.path).child)
 
 
 class Module(Entity, metaclass=MetaModule):
@@ -100,8 +105,9 @@ class Module(Entity, metaclass=MetaModule):
         for c in categories:
             d = [["Name", "Path", "Enabled", "Description"]]
             for n, m in sorted(flatten(_.get(c, {})).items(),
-                               key=lambda x: x[0]):
-                d.append([m.name, m.path, ["N", "Y"][m.enabled], m.description])
+                               key=lambda x: x[1].name):
+                e = ["N", "Y"][m.enabled]
+                d.append([m.name, m.subpath, e, m.description])
             t = BorderlessTable(d, "{} modules".format(c.capitalize()))
             s += t.table + "\n\n"
             i += 1
@@ -110,8 +116,7 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def get_list(cls):
         """ Get the list of modules' fullpath. """
-        return sorted([m.fullpath for m in Module.subclasses if m._applicable \
-                                                            and m._enabled])
+        return sorted([m.fullpath for m in Module.subclasses if m.check()])
     
     @classmethod
     def get_modules(cls, path=None):

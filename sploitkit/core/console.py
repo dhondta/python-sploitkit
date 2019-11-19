@@ -54,26 +54,26 @@ class Console(Entity, metaclass=MetaConsole):
     # convention: mangled attributes should not be customized when subclassing
     #              Console...
     _files    = FilesManager()
-    _issues   = []
     _jobs     = JobsPool()
     _recorder = Recorder()
     _sessions = None #FIXME: SessionsPool
     _state    = {}  # state shared between all the consoles
     _storage  = StoragePool(StoreExtension)
     # ... by opposition to public class attributes that can be tuned
-    appname      = ""
-    config       = Config()
-    exclude      = []
-    level        = ROOT_LEVEL
-    message      = PROMPT_FORMAT
-    motd         = """
+    appname = ""
+    config  = Config()
+    exclude = []
+    level   = ROOT_LEVEL
+    message = PROMPT_FORMAT
+    motd    = """
     
     """
-    parent       = None
-    sources      = SOURCES
-    style        = PROMPT_STYLE
+    parent  = None
+    sources = SOURCES
+    style   = PROMPT_STYLE
 
     def __init__(self, parent=None, **kwargs):
+        super(Console, self).__init__()
         # determine the relevant parent
         self.parent = parent
         if self.parent is not None and self.parent.level == self.level:
@@ -83,7 +83,7 @@ class Console(Entity, metaclass=MetaConsole):
             #  to be propagated to console's .run() execution, setting the
             #  directly higher level console in argument
             raise ConsoleDuplicate(self, parent)
-        # back-reference the console to its configuration
+        # back-reference the console
         self.config.console = self
         # configure the console regarding its parenthood
         if self.parent is None:
@@ -114,6 +114,7 @@ class Console(Entity, metaclass=MetaConsole):
     
     def __init(self, **kwargs):
         """ Initialize the parent console with commands and modules. """
+        Console._dev_mode = kwargs.pop("dev", False)
         # setup banners
         bsrc = self._sources("banners")
         if bsrc is not None:
@@ -170,7 +171,7 @@ class Console(Entity, metaclass=MetaConsole):
         # setup the prompt message
         self.message.insert(0, ('class:appname', self.appname))
         # display warnings
-        if len(Console._issues) > 0:
+        if Entity.has_issues():
             self.logger.warning("There are some issues ; use 'show issues' to "
                                 "see more details")
         # console's components back-referencing
@@ -185,13 +186,17 @@ class Console(Entity, metaclass=MetaConsole):
             self.close()
         # cleanup references for this console
         self.detach()
+        # important note: do not confuse '_session' (refers to prompt session)
+        #                  with sessions (sessions manager)
         if hasattr(self, "_session"):
             delattr(self._session.completer, "console")
             delattr(self._session.validator, "console")
-        for k in [_ for _ in self.__dict__.keys()]:
-            delattr(self, k)
-        del self.__dict__
+        # remove the singleton instance of the current console
+        c = self.__class__
+        if hasattr(c, "_instance"):
+            del c._instance
         if self.parent is not None:
+            del self.parent.child
             # rebind entities to the parent console
             self.parent.reset()
         else:
@@ -218,12 +223,20 @@ class Console(Entity, metaclass=MetaConsole):
         return tokens
     
     def _reset_logname(self):
-        """ Reset logger's name according console's attributes. """
+        """ Reset logger's name according to console's attributes. """
         try:
             self.logger.name = "{}:{}".format(self.level, self.logname)
         except AttributeError:
             self.logger.name = self.__class__.name
     
+    def _run_if_defined(self, func):
+        """ Run the given function if it is defined at the module level. """
+        if hasattr(self, "module") and hasattr(self.module, func) and \
+            not (getattr(self.module._instance, func)() is None):
+            self.logger.debug("{} failed".format(func))
+            return False
+        return True
+
     def _sources(self, items):
         """ Return the list of sources for the related items
              [banners|entities|libraries], first trying subclass' one then
@@ -243,7 +256,7 @@ class Console(Entity, metaclass=MetaConsole):
         if backref:
             setattr(eccls, "console", self)
         # create a singleton instance of the entity
-        eccls._instance = eccls()
+        eccls._instance = getattr(eccls, "_instance", None) or eccls()
     
     def detach(self, eccls=None):
         """ Detach an entity child class from the console and remove its
@@ -259,11 +272,9 @@ class Console(Entity, metaclass=MetaConsole):
         else:
             if hasattr(eccls, "entity") and hasattr(self, eccls.entity):
                 delattr(self, eccls.entity)
-            if hasattr(eccls, "console"):
-                delattr(eccls, "console")
-        # remove the singleton instance of the entity previously opened
-        if hasattr(eccls, "_instance"):
-            del eccls._instance
+            # remove the singleton instance of the entity previously opened
+            if hasattr(eccls, "_instance"):
+                del eccls._instance
     
     def execute(self, cmd, abort=False):
         """ Alias for run. """
@@ -292,8 +303,8 @@ class Console(Entity, metaclass=MetaConsole):
     
     def run(self, cmd, abort=False):
         """ Run a framework console command. """
-        tokens = self._get_tokens(cmd)
         # assign tokens (or abort if tokens' split gives [])
+        tokens = self._get_tokens(cmd)
         try:
             name, args = tokens[0], tokens[1:]
         except IndexError:
@@ -308,7 +319,10 @@ class Console(Entity, metaclass=MetaConsole):
         try:
             if hasattr(obj, "validate"):
                 obj.validate(*args)
-            obj.run(*args)
+            if name != "run" or self._run_if_defined("prerun"):
+                obj.run(*args)
+                if name == "run":
+                    self._run_if_defined("postrun")
             return True
         except BdbQuit:  # when using pdb.set_trace()
             return True
@@ -335,8 +349,9 @@ class Console(Entity, metaclass=MetaConsole):
         self._reset_logname()
         self.logger.debug("Starting {}[{}]".format(self.__class__.__name__,
                                                    id(self)))
-        if hasattr(self, "module") and hasattr(self.module, "preamble"):
-            self.module._instance.preamble()
+        # execute attached module's pre-load function if relevant
+        self._run_if_defined("preload")
+        # now start the console loop
         while True:
             self._reset_logname()
             try:
@@ -355,38 +370,19 @@ class Console(Entity, metaclass=MetaConsole):
                 if self == e.higher:   # stop raising duplicate when reaching a
                     reexec = e.cmd     #  console with a different level, then
                     self.reset()       #  reset associated commands not to rerun
-                    e.current._close() #  the erroneous command from the
-                    continue           #  just-exited console
-                self._close()
+                    continue           #  the erroneous command from the context
+                self._close()          #  of the just-exited console
                 raise e  # reraise up to the higher (level) console
             except EOFError:
                 Console._recorder.save("exit")
                 break
             except KeyboardInterrupt:
                 continue
-        if hasattr(self, "module") and hasattr(self.module, "postamble"):
-            self.module._instance.postamble()
+        # execute attached module's post-load function if relevant
+        self._run_if_defined("postload")
+        # gracefully close and chain this console instance
         self._close()
         return self
-
-    @property    
-    def issues(self):
-        """ List issues for the console, its bound commands and module. """
-        m = getattr(self, "module", None)
-        l = [self.__class__] + [] if m is None else [m]
-        l.extend(self.commands.values())
-        t = ""
-        for cls in l:
-            for cls, subcls, errors in cls.get_issues():
-                if value is None:
-                    t += "{}: {}\n- ".format(cls, subcls)
-                    t += "\n- ".join("[{}] {}".format(k, e) for k, err in \
-                                     errors.items() for e in err) + "\n"
-                else:
-                    for k, e in errors.items():
-                        if k == value:
-                            t += "- {}/{}: {}\n".format(cls, subcls, e)
-        return t + "\n"
     
     @property
     def logger(self):
@@ -414,6 +410,10 @@ class Console(Entity, metaclass=MetaConsole):
         style = pstyle.copy()  # copy parent style dict
         style.update(self.style)
         return message, style
+    
+    @property
+    def root(self):
+        return Console.parent
     
     @property
     def state(self):
@@ -454,7 +454,7 @@ class FrameworkConsole(Console):
             True,
             set_callback=lambda o: o.config.console._set_app_folder(),
         ): "~/.{appname}",
-        Option(
+        ROption(
             'DEBUG',
             "debug mode",
             False,
@@ -462,23 +462,23 @@ class FrameworkConsole(Console):
             set_callback=lambda o: o.config.console._set_logging(o.value),
         ): "false",
         Option(
-            'WORKSPACE',
-            "folder where results are saved",
-            True,
-        ): "~/Notes",
-        Option(
             'ENCRYPT_PROJECT',
             "ask for a password to encrypt a project when archiving",
             True,
             bool,
         ): "true",
+        Option(
+            'WORKSPACE',
+            "folder where results are saved",
+            True,
+        ): "~/Notes",
     })
 
     def __init__(self, appname=None, *args, **kwargs):
         Console.appname = appname or \
                           getattr(self, "appname", Console.appname)
-        o = self.config.option('APP_FOLDER')
-        self.config['APP_FOLDER'] = Path(o.value.format(appname=self.appname))
+        o, v = self.config.option('APP_FOLDER'), str(self.config['APP_FOLDER'])
+        self.config[o] = Path(v.format(appname=self.appname.lower()))
         o.old_value = None
         # configure the file manager and the logger
         self._set_app_folder()

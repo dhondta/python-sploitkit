@@ -153,7 +153,7 @@ class Command(Entity, metaclass=MetaCommand):
                cls.console.module.fullpath in _
 
     @classmethod
-    def get_help(cls, *levels):
+    def get_help(cls, *levels, **kwargs):
         """ Display commands' help(s), using its metaclass' properties. """
         if len(levels) == 0:
             levels = Command._levels
@@ -176,11 +176,11 @@ class Command(Entity, metaclass=MetaCommand):
         # now make the help with tables of command name-descriptions by level
         s, i = "", 0
         for l, cmds in sorted(levels.items(), key=lambda x: x[0]):
-            if len(cmds) == 0:
+            if len(cmds) == 0 or l in kwargs.get('except_levels', []):
                 continue
             d = [["Command", "Description"]]
             for n, c in sorted(cmds.items(), key=lambda x: x[0]):
-                if not hasattr(c, "console"):
+                if not hasattr(c, "console") or not c.check():
                     continue
                 d.append([n, getattr(c, "description", "")])
             t = BorderlessTable(d, "{} commands".format(l.capitalize()))
