@@ -1,11 +1,18 @@
 # -*- coding: UTF-8 -*-
 import collections
 import logging
+import os
+import tempfile
+from prompt_toolkit.lexers import PygmentsLexer
+from pypager.pager import Pager
+from pypager.source import FileSource
+from string import printable
+from subprocess import call
 from termcolor import colored
 
 
-__all__ = ["catch_logger", "confirm", "failsafe", "flatten",
-           "human_readable_size", "user_input"]
+__all__ = ["catch_logger", "confirm", "edit_file", "failsafe", "flatten",
+           "human_readable_size", "page_file", "page_text", "user_input"]
 
 
 def catch_logger(f):
@@ -24,6 +31,13 @@ def confirm(txt="Are you sure ?", color=None):
     """ Ask for confirmation. """
     return user_input(txt, color=color, choices=("yes", "no"), default="no") \
            == "yes"
+
+
+def edit_file(filename):
+    """ Edit a file using PyVim. """
+    if not os.path.isfile(str(filename)):
+        raise OSError("File does not exist")
+    call("pyvim {}".format(filename), shell=True)
 
 
 def failsafe(f):
@@ -57,6 +71,23 @@ def human_readable_size(size, precision=0):
         i += 1
         size /= 1024
     return "%.*f%s" % (precision, size, units[i])
+
+
+def page_file(*filenames):
+    """ Page a list of files using PyPager. """
+    filenames = list(map(str, filenames))
+    for f in filenames:
+        if not os.path.isfile(f):
+            raise OSError("File does not exist")
+    call("cat {} | pypager".format(" ".join(filenames)), shell=True)
+
+
+def page_text(text):
+    """ Page a text using PyPager. """
+    tmp = tempfile.TemporaryFile()
+    tmp.write(text)
+    page_file(tmp.name)
+    tmp.close()
 
 
 def user_input(txt, color=None, choices=None, shortcuts=True, default=None):
