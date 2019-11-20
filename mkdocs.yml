@@ -2,8 +2,15 @@ site_name: "SploitKit - Toolkit for building Metasploit-like consoles"
 repo_url: https://github.com/dhondta/sploitkit
 site_author: dhondta
 docs_dir: docs
-pages:
+nav:
   - Introduction: index.md
+  - Design: design.md
+  - Classes:
+    - Entity: classes/entity.md
+    - Console: classes/console.md
+    - Command: classes/command.md
+    - Module: classes/module.md
+    - Datastore: classes/datastore.md
   - 'Real-life examples':
     - 'DroneSploit': examples/dronesploit.md
 extra:

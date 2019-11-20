@@ -15,13 +15,8 @@ $ gedit main.py
 from sploitkit import FrameworkConsole
 
 
-class MySploitConsole(FrameworkConsole):
-    # set your console items here
-    pass
-
-
 if __name__ == '__main__':
-    MySploitConsole(
+    FrameworkConsole(
         "MySploit",
         # configure your console settings here
     ).start()
@@ -30,6 +25,16 @@ if __name__ == '__main__':
 This will give the following (no banner, ASCII image or quote yet):
 
 ![](img/my-sploit-start.png)
+
+-----
+
+## Setup
+
+This library is available on [PyPi](https://pypi.python.org/pypi/sploitkit/) and can be simply installed using Pip:
+
+```sh
+pip install sploitkit
+```
 
 -----
 
