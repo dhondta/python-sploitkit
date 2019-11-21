@@ -499,16 +499,17 @@ class FrameworkConsole(Console):
         fpath.mkdir(parents=True, exist_ok=True)
         self._files.root_dir = new
         self._set_logging()
-    
+
     def _set_logging(self, debug=False, to_file=True):
         """ Set a new logger with the input logging level. """
-        l, p = ["INFO", "DEBUG"][debug], None
+        log_file = None
+        log_level = "DEBUG" if debug else "INFO"
         if to_file:
             # attach a logger to the console
-            lpath = self.app_folder.joinpath("logs")
-            lpath.mkdir(parents=True, exist_ok=True)
-            p = str(lpath.joinpath("main.log"))
-        Console.logger = get_logger(self.__class__.name, p, l)
+            log_dir = self.app_folder.joinpath("logs")
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_file = str(log_dir.joinpath("main.log"))
+        Console.logger = get_logger(self.__class__.name, log_file, log_level)
     
     @property
     def app_folder(self):
