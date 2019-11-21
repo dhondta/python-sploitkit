@@ -61,3 +61,7 @@ class definitions for `Entity` and the main entity classes but also
 components for the main console.
 - `utils` : This contains utility modules that are not specifically 
 part of the `base` and `core` subpackages.
+
+![Classes](img/classes.png)
+
+![Packages](img/packages.png)
