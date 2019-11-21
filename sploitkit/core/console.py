@@ -482,8 +482,24 @@ class FrameworkConsole(Console):
         o.old_value = None
         # configure the file manager and the logger
         self._set_app_folder()
+        self.set_workspace()
         super(FrameworkConsole, self).__init__(*args, **kwargs)
-    
+
+    def set_workspace(self):
+        """ Set a new WORKSPACE, moving the old one to the new location if necessary. """
+        o = self.config.option('WORKSPACE')
+        old, new = o.old_value, o.value
+        if old == new:
+            return
+        try:
+            if old is not None:
+                os.rename(old, new)
+        except Exception as e:
+            pass
+        fpath = Path(new)
+        fpath.mkdir(parents=True, exist_ok=True)
+        self._files.root_dir = new
+
     def _set_app_folder(self):
         """ Set a new APP_FOLDER, moving an old to the new one if necessary. """
         o = self.config.option('APP_FOLDER')
