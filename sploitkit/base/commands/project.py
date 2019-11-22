@@ -93,8 +93,9 @@ class Select(ProjectRootCommand):
     def run(self, project):
         p = self.workspace.joinpath(project)
         loader = Load()
-        if project in loader.complete_values() and confirm("An archive "
-            "exists with this name ; load the archive instead ?"):
+        if project in loader.complete_values() and \
+            confirm("An archive exists with this name ; load the archive "
+                    "instead ?"):
             loader.run(project)
         if not p.exists():
             self.logger.debug("Creating project '{}'...".format(project))

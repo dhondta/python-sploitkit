@@ -8,7 +8,7 @@ from shutil import which
 
 from .components.config import Config, Option, ProxyConfig
 from ..utils.dict import ClassRegistry
-from ..utils.objects import BorderlessTable, NameDescription as NDescr
+from ..utils.objects import BorderlessTable
 from ..utils.path import *
 
 
@@ -342,13 +342,13 @@ class Entity(object):
         if len(fields) == 0:
             fields = [("name", "description"),
                       ("author", "email", "version", "comments"),
-                      ("options", )]
+                      ("options",)]
         # make a data table with the given fields and corresponding values
         data, __used = [], []
         _ = lambda s: s.capitalize() + ":"
         for field in fields:
             if not isinstance(field, (list, tuple)):
-                field = (field, )
+                field = (field,)
             add_blankline = False
             for f in field:
                 try:
@@ -481,7 +481,7 @@ class MetaEntityBase(type):
                 for a in dir(b):
                     m = getattr(b, a)
                     if callable(m) and any(a == "register_{}".format(w.lower())\
-                        for w in ["subclass"] + ENTITIES):
+                                           for w in ["subclass"] + ENTITIES):
                         m(subcls)
         return subcls
     

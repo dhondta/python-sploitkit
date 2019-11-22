@@ -90,7 +90,7 @@ class Show(ModuleCommand):
         elif key == "info":
             i = self.console.module.get_info(("fullpath|path", "description"),
                                              ("author", "email", "version"),
-                                             ("comments", ), ("options", ),
+                                             ("comments",), ("options",),
                                              show_all=True)
             if len(i.strip()) != "":
                 print_formatted_text(i)

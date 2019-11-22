@@ -8,13 +8,14 @@ from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import SearchToolbar, TextArea
+#TODO: do not forget to remove unuseful imports
 
 
 __all__ = ["FrameworkApp"]
 
 
-# TODO: find a way to embed the a Console instance (started with .start()) into
-#        FrameworkApp
+#TODO: find a way to embed the Console instance (started with .start()) into
+#       FrameworkApp
 class FrameworkApp(Application):
     def __init__(self, *args, **kwargs):
         console = kwargs.get('console')

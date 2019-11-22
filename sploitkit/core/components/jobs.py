@@ -3,7 +3,7 @@ import shlex
 from prompt_toolkit.patch_stdout import patch_stdout
 from six import string_types
 from subprocess import call, Popen, TimeoutExpired, PIPE, STDOUT
-from time import sleep, time
+from time import time
 
 from sploitkit.core.components.logger import null_logger
 

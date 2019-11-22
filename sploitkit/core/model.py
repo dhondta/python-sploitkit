@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
 import datetime
-import re
 from peewee import *
 
 from .components.store import Model as PeeweeModel, ModelBase

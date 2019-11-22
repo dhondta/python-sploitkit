@@ -2,7 +2,6 @@
 import re
 import shlex
 from sploitkit import *
-from subprocess import call
 
 
 projects = lambda cmd: [x.filename for x in cmd.workspace.iterpubdir()]

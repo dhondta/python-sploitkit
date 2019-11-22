@@ -1,7 +1,5 @@
 # -*- coding: UTF-8 -*-
 import re
-from copy import copy
-from itertools import chain
 
 from ...utils.path import Path
 
@@ -74,7 +72,7 @@ class Config(dict):
         """ Proxy method for ensuring that the key is an Option instance. """
         if not isinstance(key, Option):
             if not isinstance(key, tuple):
-                key = (key, )
+                key = (key,)
             key = Option(*key)
         return key
     
@@ -219,7 +217,7 @@ class Option(object):
         if isinstance(func, type(lambda:0)):
             setattr(self, name, func.__get__(self, self.__class__))
         else:
-            raise Exception("Bad {} lambda".format(name)) 
+            raise Exception("Bad {} lambda".format(name))
     
     def bind(self, parent):
         """ Register this instance as a key of the given Config or retrieve the
@@ -416,4 +414,4 @@ class ROption(Option):
     """ Class for handling a reset option (that is, an option that triggers a
          console reset after change) with its parameters while using it as key
          for a Config dictionary. """
-    _reset     = True
+    _reset = True

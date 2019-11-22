@@ -96,7 +96,7 @@ class PathBasedDict(dict):
             - Path("a/b/c/d")     (Path)
             - "a", "b", "c" (tuple of strings) """
         if not isinstance(path, tuple):
-            path = (str(path), )
+            path = (str(path),)
         path = tuple(filter(lambda x: x is not None, path))
         return Path(*path).parts
     
@@ -148,8 +148,8 @@ class PathBasedDict(dict):
                 # when not a dict, we are at a leaf of the object tree, kwargs
                 #  is then used as a set of criteria to be matched to include
                 #  the object in the count
-                a += 1 if len(kwargs) == 0 or \
-                          all(getattr(d, attr, value) == value \
-                          for attr, value in kwargs.items()) else 0
+                a += [0, 1][len(kwargs) == 0 or \
+                            all(getattr(d, attr, value) == value \
+                                for attr, value in kwargs.items())]
             return a
         return _rcount(self[path])

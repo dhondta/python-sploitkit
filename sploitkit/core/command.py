@@ -6,7 +6,7 @@ from inspect import getfullargspec
 from .components.config import Config
 from .entity import Entity, MetaEntity
 from ..utils.misc import failsafe
-from ..utils.objects import BorderlessTable, NameDescription
+from ..utils.objects import BorderlessTable
 from ..utils.path import Path, PyModulePath
 
 
@@ -207,8 +207,9 @@ class Command(Entity, metaclass=MetaCommand):
     @classmethod
     def set_style(cls, style):
         """ Set the style of command name. """
-        assert style in COMMAND_STYLES, "Command style must be one of the " \
-               "followings: [{}]".format("|".join(COMMAND_STYLES))
+        if stule not in COMMAND_STYLES:
+            raise ValueError("Command style must be one of the followings: [{}]"
+                             .format("|".join(COMMAND_STYLES)))
         MetaCommand.style = style
     
     @classmethod
