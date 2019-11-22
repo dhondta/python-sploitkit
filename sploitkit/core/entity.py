@@ -207,7 +207,7 @@ class Entity(object):
             if isinstance(v, str):
                 v = [v]
             if k == "config":
-                if not isinstance(v, (list, tuple, set)):
+                if not isinstance(v, dict):
                     raise ValueError("Bad config requirements")
                 for opt, exp_val in v.items():
                     try:
@@ -437,7 +437,6 @@ class Entity(object):
             Entity._subclasses[ecls].append(subcls)
         # back-reference the entity from its config if existing
         if getattr(cls, "_has_config", False):
-            print("SET _{} TO {}".format(subcls.entity, subcls))
             setattr(subcls.config, "_" + subcls.entity,
                     lambda: subcls._instance)
 
