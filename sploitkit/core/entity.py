@@ -157,10 +157,6 @@ class Entity(object):
     """ Generic Entity class (i.e. a command or a module). """
     _applicable = True
     _enabled    = True
-    _fields     = {
-        'head': ["author", "reference", "source", "version"],
-        'body': ["description"],
-    }
     _metadata   = {}
     _subclasses = ClassRegistry()
     
@@ -254,8 +250,7 @@ class Entity(object):
                     raise ValueError("Bad state requirements")
                 # catch Console from Entity's registered subclasses as Console
                 #  cannot be imported in this module (cfr circular import)
-                Console = [c for c in Entity._subclasses.keys() \
-                           if c.__name__ == "Console"][0]
+                Console = cls.get_class("Console")
                 _tmp = []
                 for sk, sv in skeys.items():
                     # check if the state key exists
@@ -408,6 +403,12 @@ class Entity(object):
                     for c, i in e.items():
                         e[c] = list(sorted(set(i)))
                     yield cls.__name__, subcls.__name__, e
+
+    @classmethod
+    def get_subclass(cls, key, name):
+        """ Get a subclass (value) from _subclasses by name (useful when the
+             related class is not imported in the current scope). """
+        return Entity._subclasses.value(key, name)
     
     @classmethod
     def has_issues(cls):
@@ -417,12 +418,6 @@ class Entity(object):
             return True
         except StopIteration:
             return False
-
-    @classmethod
-    def get_subclass(cls, key, name):
-        """ Get a subclass (value) from _subclasses by name (useful when the
-             related class is not imported in the current scope). """
-        return Entity._subclasses.value(key, name)
 
     @classmethod
     def register_subclass(cls, subcls):

@@ -56,14 +56,14 @@ class MetaModule(MetaEntity):
         """ Help message for the module. """
         return self.get_info(("name", "description"), "comments")
     
-    def search(self, text):
-        """ Search for text in module's attributes. """
-        return any(text in "".join(v).lower() for v in self._metadata.values())
-    
     @property
     def subpath(self):
         """ First child path of the module. """
         return str(Path(self.path).child)
+    
+    def search(self, text):
+        """ Search for text in module's attributes. """
+        return any(text in "".join(v).lower() for v in self._metadata.values())
 
 
 class Module(Entity, metaclass=MetaModule):
