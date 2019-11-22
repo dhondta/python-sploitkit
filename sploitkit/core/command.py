@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import gc
 import re
-from inspect import getargspec
+from inspect import getfullargspec
 
 from .components.config import Config
 from .entity import Entity, MetaEntity
@@ -40,7 +40,7 @@ class MetaCommand(MetaEntity):
     style = "slugified"
     
     def __init__(self, *args):
-        argspec = getargspec(self.run)
+        argspec = getfullargspec(self.run)
         s, args, defs = "{}", argspec.args[1:], argspec.defaults
         for a in args[:len(args)-len(defs or [])]:
             s += " " + a
