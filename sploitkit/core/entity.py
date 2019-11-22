@@ -155,6 +155,7 @@ class BadSource(Exception):
 
 class Entity(object):
     """ Generic Entity class (i.e. a command or a module). """
+    _applicable = True
     _enabled    = True
     _fields     = {
         'head': ["author", "reference", "source", "version"],
@@ -177,6 +178,12 @@ class Entity(object):
             setattr(c, self.__class__.entity, self)
             return c
         return super(Entity, self).__getattribute__(name)
+    
+    @property
+    def applicable(self):
+        """ Boolean indicating if the entity is applicable to the current
+             context (i.e. of attached entities). """
+        return self.__class__._applicable
     
     @property
     def base_class(self):
@@ -204,6 +211,8 @@ class Entity(object):
             if isinstance(v, str):
                 v = [v]
             if k == "config":
+                if not isinstance(v, (list, tuple, set)):
+                    raise ValueError("Bad config requirements")
                 for opt, exp_val in v.items():
                     try:
                         o = cls.config.option(opt.upper())
@@ -215,13 +224,16 @@ class Entity(object):
                         cls._enabled = False
                         break
             elif k == "file":
+                if not isinstance(v, (list, tuple, set)):
+                    raise ValueError("Bad file requirements")
                 for fpath in v:
                     if not Path(cls.__file__).parent.joinpath(fpath).exists():
                         errors.setdefault("file", [])
                         errors["file"].append(fpath)
                         cls._enabled = False
             elif k == "python":
-                # check for available Python modules
+                if not isinstance(v, (list, tuple, set)):
+                    raise ValueError("Bad python requirements")
                 for module in v:
                     if isinstance(module, tuple):
                         module, package = module
@@ -239,7 +251,7 @@ class Entity(object):
                 elif isinstance(v, dict):
                     skeys = v
                 else:
-                    raise ValueError("Bad state requirement")
+                    raise ValueError("Bad state requirements")
                 # catch Console from Entity's registered subclasses as Console
                 #  cannot be imported in this module (cfr circular import)
                 Console = [c for c in Entity._subclasses.keys() \
@@ -285,7 +297,7 @@ class Entity(object):
                     elif len(_) == 2:
                         package, tool = _
                     else:
-                        raise ValueError("Bad system requirement")
+                        raise ValueError("Bad system requirements")
                     if which(tool) is None:
                         if package is None:
                             errors.setdefault("tools", [])
@@ -295,9 +307,27 @@ class Entity(object):
                             errors["packages"].append(package)
                         cls._enabled = False
             else:
-                raise ValueError("Unknown requirement type '{}'".format(k))
+                raise ValueError("Unknown requirements type '{}'".format(k))
         cls._errors = errors
-        return cls._enabled
+        # check for applicability
+        cls._applicable = True
+        a = getattr(cls, "applies_to", [])
+        if len(a) > 0:
+            cls._applicable = False
+            chk = getattr(cls, "check_applicability", None)
+            if chk is not None:
+                cls._applicable = cls.check_applicability()
+            else:
+                # format: ("attr1", "attr2", ..., "attrN", "value")
+                #   e.g.: ("module", "fullpath", "my/module/do_something")
+                for _ in getattr(cls, "applies_to", []):
+                    _, must_match, value = list(_[:-1]), _[-1], cls
+                    while len(_) > 0:
+                        value = getattr(value, _.pop(0), None)
+                    if value and value == must_match:
+                        cls._applicable = True
+                        break
+        return cls._enabled and cls._applicable
     
     @classmethod
     def get_class(cls, name):
@@ -331,7 +361,7 @@ class Entity(object):
                 except:
                     alias = f
                 __used.append(f)
-                v = getattr(cls, f, "undefined")
+                v = getattr(cls, f, "")
                 if v is None or len(v) == 0:
                     continue
                 elif isinstance(v, (list, tuple)):
@@ -486,7 +516,14 @@ class MetaEntity(MetaEntityBase):
                         c += _
             return c
         return super(MetaEntity, self).__getattribute__(name)
-
+    
+    @property
+    def applicable(self):
+        """ Boolean indicating if the entity is applicable to the current
+             context (i.e. of attached entities). """
+        self.check()
+        return self._applicable
+    
     @property
     def enabled(self):
         """ Boolean indicating if the entity is enabled (i.e. if it has no
