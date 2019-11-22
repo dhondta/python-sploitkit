@@ -1,10 +1,8 @@
 # -*- coding: UTF-8 -*-
 import requests
 from ftplib import FTP, FTP_TLS
-from pypager.pager import Pager
-from pypager.source import GeneratorSource
-from pyvim.editor import Editor
 
+from ...utils.misc import edit_file, page_file
 from ...utils.path import Path, TempPath
 
 __all__ = ["FilesManager"]
@@ -43,11 +41,9 @@ class FilesManager(dict):
 
     _https = _http
     
-    def edit(self, key, **kwargs):
+    def edit(self, key):
         """ Edit a file using PyVim. """
-        e = Editor(**kwargs)
-        e.load_initial_files([filepath])
-        e.run()
+        edit_file(self[key])
     
     def get(self, url, *args, **kwargs):
         """ Get a resource. """
@@ -93,15 +89,4 @@ class FilesManager(dict):
     
     def view(self, key):
         """ View a file with PyPager. """
-        fp = self[key]
-        # make a generator for the file
-        def _():
-            with open(filepath) as f:
-                for l in f:
-                    yield [('', l)]
-        # now start the pager
-        from pypager.pager import Pager
-        from pypager.source import GeneratorSource
-        p = Pager()
-        p.add_source(GeneratorSource(_()))
-        p.run()
+        page_file(self[key])
