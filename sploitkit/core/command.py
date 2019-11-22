@@ -37,6 +37,7 @@ FUNCTIONALITIES = [
 
 class MetaCommand(MetaEntity):
     """ Metaclass of a Command. """
+    _inherit_metadata = True
     style = "slugified"
     
     def __init__(self, *args):
@@ -266,20 +267,20 @@ class Command(Entity, metaclass=MetaCommand):
                     pass
     
     def complete_keys(self):
-        """ Default option completion method.
+        """ Default key completion method.
              (will be triggered if the number of run arguments is 2) """
         return getattr(self, "keys", []) or \
                list(getattr(self, "values", {}).keys())
     
-    def complete_values(self, option=None):
+    def complete_values(self, key=None):
         """ Default value completion method. """
         if self._nargs[0] == 1:
-            if option is not None:
+            if key is not None:
                 raise TypeError("complete_values() takes 1 positional argument "
                                 "but 2 were given")
             return getattr(self, "values", [])
         if self._nargs[0] == 2:
-            return getattr(self, "values", {}).get(option)
+            return getattr(self, "values", {}).get(key)
         return []
     
     def validate(self, *args):
@@ -295,7 +296,7 @@ class Command(Entity, metaclass=MetaCommand):
             l = self.complete_values()
             if n_in == 1 and len(l) > 0 and args[0] not in l:
                 raise ValueError("invalid value")
-        elif n == 2:  # command format: COMMAND OPTION VALUE
+        elif n == 2:  # command format: COMMAND KEY VALUE
             l = self.complete_keys()
             if n_in > 0 and len(l) > 0 and args[0] not in l:
                     raise ValueError("invalid key")
