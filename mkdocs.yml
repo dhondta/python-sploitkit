@@ -5,6 +5,7 @@ docs_dir: docs
 nav:
   - Introduction: index.md
   - Design: design.md
+  - Classes: classes.md
   - Classes:
     - Entity: classes/entity.md
     - Console: classes/console.md

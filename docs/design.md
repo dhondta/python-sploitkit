@@ -2,15 +2,15 @@ Sploitkit provides an API for conveniently defining CLI frameworks in an Object-
 
 ## Main architecture
 
-This library is designed around a central class called *entity* that gathers common features like class registry for keeping track of relevant entities like *consoles*, *commands* and *modules*. So, every entity class inherits from this main class and then defines its own additional features for its purpose.
+This library is designed around a central class called [*entity*](classes/entity.html) that gathers common features like class registry for keeping track of relevant entities like *consoles*, *commands* and *modules*. So, every entity class inherits from this main class and then defines its own additional features for its purpose.
 
 Basically, five different main entity classes are defined :
 
-- `Console` : for defining CLI console levels
-- `Command` : for defining console commands, accessible from console levels
-- `Module` : for declaring modules with specific functionalities like in Metasploit
-- `Model` : for describing data schemas to be recorded in the datastore
-- `StoreExtension` : for defining mixins to be used with the datastore
+- [`Console`](classes/console.html) : for defining CLI console levels
+- [`Command`](classes/command.html) : for defining console commands, accessible from console levels
+- [`Module`](classes/module.html) : for declaring modules with specific functionalities like in Metasploit
+- [`Model`](classes/datastore.html) : for describing data schemas to be recorded in the datastore
+- [`StoreExtension`](classes/datastore.html) : for defining mixins to be used with the datastore
 
 At startup, Sploitkit loads every entity it finds in the user-defined sources, also loading a pre-defined set of generic commands (like in Metasploit or Recon-ng), which can eventually be disabled if not required. The point here is that everything starts from the instantiation of a `Console`, that triggers entities loading. For convenience, a `FrameworkConsole` holding some base functionalities allows to quickly start an application.
 
