@@ -19,6 +19,7 @@ from prompt_toolkit.formatted_text import ANSI, FormattedText
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError
+import typing
 
 from .command import *
 from .components import *
@@ -27,6 +28,7 @@ from .model import *
 from .module import *
 from ..utils.docstring import parse_docstring
 from ..utils.path import Path
+
 
 
 __all__ = [
@@ -72,7 +74,7 @@ class Console(Entity, metaclass=MetaConsole):
     sources = SOURCES
     style   = PROMPT_STYLE
 
-    def __init__(self, parent=None, **kwargs):
+    def __init__(self, parent=None, prompt_cls: typing.Type[PromptSession] = PromptSession, **kwargs):
         super(Console, self).__init__()
         # determine the relevant parent
         self.parent = parent
@@ -103,7 +105,7 @@ class Console(Entity, metaclass=MetaConsole):
         completer.console = validator.console = self
         message, style = self.prompt
         hpath = Path(self.config.option("WORKSPACE").value).joinpath("history")
-        self._session = PromptSession(
+        self._session = prompt_cls(
             message,
             completer=completer,
             history=FileHistory(hpath),
