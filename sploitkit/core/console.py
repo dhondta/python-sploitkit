@@ -6,6 +6,7 @@ import re
 import shlex
 import string
 import sys
+import typing
 from asciistuff import get_banner, get_quote
 from bdb import BdbQuit
 from datetime import datetime
@@ -19,7 +20,6 @@ from prompt_toolkit.formatted_text import ANSI, FormattedText
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 from prompt_toolkit.validation import ValidationError
-import typing
 
 from .command import *
 from .components import *
