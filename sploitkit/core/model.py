@@ -1,11 +1,10 @@
 # -*- coding: UTF-8 -*-
 import datetime
-import re
+
 from peewee import *
 
 from .components.store import Model as PeeweeModel, ModelBase
 from .entity import Entity, MetaEntityBase
-
 
 __all__ = ["BaseModel", "Model", "StoreExtension"]
 
@@ -13,17 +12,17 @@ __all__ = ["BaseModel", "Model", "StoreExtension"]
 class MetaModel(ModelBase, MetaEntityBase):
     """ Metaclass of a Model. """
     triggers = []
-    
+
     def __new__(meta, name, bases, clsdict):
         subcls = ModelBase.__new__(meta, name, bases, clsdict)
         if subcls.__name__ != "Model":
             pass
             # add triggers here
-            #try:
+            # try:
             #    trigger = "{}_updated".format(subcls._meta.table_name)
             #    subcls.add_trigger(trigger, "AFTER", "UPDATE",
             #                       "UPDATE", "SET updated=CURRENT_TIMESTAMP")
-            #except AttributeError:
+            # except AttributeError:
             #    pass
         return subcls
 
@@ -36,15 +35,15 @@ class BaseModel(PeeweeModel, Entity, metaclass=MetaModel):
 
 class Model(BaseModel):
     """ Main class handling console store's models. """
-    source  = CharField()
+    source = CharField()
     created = DateTimeField(default=datetime.datetime.now, null=False)
     updated = DateTimeField(default=datetime.datetime.now, null=False)
-    
+
     @classmethod
     def add_trigger(cls, trig, when, top, op, sql, safe=True):
         """ Add a trigger to model's list of triggers. """
         cls.triggers.append(Trigger(cls, trig, when, top, op, sql, safe))
-    
+
     @classmethod
     def create_table(cls, **options):
         """ Create this table in the bound database."""
@@ -54,7 +53,7 @@ class Model(BaseModel):
                 cls._meta.database.execute_sql(str(trigger))
             except:
                 pass
-    
+
     @classmethod
     def set(cls, **items):
         """ Insert or update a record. """

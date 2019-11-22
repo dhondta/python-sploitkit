@@ -2,11 +2,11 @@
 import os
 import shutil
 from os.path import abspath, dirname, isdir, join, relpath
+
 from pyminizip import *
 
 from .misc import catch_logger
 from .password import input_password
-
 
 __all__ = [
     'load_from_archive',
@@ -14,7 +14,6 @@ __all__ = [
 ]
 
 __author__ = "Alexandre D'Hondt"
-
 
 LENGTH = (8, 64)
 
@@ -32,7 +31,7 @@ def load_from_archive(src_arch, dst_path, pwd=None, ask=False, remove=False):
     """
     # handle password then decompress with 7-zip
     pwd = input_password(silent=True, length=LENGTH, logger=logger) \
-          if ask else pwd
+        if ask else pwd
     logger.debug("Loading {}archive".format(["encrypted ", ""][pwd is None]))
     logger.debug("> Decompressing '{}' to '{}'...".format(src_arch, dst_path))
     try:

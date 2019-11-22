@@ -43,6 +43,7 @@ def parse_docstring(something):
     metadata = {}
     if not hasattr(something, "__doc__") or something.__doc__ is None:
         return metadata
+
     # function for registering the key-value pair in the dictionary of metadata
     def setkv(key, value):
         if key is not None:
@@ -70,6 +71,7 @@ def parse_docstring(something):
         # key-value pair
         else:
             metadata[key] = value
+
     # parse trying to get key-values first, then full text
     for p in something.__doc__.split("\n\n"):
         field, text = None, ""

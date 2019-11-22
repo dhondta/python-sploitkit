@@ -1,13 +1,14 @@
 # -*- coding: UTF-8 -*-
-from terminaltables import AsciiTable
 from textwrap import wrap
 
+from terminaltables import AsciiTable
 
 __all__ = ["BorderlessTable", "NameDescription"]
 
 
 class NoBorder(AsciiTable):
     """ AsciiTable with no border. """
+
     def __init__(self, *args, **kwargs):
         super(NoBorder, self).__init__(*args, **kwargs)
         self.outer_border = False
@@ -21,6 +22,7 @@ class NoBorder(AsciiTable):
 
 class BorderlessTable(NoBorder):
     """ Custom table with no border. """
+
     def __init__(self, data, title=None, title_ul_char="=", header_ul_char="-",
                  header=True):
         self.data = data
@@ -42,24 +44,24 @@ class BorderlessTable(NoBorder):
         # configure the title
         self.title_ = title  # define another title to format it differently
         self.title_ul_char = title_ul_char
-    
+
     def __str__(self):
         return self.table
-    
+
     @property
     def table(self):
         if self.data is None:
             return ""
         t = self.title_
         s = ("\n{}\n{}\n".format(t, len(t) * self.title_ul_char) \
-             if t is not None else "") + "\n{}\n"
+                 if t is not None else "") + "\n{}\n"
         return s.format(super(BorderlessTable, self).table)
 
 
 class NameDescription(NoBorder):
     """ Row for displaying a name-description pair, with details if given. """
     indent = 4
-    
+
     def __init__(self, name, descr, details=None, nwidth=16):
         # compute the name column with to a defined width
         n = "{n: <{w}}".format(n=name, w=nwidth)
@@ -70,9 +72,9 @@ class NameDescription(NoBorder):
         max_w = self.column_max_width(-1)
         self.table_data[0][2] = "\n".join(wrap(descr, max_w))
         self._details = details
-    
+
     def __str__(self):
         _ = super(NameDescription, self).__str__()
         if self._details:
-            _ += str(NameDescription(" ", self._details, nwidth=self.indent-2))
+            _ += str(NameDescription(" ", self._details, nwidth=self.indent - 2))
         return _

@@ -1,18 +1,16 @@
 # -*- coding: UTF-8 -*-
-import shlex
 from prompt_toolkit.completion import Completer, Completion
-
 
 __all__ = ["CommandCompleter"]
 
-
-sorted_set = lambda l:    sorted(map(lambda s: str(s), set(l)),
-                                 key=lambda s: str(s).casefold())
-wfilter    = lambda l, w: [x for x in l if w is None or x.startswith(w)]
+sorted_set = lambda l: sorted(map(lambda s: str(s), set(l)),
+                              key=lambda s: str(s).casefold())
+wfilter = lambda l, w: [x for x in l if w is None or x.startswith(w)]
 
 
 class CommandCompleter(Completer):
     """ Completer for console's commands and arguments. """
+
     def __del__(self):
         """ Custom deletion method, for removing back-references. """
         if hasattr(self, "console"):
@@ -30,8 +28,8 @@ class CommandCompleter(Completer):
         ts = len(_) - len(_.rstrip(" "))  # trailing spaces
         try:
             cmd, t1, t2 = tokens + [None] * (3 - l)
-        except:     # occurs when l > 3 ; no need to complete anything as it
-            return  #  corresponds to an invalid command
+        except:  # occurs when l > 3 ; no need to complete anything as it
+            return  # corresponds to an invalid command
         bc = len(document.text_before_cursor)
         it = len(_) - bc > 0
         o1 = len(cmd) + 1 - bc if cmd else 0
@@ -55,7 +53,7 @@ class CommandCompleter(Completer):
             # when a valid command is provided, yield the list of valid keys
             #  or values, depending on the type of command
             elif ts > 0 and c is not None:
-                if nargs == 1:    # COMMAND VALUE
+                if nargs == 1:  # COMMAND VALUE
                     for _ in sorted_set(c.complete_values() or []):
                         yield Completion(_, start_position=0)
                 # e.g.  set  ---> ["WORKSPACE", ...]

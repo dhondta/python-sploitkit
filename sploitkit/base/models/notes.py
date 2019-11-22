@@ -11,8 +11,8 @@ class Note(Model):
 
 class OrganizationNote(BaseModel):
     organization = ForeignKeyField(Organization)
-    note         = ForeignKeyField(Note)
-    
+    note = ForeignKeyField(Note)
+
     class Meta:
         primary_key = CompositeKey("organization", "note")
 
@@ -20,7 +20,7 @@ class OrganizationNote(BaseModel):
 class NoteHost(BaseModel):
     host = ForeignKeyField(Host)
     note = ForeignKeyField(Note)
-    
+
     class Meta:
         primary_key = CompositeKey("host", "note")
 
@@ -28,6 +28,6 @@ class NoteHost(BaseModel):
 class NoteUser(BaseModel):
     user = ForeignKeyField(User)
     note = ForeignKeyField(Note)
-    
+
     class Meta:
         primary_key = CompositeKey("user", "note")

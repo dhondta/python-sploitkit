@@ -5,15 +5,14 @@ from .entity import Entity, MetaEntity
 from ..utils import *
 from ..utils.dict import PathBasedDict
 
-
 __all__ = ["Module"]
 
 
 class MetaModule(MetaEntity):
     """ Metaclass of a Module. """
-    _has_config       = True
+    _has_config = True
     _inherit_metadata = True
-    
+
     def __new__(meta, name, bases, clsdict):
         subcls = type.__new__(meta, name, bases, clsdict)
         # compute module's path from its root folder if no path attribute
@@ -36,8 +35,8 @@ class MetaModule(MetaEntity):
     def base(self):
         """ Module's category. """
         return str(Path(self.fullpath).child) if self.category != "" else \
-               self.name
-    
+            self.name
+
     @property
     def category(self):
         """ Module's category. """
@@ -45,21 +44,21 @@ class MetaModule(MetaEntity):
             return str(Path(self.path).parts[0])
         except IndexError:
             return ""
-    
+
     @property
     def fullpath(self):
         """ Full path of the module, that is, its path joined with its name. """
         return str(Path(self.path).joinpath(self.name))
-    
+
     @property
     def help(self):
         """ Help message for the module. """
         return self.get_info(("name", "description"), "comments")
-    
+
     def search(self, text):
         """ Search for text in module's attributes. """
         return any(text in "".join(v).lower() for v in self._metadata.values())
-    
+
     @property
     def subpath(self):
         """ First child path of the module. """
@@ -69,27 +68,27 @@ class MetaModule(MetaEntity):
 class Module(Entity, metaclass=MetaModule):
     """ Main class handling console modules. """
     modules = PathBasedDict()
-    
+
     @property
     def files(self):
         """ Shortcut to bound console's file manager instance. """
         return self.console.__class__._files
-    
+
     @property
     def logger(self):
         """ Shortcut to bound console's logger instance. """
         return self.console.logger
-    
+
     @property
     def store(self):
         """ Shortcut to bound console's store instance. """
         return self.console.store
-    
+
     @property
     def workspace(self):
         """ Shortcut to the current workspace. """
         return self.console.workspace
-    
+
     @classmethod
     def get_count(cls, path=None, **attrs):
         """ Count the number of modules under the given path and matching
@@ -112,12 +111,12 @@ class Module(Entity, metaclass=MetaModule):
             s += t.table + "\n\n"
             i += 1
         return "\n" + s.strip() + "\n" if i > 0 else ""
-    
+
     @classmethod
     def get_list(cls):
         """ Get the list of modules' fullpath. """
         return sorted([m.fullpath for m in Module.subclasses if m.check()])
-    
+
     @classmethod
     def get_modules(cls, path=None):
         """ Get the subdictionary of modules matching the given path. """

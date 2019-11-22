@@ -1,32 +1,30 @@
 # -*- coding: UTF-8 -*-
 import re
-import types
-from collections import OrderedDict
 from os import remove
 from shutil import copy
-from peewee import Model, ModelBase, SqliteDatabase
 
+from peewee import SqliteDatabase
 
 __all__ = ["StoragePool"]
 
 
 class StoragePool(object):
     """ Storage pool class. """
-    __pool      = []
-    
+    __pool = []
+
     def __init__(self, ext_class=None):
         self.__entity_class = getattr(ext_class, "base_class", None)
         self.__ext_class = ext_class
-    
+
     def close(self, remove=False):
         """ Close every database in the pool. """
         for db in self.__pool[::-1]:
             self.remove(db) if remove else db.close()
-    
+
     def free(self):
         """ Close and remove every database in the pool. """
         self.close(True)
-    
+
     def get(self, path, *args, **kwargs):
         """ Get a database from the pool ; if the DB does not exist yet, create
              and register it. """
@@ -43,7 +41,7 @@ class StoragePool(object):
             #  prevents from having multiple combined classes having the same
             #  Store base class
             if self.__ext_class is not None and \
-                hasattr(self.__ext_class, "unregister_subclass"):
+                    hasattr(self.__ext_class, "unregister_subclass"):
                 self.__ext_class.unregister_subclass(cls)
             self.__pool.append(db)
             for m in self.models:
@@ -52,13 +50,13 @@ class StoragePool(object):
             db.close()  # commit and save the created tables
             db.connect()
         return db
-    
+
     def remove(self, db):
         """ Remove a database from the pool. """
         db.close()
         self.__pool.remove(db)
         del db
-    
+
     @property
     def extensions(self):
         """ Get the list of store extension subclasses. """
@@ -70,6 +68,7 @@ class StoragePool(object):
 
 class Store(SqliteDatabase):
     """ Storage database class. """
+
     def __init__(self, path, *args, **kwargs):
         self.path = str(path)  # ensure the input is str, e.g. not Path
         kwargs.setdefault('pragmas', {})
@@ -88,7 +87,7 @@ class Store(SqliteDatabase):
         # force every transaction in exclusive mode
         kwargs['pragmas'].setdefault('locking_mode', 1)
         super(Store, self).__init__(path, *args, **kwargs)
-    
+
     def __getattr__(self, name):
         """ Override getattr to handle add_* store methods. """
         if re.match(r"^[gs]et_", name):
@@ -101,12 +100,12 @@ class Store(SqliteDatabase):
                     return cls.set
         raise AttributeError("%r object has no attribute %r" %
                              (self.__name__, name))
-        
+
     def get_model(self, name, base=False):
         """ Get a model class from its name. """
         return self.__entity_class.get_subclass("model", name) or \
                self.__entity_class.get_subclass("basemodel", name)
-    
+
     def snapshot(self, save=True):
         """ Snapshot the store in order to be able to get back to this state
              afterwards if the results are corrupted by a module OR provide
@@ -125,17 +124,17 @@ class Store(SqliteDatabase):
             remove("{}.snapshot{}".format(self.path, self._last_snapshot))
             self._last_snapshot -= 1
         self.connect()
-        
+
     @property
     def basemodels(self):
         """ Shortcut for the list of BaseModel subclasses. """
         return self.__entity_class._subclasses.key("basemodel")
-        
+
     @property
     def models(self):
         """ Shortcut for the list of Model subclasses. """
         return self.__entity_class._subclasses.key("model")
-    
+
     @property
     def volatile(self):
         """ Simple attribute for telling if the DB is in memory. """

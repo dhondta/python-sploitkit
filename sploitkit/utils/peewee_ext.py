@@ -1,14 +1,15 @@
 # -*- coding: UTF-8 -*-
 import re
 from ipaddress import ip_address
-from peewee import *
 
+from peewee import *
 
 __all__ = ["IPAddressField", "MACAddressField"]
 
 
 class IPAddressField(BigIntegerField):
     """ IPv4/IPv6 address database field. """
+
     def db_value(self, value):
         if isinstance(value, (str, int)):
             try:
@@ -23,6 +24,7 @@ class IPAddressField(BigIntegerField):
 
 class MACAddressField(BigIntegerField):
     """ MAC address database field. """
+
     def db_value(self, value):
         if isinstance(value, int) and 0 <= value <= 0xffffffffffffffff:
             return value

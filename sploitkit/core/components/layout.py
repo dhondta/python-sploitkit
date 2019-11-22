@@ -1,6 +1,5 @@
 # -*- coding: UTF-8 -*-
-from prompt_toolkit.widgets import FormattedTextToolbar, TextArea
-
+from prompt_toolkit.widgets import FormattedTextToolbar
 
 __all__ = ["CustomLayout"]
 
@@ -12,5 +11,5 @@ class AppToolbar(FormattedTextToolbar):
 class CustomLayout(object):
     def __init__(self, console):
         self.layout = console._session.app.layout
-        #self.layout.container.children = self.layout.container.children[:-1]
-        #print(self.layout.container.children)
+        # self.layout.container.children = self.layout.container.children[:-1]
+        # print(self.layout.container.children)

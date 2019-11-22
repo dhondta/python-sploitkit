@@ -8,9 +8,9 @@ class Host(Model):
     mac      = MACAddressField()
     os       = CharField()
     location = CharField()
-    
+
     class Meta:
-        indexes = ((("hostname", "ip", "mac"), True), )
+        indexes = ((("hostname", "ip", "mac"), True),)
 
 
 class Port(Model):
@@ -25,14 +25,14 @@ class Service(Model):
 class HostPort(BaseModel):
     host = ForeignKeyField(Host, backref="ports")
     port = ForeignKeyField(Port, backref="hosts")
-    
+
     class Meta:
         primary_key = CompositeKey("host", "port")
 
 
 class ServicePort(BaseModel):
     service = ForeignKeyField(Service, backref="ports")
-    port    = ForeignKeyField(Port, backref="services")
-    
+    port = ForeignKeyField(Port, backref="services")
+
     class Meta:
         primary_key = CompositeKey("service", "port")

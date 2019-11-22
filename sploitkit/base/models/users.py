@@ -11,31 +11,30 @@ class Email(Model):
 
 
 class Password(Model):
-    hash  = CharField(primary_key=True)
+    hash = CharField(primary_key=True)
     plain = CharField()
 
 
 class UserEmail(BaseModel):
-    user  = ForeignKeyField(User, backref="emails")
+    user = ForeignKeyField(User, backref="emails")
     email = ForeignKeyField(Email, backref="users")
-    
+
     class Meta:
         primary_key = CompositeKey("user", "email")
 
 
 class UserPassword(BaseModel):
-    user     = ForeignKeyField(User, backref="passwords")
+    user = ForeignKeyField(User, backref="passwords")
     password = ForeignKeyField(Password, backref="users")
-    
+
     class Meta:
         primary_key = CompositeKey("user", "password")
 
-
-#class UsersStorage(StoreExtension):
+# class UsersStorage(StoreExtension):
 #    def set_user(self, username):
 #        User.get_or_create(username=username).execute()
 
 
-#class PasswordsStorage(StoreExtension):
+# class PasswordsStorage(StoreExtension):
 #    def set_password(self, password):
 #        Password.insert(password=password).execute()

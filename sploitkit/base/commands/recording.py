@@ -30,7 +30,7 @@ class Record(RootProjectCommand):
     def complete_values(self, key=None):
         if key == "start":
             return [x.name for x in Path(self.workspace).iterfiles(".rc")]
-    
+
     def run(self, key, rcfile=None):
         if key == "start":
             self.recorder.start(str(Path(self.workspace).joinpath(rcfile)))
@@ -39,7 +39,7 @@ class Record(RootProjectCommand):
         elif key == "status":
             _ = ["disabled", "enabled"][self.recorder.enabled]
             self.logger.info("Recording is {}".format(_))
-    
+
     def validate(self, key, rcfile=None):
         if key == "start":
             if rcfile is None:
@@ -53,6 +53,7 @@ class Record(RootProjectCommand):
 
 class Replay(RootProjectCommand):
     """ Execute commands from a .rc file """
+
     def complete_values(self, key=None):
         return [x.name for x in Path(self.workspace).iterfiles(".rc")]
 

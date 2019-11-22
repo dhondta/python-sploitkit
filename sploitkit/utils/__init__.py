@@ -6,5 +6,4 @@ from .path import Path
 from .peewee_ext import *
 from .peewee_ext import __all__ as _peewee_ext
 
-
 __all__ = _misc + _objects + _peewee_ext + ["Path"]

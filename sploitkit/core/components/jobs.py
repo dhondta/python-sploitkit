@@ -1,14 +1,13 @@
 # -*- coding: UTF-8 -*-
 import shlex
-from prompt_toolkit.patch_stdout import patch_stdout
-from six import string_types
 from subprocess import call, Popen, TimeoutExpired, PIPE, STDOUT
-from time import sleep, time
+from time import time
+
+from six import string_types
 
 from sploitkit.core.components.logger import null_logger
 
 __all__ = ["JobsPool"]
-
 
 communicate = lambda p, **i: tuple(map(lambda x: x.decode().strip(),
                                        p.communicate(**i)))
@@ -18,19 +17,19 @@ class JobsPool(object):
     def __init__(self, max_jobs=None):
         self.__jobs = []
         self.max = max_jobs
-    
+
     def call(self, cmd, **kwargs):
         kwargs['stdout'], kwargs['stderr'] = PIPE, PIPE
         return call(shlex.split(cmd), **kwargs)
-    
+
     def process(self, cmd, **kwargs):
         if not kwargs.pop('no_debug', False):
             self.logger.debug(cmd)
         cmd = shlex.split(cmd) if isinstance(cmd, string_types) else cmd
         p = Popen(cmd, stdout=PIPE, **kwargs)
-        #self.__jobs.append(p)
+        # self.__jobs.append(p)
         return p
-    
+
     def run(self, cmd, stdin=None, show=False, timeout=None, **kwargs):
         kwargs['stderr'] = PIPE
         kwargs['stdin'] = (None if stdin is None else PIPE)
@@ -59,7 +58,7 @@ class JobsPool(object):
             if err != "":
                 self.logger.error(err)
         return out, err
-    
+
     def run_iter(self, cmd, timeout=None, **kwargs):
         kwargs['stderr'] = STDOUT
         kwargs['universal_newlines'] = True
@@ -74,7 +73,7 @@ class JobsPool(object):
             p.kill()
         except:
             pass
-    
+
     @property
     def logger(self):
         if hasattr(self, "console"):

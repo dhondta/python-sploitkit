@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
-import requests
 from ftplib import FTP, FTP_TLS
+
+import requests
 
 from ...utils.misc import edit_file, page_file
 from ...utils.path import Path, TempPath
@@ -16,8 +17,8 @@ class FilesManager(dict):
     def _file(self, locator, *args, **kwargs):
         """ Simple local file copier. """
         with open(locator.split("://", 1)[1], 'rb') as f:
-            self[url] = f.read()  #FIXME: use file descriptor
-    
+            self[url] = f.read()  # FIXME: use file descriptor
+
     def _ftp(self, locator, *args, **kwargs):
         """ Simple FTP downloader. """
         scheme = locator.split("://", 1)[0]
@@ -28,23 +29,23 @@ class FilesManager(dict):
         usr, pswd = kwargs.pop("user", ""), kwargs.pop("passwd", "")
         if usr != "" and pswd != "":
             client.login(usr, passwd)
-        #with open(
-        #client.retrbinary(kwargs.pop("cmd", None),
+        # with open(
+        # client.retrbinary(kwargs.pop("cmd", None),
         #                  kwargs.pop("callback", None))
-        #FIXME
+        # FIXME
 
     _ftps = _ftp
-    
+
     def _http(self, url, *args, **kwargs):
         """ Simple HTTP downloader. """
         self[url] = requests.get(url, *args, **kwargs).content
 
     _https = _http
-    
+
     def edit(self, key):
         """ Edit a file using PyVim. """
         edit_file(self[key])
-    
+
     def get(self, url, *args, **kwargs):
         """ Get a resource. """
         if url in self.keys() and not kwargs.pop("force", False):
@@ -65,28 +66,28 @@ class FilesManager(dict):
                 client.login(usr, passwd)
             client.retrbinary(kwargs.pop("cmd", None),
                               kwargs.pop("callback", None))
-            #FIXME
+            # FIXME
         elif scheme == "file":
             with open(url.split("://", 1)[1], 'rb') as f:
                 self[url] = f.read()
         else:
             raise ValueError("Unsupported scheme '{}'".format(scheme))
-    
+
     def save(self, key, dst):
         """ Save a resource. """
         with open(dst, 'wb') as f:
             f.write(self[key])
-    
+
     def tempdir(self):
         """ Create a temporary directory. """
         return TempPath(prefix="dronesploit-", length=16)
-    
+
     def tempfile(self, root=None):
         """ Create a temporary file. """
         if root is None or not isinstance(root, Path):
             root = TempPath(prefix="dronesploit-", length=16)
         return root.tempfile()
-    
+
     def view(self, key):
         """ View a file with PyPager. """
         page_file(self[key])

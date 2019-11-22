@@ -1,14 +1,12 @@
 # -*- coding: UTF-8 -*-
-import shlex
-from inspect import getargspec
 from prompt_toolkit.validation import Validator, ValidationError
-
 
 __all__ = ["CommandValidator"]
 
 
 class CommandValidator(Validator):
     """ Completer for console's commands and arguments. """
+
     def __del__(self):
         """ Custom deletion method, for removing back-references. """
         if hasattr(self, "console"):

@@ -4,5 +4,5 @@ __all__ = ["SessionsManager"]
 
 
 class SessionsManager(object):
-    #TODO: build the sessions manager
+    # TODO: build the sessions manager
     pass

@@ -1,16 +1,15 @@
 # -*- coding: utf8 -*-
 import logging
 from logging.handlers import RotatingFileHandler
-from termcolor import colored
 
+from termcolor import colored
 
 __all__ = ["get_logger", "null_logger"]
 
-
 SUCCESS = logging.ERROR + 1
 DATETIME_FORMAT = "%m/%d/%y %H:%M:%S"
-LOGFILE_FORMAT  = "%(asctime)s [%(process)5d] %(levelname)8s %(name)s - " \
-                  "%(message)s"
+LOGFILE_FORMAT = "%(asctime)s [%(process)5d] %(levelname)8s %(name)s - " \
+                 "%(message)s"
 LOG_FORMAT = "%(levelsymbol)s %(message)s"
 LOG_LEVEL_SYMBOLS = {
     logging.DEBUG:    colored("[#]", "white"),
@@ -22,12 +21,10 @@ LOG_LEVEL_SYMBOLS = {
     None:             colored("[?]", "grey"),
 }
 
-
 # this avoids throwing e.g. FutureWarning or DeprecationWarning messages
 logging.captureWarnings(True)
 logger = logging.getLogger('py.warnings')
 logger.setLevel(logging.CRITICAL)
-
 
 # silent sh module's logging
 logger = logging.getLogger('sh.command')
@@ -46,14 +43,19 @@ class SploitkitLogger(logging.Logger):
 # add custom log levels
 def failure(self, message, *args, **kwargs):
     if self.isEnabledFor(logging.ERROR):
-        self._log(logging.ERROR, message, args, **kwargs) 
+        self._log(logging.ERROR, message, args, **kwargs)
+
+
 SploitkitLogger.failure = failure
 logging.addLevelName(SUCCESS, "SUCCESS")
+
+
 def success(self, message, *args, **kwargs):
     if self.isEnabledFor(SUCCESS):
-        self._log(SUCCESS, message, args, **kwargs) 
-SploitkitLogger.success = success
+        self._log(SUCCESS, message, args, **kwargs)
 
+
+SploitkitLogger.success = success
 
 # set a null logger
 null_logger = logging.getLogger("main")

@@ -3,13 +3,9 @@ import collections
 import logging
 import os
 import tempfile
-from prompt_toolkit.lexers import PygmentsLexer
-from pypager.pager import Pager
-from pypager.source import FileSource
-from string import printable
 from subprocess import call
-from termcolor import colored
 
+from termcolor import colored
 
 __all__ = ["catch_logger", "confirm", "edit_file", "failsafe", "flatten",
            "human_readable_size", "page_file", "page_text", "user_input"]
@@ -18,12 +14,14 @@ __all__ = ["catch_logger", "confirm", "edit_file", "failsafe", "flatten",
 def catch_logger(f):
     """ Decoractor for catching the keyword-argument 'logger' and passing the
          logger to function's global scope. """
+
     def _wrapper(*a, **kw):
         logger = kw.pop("logger", None)
         if not isinstance(logger, logging.Logger):
             logger = logging.getLogger("root")
         f.__globals__['logger'] = logger
         return f(*a, **kw)
+
     return _wrapper
 
 
@@ -42,11 +40,13 @@ def edit_file(filename):
 
 def failsafe(f):
     """ Simple decorator for catching every exception and returning None. """
+
     def __fw(s, *a, **kw):
         try:
             return f(s, *a, **kw)
         except:
             return
+
     return __fw
 
 

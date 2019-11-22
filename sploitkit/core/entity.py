@@ -8,9 +8,8 @@ from shutil import which
 
 from .components.config import Config, Option, ProxyConfig
 from ..utils.dict import ClassRegistry
-from ..utils.objects import BorderlessTable, NameDescription as NDescr
+from ..utils.objects import BorderlessTable
 from ..utils.path import *
-
 
 __all__ = ["load_entities", "Entity", "MetaEntity", "MetaEntityBase"]
 
@@ -156,47 +155,47 @@ class BadSource(Exception):
 class Entity(object):
     """ Generic Entity class (i.e. a command or a module). """
     _applicable = True
-    _enabled    = True
-    _fields     = {
+    _enabled = True
+    _fields = {
         'head': ["author", "reference", "source", "version"],
         'body': ["description"],
     }
-    _metadata   = {}
+    _metadata = {}
     _subclasses = ClassRegistry()
-    
+
     def __init__(self, *args, **kwargs):
         self.__class__._instance = self
-    
+
     def __getattribute__(self, name):
         if name == "config" and getattr(self.__class__, "_has_config", False):
             c = ProxyConfig(self.__class__.config)
             # merge parent config if relevant
             if hasattr(self, "parent") and self.parent is not None and \
-                self.parent is not self:
+                    self.parent is not self:
                 c += self.parent.config
             # back-reference the entity
             setattr(c, self.__class__.entity, self)
             return c
         return super(Entity, self).__getattribute__(name)
-    
+
     @property
     def applicable(self):
         """ Boolean indicating if the entity is applicable to the current
              context (i.e. of attached entities). """
         return self.__class__._applicable
-    
+
     @property
     def base_class(self):
         """ Shortcut for accessing the Entity class, for use instead of __base__
              which only leads to the direct base class. """
         return Entity
-    
+
     @property
     def enabled(self):
         """ Boolean indicating if the entity is enabled (i.e. if it has no
              missing requirement. """
         return self.__class__.enabled
-    
+
     @classmethod
     def check(cls, other_cls=None):
         """ Check for entity's requirements. """
@@ -219,7 +218,7 @@ class Entity(object):
                     except KeyError:
                         cls._enabled = False
                         break
-                    cur_val = o.value       # current value
+                    cur_val = o.value  # current value
                     if cur_val != exp_val:  # expected value
                         cls._enabled = False
                         break
@@ -326,13 +325,13 @@ class Entity(object):
                         cls._applicable = True
                         break
         return cls._enabled and cls._applicable
-    
+
     @classmethod
     def get_class(cls, name):
         """ Get a class (key) from _subclasses by name (useful when the related
              class is not imported in the current scope). """
         return Entity._subclasses.key(name)
-    
+
     @classmethod
     def get_info(cls, *fields, show_all=False):
         """ Display entity's metadata and other information.
@@ -345,13 +344,13 @@ class Entity(object):
         if len(fields) == 0:
             fields = [("name", "description"),
                       ("author", "email", "version", "comments"),
-                      ("options", )]
+                      ("options",)]
         # make a data table with the given fields and corresponding values
         data, __used = [], []
         _ = lambda s: s.capitalize() + ":"
         for field in fields:
             if not isinstance(field, (list, tuple)):
-                field = (field, )
+                field = (field,)
             add_blankline = False
             for f in field:
                 try:
@@ -376,13 +375,13 @@ class Entity(object):
             if len(unused) > 0:
                 t += cls.get_info(*sorted(list(unused)))
         return t.rstrip() + "\n"
-    
+
     @classmethod
     def get_issues(cls):
         """ List issues encountered while checking all the entities. """
         for cls, l in Entity._subclasses.items() if cls is Entity else \
-                      cls.subclasses if cls in Entity._subclasses.keys() \
-                      else [(cls._entity_class, [cls])]:
+                cls.subclasses if cls in Entity._subclasses.keys() \
+                        else [(cls._entity_class, [cls])]:
             for subcls in l:
                 e = {}
                 for b in subcls.__bases__:
@@ -406,7 +405,7 @@ class Entity(object):
                     for c, i in e.items():
                         e[c] = list(sorted(set(i)))
                     yield cls.__name__, subcls.__name__, e
-    
+
     @classmethod
     def has_issues(cls):
         """ Tell if issues were encountered while checking all the entities. """
@@ -458,7 +457,7 @@ class Entity(object):
         """ Remove entries from the registry of subclasses. """
         for subcls in subclss:
             cls.unregister_subclass(subcls)
-    
+
     def run(self, *args, **kwargs):
         """ Generic method for running Entity's logic. """
         raise NotImplementedError("{}'s run() method is not implemented"
@@ -467,6 +466,7 @@ class Entity(object):
 
 class MetaEntityBase(type):
     """ Metaclass of an Entity, registering all its instances. """
+
     def __new__(meta, name, bases, clsdict, subcls=None):
         subcls = subcls or type.__new__(meta, name, bases, clsdict)
         if len(ENTITIES) > 0:
@@ -483,11 +483,11 @@ class MetaEntityBase(type):
             for b in bases:
                 for a in dir(b):
                     m = getattr(b, a)
-                    if callable(m) and any(a == "register_{}".format(w.lower())\
-                        for w in ["subclass"] + ENTITIES):
+                    if callable(m) and any(a == "register_{}".format(w.lower()) \
+                                           for w in ["subclass"] + ENTITIES):
                         m(subcls)
         return subcls
-    
+
     @property
     def subclasses(self):
         """ List of all classes of the current entity. """
@@ -495,7 +495,8 @@ class MetaEntityBase(type):
 
 
 class MetaEntity(MetaEntityBase):
-    """ Metaclass of an Entity, adding some particular properties. """    
+    """ Metaclass of an Entity, adding some particular properties. """
+
     def __getattribute__(self, name):
         if name == "config" and getattr(self, "_has_config", False):
             if "config" not in self.__dict__:
@@ -514,32 +515,32 @@ class MetaEntity(MetaEntityBase):
                         c += _
             return c
         return super(MetaEntity, self).__getattribute__(name)
-    
+
     @property
     def applicable(self):
         """ Boolean indicating if the entity is applicable to the current
              context (i.e. of attached entities). """
         self.check()
         return self._applicable
-    
+
     @property
     def enabled(self):
         """ Boolean indicating if the entity is enabled (i.e. if it has no
              missing requirement. """
         self.check()
         return self._enabled
-    
+
     @property
     def entity(self):
         """ Normalized base entity name. """
         return self._entity_class.__name__.lower()
-    
+
     @property
     def name(self):
         """ Normalized entity subclass name. """
         _ = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', self.__name__)
         return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', _).lower()
-    
+
     @property
     def options(self):
         """ Table of entity options. """

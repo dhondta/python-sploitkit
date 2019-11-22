@@ -1,9 +1,8 @@
 # -*- coding: UTF-8 -*-
 import re
 import shlex
-from sploitkit import *
-from subprocess import call
 
+from sploitkit import *
 
 projects = lambda cmd: [x.filename for x in cmd.workspace.iterpubdir()]
 
@@ -12,7 +11,7 @@ projects = lambda cmd: [x.filename for x in cmd.workspace.iterpubdir()]
 class Back(Command):
     """ Come back to the previous console level """
     except_levels = ["root"]
-    
+
     def run(self):
         raise ConsoleExit
 
@@ -20,7 +19,7 @@ class Back(Command):
 class Exit(Command):
     """ Exit the console """
     aliases = ["quit"]
-       
+
     def run(self):
         raise SystemExit
 
@@ -28,7 +27,7 @@ class Exit(Command):
 class Help(Command):
     """ Display help """
     aliases = ["?"]
-    
+
     def run(self):
         print_formatted_text(Command.get_help("general", self.console.level))
 
@@ -36,7 +35,7 @@ class Help(Command):
 class Search(Command):
     """ Search for text in modules """
     single_arg = True
-    
+
     def run(self, text):
         keywords = shlex.split(text)
         data = [["Name", "Path", "Description"]]
@@ -57,11 +56,11 @@ class Show(Command):
     """ Show options, projects, modules or issues (if any) """
     level = "root"
     keys = ["modules", "options", "projects"]
-    
+
     def __init__(self):
         if Entity.has_issues():
             self.keys = self.keys + ["issues"]
-    
+
     def complete_values(self, key):
         if key == "modules":
             return [m for m in self.console.modules.keys()]
@@ -74,7 +73,7 @@ class Show(Command):
             for cls, subcls, errors in Entity.get_issues():
                 l.extend(errors.keys())
             return l
-    
+
     def run(self, key, value=None):
         if key == "modules":
             h = Module.get_help(value)
@@ -117,13 +116,14 @@ class Show(Command):
                     elif item[1] == "?":
                         return "'{}' state key is expected to have value '{}'" \
                                " at least once".format(item[0], item[2])
+
             if Entity.has_issues():
                 print("")
             for cls, subcls, errors in Entity.get_issues():
                 if value is None:
                     t = "{}: {}\n- ".format(cls, subcls)
                     t += "\n- ".join(msg(k, e) for k, err in errors.items() \
-                                               for e in err) + "\n"
+                                     for e in err) + "\n"
                 else:
                     t = ""
                     for k, e in errors.items():
@@ -135,14 +135,15 @@ class Show(Command):
 # ---------------------------- OPTIONS-RELATED COMMANDS ------------------------
 class Set(Command):
     """ Set an option in the current context """
+
     def complete_keys(self):
         return list(self.config.keys())
-    
+
     def complete_values(self, key):
         if key.upper() == "WORKSPACE":
             return [str(x) for x in Path(".").home().iterpubdir()]
         return self.config.option(key).choices or []
-    
+
     def run(self, key, value):
         self.config[key] = value
         self.logger.success("{} => {}"
@@ -150,7 +151,7 @@ class Set(Command):
         if hasattr(self.config, "_last_error"):
             self.logger.warning("Callback error: {}"
                                 .format(self.config._last_error))
-    
+
     def validate(self, key, value):
         if key not in self.config.keys():
             raise ValueError("invalid key")
@@ -163,13 +164,14 @@ class Set(Command):
 
 class Unset(Command):
     """ Unset an option from the current context """
+
     def complete_keys(self):
         return list(self.console.config.keys())
-    
+
     def run(self, key):
         self.config[key] = None
         self.logger.debug("{} => null".format(key))
-    
+
     def validate(self, key):
         if key not in self.config.keys():
             raise ValueError("invalid key")

@@ -13,13 +13,13 @@ from sploitkit import *
 class Edit(Command):
     """ Edit a file with PyVim """
     requirements = {'python': ["pyvim"]}
-    single_arg   = True
-    
+    single_arg = True
+
     def complete_values(self):
         p = self.config.option("WORKSPACE").value
         f = Path(p).iterfiles(relative=True)
         return list(map(lambda _: str(_), f))
-    
+
     def run(self, filename):
         f = Path(self.config.option("WORKSPACE").value).joinpath(filename)
         edit_file(str(f))
@@ -28,7 +28,7 @@ class Edit(Command):
 class History(Command):
     """ Inspect commands history """
     requirements = {'python': ["pypager"]}
-    
+
     def run(self):
         h = Path(self.config.option("WORKSPACE").value).joinpath("history")
         page_file(str(h))
@@ -37,7 +37,7 @@ class History(Command):
 class Shell(Command):
     """ Execute a shell command """
     single_arg = True
-    
+
     def complete_values(self):
         l = []
         e = stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
@@ -51,7 +51,7 @@ class Shell(Command):
                     if st.st_mode & e and f not in l:
                         l.append(f)
         return l
-        
+
     def run(self, cmd=None):
         if cmd is None:
             from pty import spawn
@@ -59,7 +59,7 @@ class Shell(Command):
         else:
             call(cmd, shell=True)
         print_formatted_text("")
-    
+
     def validate(self, cmd):
         _ = cmd.split()
         if len(_) <= 1 and _[0] not in self.complete_values():
@@ -69,7 +69,7 @@ class Shell(Command):
 class Stats(Command):
     """ Display console's statistics """
     level = "root"
-    
+
     def run(self):
         d = [["Item", "Path", "Size"]]
         _ = self.console.app_folder
@@ -87,7 +87,7 @@ class Logs(Command):
         'config': {'DEBUG': True},
         'python': ["pypager"],
     }
-    
+
     def run(self):
         page_file(self.logger.__logfile__)
 
@@ -118,34 +118,37 @@ class State(Command):
 # ------------------------------ DEVELOPMENT COMMANDS --------------------------
 class DevCommand(Command):
     """ Proxy class for development commands """
+
     def condition(self):
         return getattr(Console, "_dev_mode", False)
 
 
 class Collect(DevCommand):
     """ Garbage-collect """
+
     def run(self):
         collect()
 
 
 class Dict(DevCommand):
     """ Show console's dictionary of attributes """
+
     def run(self):
         pprint(self.console.__dict__)
 
 
 class Memory(DevCommand):
     """ Inspect memory consumption """
-    keys         = ["graph", "growth", "info", "leaking", "objects", "refs"]
+    keys = ["graph", "growth", "info", "leaking", "objects", "refs"]
     requirements = {
         'python': ["objgraph", "psutil", "xdot"],
         'system': ["xdot"],
     }
-    
+
     def complete_values(self, key=None):
         if key in ["graph", "refs"]:
             return [str(o) for o in get_objects() if isinstance(o, Console)]
-    
+
     def run(self, key, value=None):
         if value is not None:
             obj = list(filter(lambda o: str(o) == value, get_objects()))[0]
@@ -153,7 +156,7 @@ class Memory(DevCommand):
             from objgraph import show_refs
             if value is None:
                 show_refs(self.console if self.console.parent is None else \
-                          self.console.parent, refcounts=True, max_depth=3)
+                              self.console.parent, refcounts=True, max_depth=3)
             else:
                 show_refs(obj, refcounts=True, max_depth=3)
         elif key == "growth":
@@ -177,7 +180,7 @@ class Memory(DevCommand):
             if value is not None:
                 print_formatted_text(getrefcount(obj), ":")
                 pprint(get_referrers(obj))
-    
+
     def validate(self, key, value=None):
         if key in ["graph", "refs"]:
             if value and value not in self.complete_values("graph"):

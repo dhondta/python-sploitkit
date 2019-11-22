@@ -1,7 +1,8 @@
 # -*- coding: UTF-8 -*-
 from prompt_toolkit.formatted_text import ANSI
-from sploitkit import *
 from termcolor import colored
+
+from sploitkit import *
 
 
 # ----------------------------- SUBCONSOLE DEFINITION --------------------------
@@ -19,7 +20,7 @@ class ModuleConsole(Console):
         'prompt': "#eeeeee",
         'module': "#ff0000",
     }
-    
+
     def __init__(self, parent, module):
         self.attach(module, True)
         self.logname = module.fullpath
@@ -31,9 +32,10 @@ class ModuleConsole(Console):
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
 class Use(Command):
     """ Select a module """
+
     def complete_values(self):
         return Module.get_list()
-    
+
     def run(self, module):
         new_mod, old_mod = Module.get_modules(module), self.module
         # avoid starting a new subconsole for the same module
@@ -50,6 +52,7 @@ class ModuleCommand(Command):
 
 class Run(ModuleCommand):
     """ Run module """
+
     def run(self):
         if self.module.check():
             self.module._instance.run()
@@ -58,11 +61,11 @@ class Run(ModuleCommand):
 class Show(ModuleCommand):
     """ Show module-relevant information or options """
     keys = ["info", "options"]
-    
+
     def __init__(self):
         if self.module and self.module.has_issues():
             self.keys = self.keys + ["issues"]
-    
+
     def complete_values(self, key):
         if key == "options":
             return self.config.keys()
@@ -72,7 +75,7 @@ class Show(ModuleCommand):
                 for cls, subcls, errors in getattr(self, attr).get_issues():
                     l.extend(errors.keys())
             return l
-    
+
     def run(self, key, value=None):
         if key == "options":
             data = [["Name", "Value", "Required", "Description"]]
@@ -90,7 +93,7 @@ class Show(ModuleCommand):
         elif key == "info":
             i = self.console.module.get_info(("fullpath|path", "description"),
                                              ("author", "email", "version"),
-                                             ("comments", ), ("options", ),
+                                             ("comments",), ("options",),
                                              show_all=True)
             if len(i.strip()) != "":
                 print_formatted_text(i)
@@ -99,7 +102,7 @@ class Show(ModuleCommand):
                 if value is None:
                     t = "{}: {}\n- ".format(cls, subcls)
                     t += "\n- ".join(m(k, e) for k, err in errors.items() \
-                                             for e in err) + "\n"
+                                     for e in err) + "\n"
                 else:
                     t = ""
                     for k, e in errors.items():

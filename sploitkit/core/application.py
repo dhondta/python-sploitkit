@@ -1,14 +1,7 @@
 # -*- coding: UTF-8 -*-
 from prompt_toolkit.application import Application
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout.containers import HSplit, Window
-from prompt_toolkit.layout.controls import FormattedTextControl
-from prompt_toolkit.layout.dimension import LayoutDimension as D
+from prompt_toolkit.layout.containers import HSplit
 from prompt_toolkit.layout.layout import Layout
-from prompt_toolkit.lexers import PygmentsLexer
-from prompt_toolkit.styles import Style
-from prompt_toolkit.widgets import SearchToolbar, TextArea
-
 
 __all__ = ["FrameworkApp"]
 
@@ -20,9 +13,9 @@ class FrameworkApp(Application):
         console = kwargs.get('console')
         if console is None:
             raise Exception("No root console passed to the application")
-        #console.__class__ = type("ConsoleTextArea",
+        # console.__class__ = type("ConsoleTextArea",
         #                         (TextArea, console.__class__), {})
-        #console.scrollbar = True
+        # console.scrollbar = True
         root_container = HSplit([
             console,
         ])

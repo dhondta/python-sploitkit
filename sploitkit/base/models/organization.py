@@ -8,19 +8,19 @@ class Organization(Model):
 
 
 class Unit(Model):
-    name         = CharField(primary_key=True)
+    name = CharField(primary_key=True)
     organization = ForeignKeyField(Organization, backref="units")
 
 
 class Employee(Model):
     firstname = CharField()
-    lastname  = CharField()
-    role      = CharField()
-    title     = CharField()
-    
+    lastname = CharField()
+    role = CharField()
+    title = CharField()
+
     class Meta:
-        indexes = ((("firstname", "lastname", "role"), True), )
-    
+        indexes = ((("firstname", "lastname", "role"), True),)
+
     @property
     def fullname(self):
         return "{} {} ({})".format(self.firstname, self.lastname, self.role)
@@ -28,23 +28,23 @@ class Employee(Model):
 
 class EmployeeUnit(BaseModel):
     employee = ForeignKeyField(Employee, backref="units")
-    unit     = ForeignKeyField(Unit, backref="employees")
-    
+    unit = ForeignKeyField(Unit, backref="employees")
+
     class Meta:
         primary_key = CompositeKey("employee", "unit")
 
 
 class EmployeeEmail(BaseModel):
     employee = ForeignKeyField(Employee, backref="emails")
-    email    = ForeignKeyField(Email, backref="employees")
-    
+    email = ForeignKeyField(Email, backref="employees")
+
     class Meta:
         primary_key = CompositeKey("employee", "email")
 
 
 class EmployeeUser(BaseModel):
     employee = ForeignKeyField(Employee, backref="users")
-    user     = ForeignKeyField(User, backref="employees")
-    
+    user = ForeignKeyField(User, backref="employees")
+
     class Meta:
         primary_key = CompositeKey("employee", "user")
