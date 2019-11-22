@@ -10,7 +10,7 @@ leveraging Python and the power of [`prompt_toolkit`](https://github.com/prompt-
 
 ## Main architecture
 
-This library is designed around a central class called [*entity*](classes/entity.html). An entity centralizes features such as class registry, which keeps track of relevant sub-entities like *consoles*, *commands* and *modules*. This means every entity class inherits from this main class and then defines additional features of its own.
+This library is designed around a central class called [*entity*](classes/entity.html) that gathers common features like class registry for keeping track of relevant entities like *consoles*, *commands* and *modules*. So, every entity class inherits from this main class and then defines its own additional features for its purpose.
 
 Basically, five different "main" entity classes are defined :
 
