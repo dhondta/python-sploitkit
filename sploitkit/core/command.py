@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 import re
-from inspect import getargspec
+from inspect import getfullargspec
 
 from .components.config import Config
 from .entity import Entity, MetaEntity
@@ -34,10 +34,11 @@ FUNCTIONALITIES = [
 
 class MetaCommand(MetaEntity):
     """ Metaclass of a Command. """
+    _inherit_metadata = True
     style = "slugified"
 
     def __init__(self, *args):
-        argspec = getargspec(self.run)
+        argspec = getfullargspec(self.run)
         s, args, defs = "{}", argspec.args[1:], argspec.defaults
         for a in args[:len(args) - len(defs or [])]:
             s += " " + a
@@ -95,7 +96,7 @@ class Command(Entity, metaclass=MetaCommand):
     def _nargs(self):
         """ Get run's signature info (n = number of args,
                                       m = number of args with no default). """
-        argspec = getargspec(self.run)
+        argspec = getfullargspec(self.run)
         n = len(argspec.args) - 1  # substract 1 for self
         return n, n - len(argspec.defaults or ())
 
@@ -263,20 +264,20 @@ class Command(Entity, metaclass=MetaCommand):
                     pass
 
     def complete_keys(self):
-        """ Default option completion method.
+        """ Default key completion method.
              (will be triggered if the number of run arguments is 2) """
         return getattr(self, "keys", []) or \
                list(getattr(self, "values", {}).keys())
-
-    def complete_values(self, option=None):
+    
+    def complete_values(self, key=None):
         """ Default value completion method. """
         if self._nargs[0] == 1:
-            if option is not None:
+            if key is not None:
                 raise TypeError("complete_values() takes 1 positional argument "
                                 "but 2 were given")
             return getattr(self, "values", [])
         if self._nargs[0] == 2:
-            return getattr(self, "values", {}).get(option)
+            return getattr(self, "values", {}).get(key)
         return []
 
     def validate(self, *args):
@@ -292,7 +293,7 @@ class Command(Entity, metaclass=MetaCommand):
             l = self.complete_values()
             if n_in == 1 and len(l) > 0 and args[0] not in l:
                 raise ValueError("invalid value")
-        elif n == 2:  # command format: COMMAND OPTION VALUE
+        elif n == 2:  # command format: COMMAND KEY VALUE
             l = self.complete_keys()
             if n_in > 0 and len(l) > 0 and args[0] not in l:
                 raise ValueError("invalid key")

@@ -1,10 +1,18 @@
-Sploitkit provides an API for conveniently defining CLI frameworks in an Object-Oriented fashion. It allows to define *consoles* that have sets of *commands* and that can be associated with different *modules* handling separated contexts while saving data to a datastore according to *models* eventually using *store extensions*. It also allows to handle *projects*, *files*, *jobs* and *sessions* so that organizing work and reports becomes easier. Briefly, it aims to be highly customizable while keeping the same CLI philosophy as Metasploit but leveraging Python and the power of [`prompt_toolkit`](https://github.com/prompt-toolkit/python-prompt-toolkit) in order to enhance the user experience (through a lot of completion and validation).
+Sploitkit's API conveniently defines the CLI framework in an Object-Oriented fashion. *Consoles* have a set of *commands* and can
+be associated with *modules*, which are capable of handling their context in isolation and save/restore data from a *datastore*
+according to user-defined *models*. Datastores can also be customized using *store extensions.
+
+Thanks to compartmentalization in *projects*, *files*, *jobs* and *sessions*, it becomes easier to organize your work or generate
+reports.
+ 
+To sum it up, Sploitkit aims to be highly customizable while keeping the same CLI philosophy as Metasploit, while
+leveraging Python and the power of [`prompt_toolkit`](https://github.com/prompt-toolkit/python-prompt-toolkit) in order to enhance the user experience through command-line completion and validation.
 
 ## Main architecture
 
-This library is designed around a central class called [*entity*](classes/entity.html) that gathers common features like class registry for keeping track of relevant entities like *consoles*, *commands* and *modules*. So, every entity class inherits from this main class and then defines its own additional features for its purpose.
+This library is designed around a central class called [*entity*](classes/entity.html). An entity centralizes features such as class registry, which keeps track of relevant sub-entities like *consoles*, *commands* and *modules*. This means every entity class inherits from this main class and then defines additional features of its own.
 
-Basically, five different main entity classes are defined :
+Basically, five different "main" entity classes are defined :
 
 - [`Console`](classes/console.html) : for defining CLI console levels
 - [`Command`](classes/command.html) : for defining console commands, accessible from console levels
@@ -12,19 +20,34 @@ Basically, five different main entity classes are defined :
 - [`Model`](classes/datastore.html) : for describing data schemas to be recorded in the datastore
 - [`StoreExtension`](classes/datastore.html) : for defining mixins to be used with the datastore
 
-At startup, Sploitkit loads every entity it finds in the user-defined sources, also loading a pre-defined set of generic commands (like in Metasploit or Recon-ng), which can eventually be disabled if not required. The point here is that everything starts from the instantiation of a `Console`, that triggers entities loading. For convenience, a `FrameworkConsole` holding some base functionalities allows to quickly start an application.
+At startup, Sploitkit loads every entity it finds in the user-defined 
+sources, as well as a pre-defined set of generic commands (like in 
+Metasploit or Recon-ng). This behaviour can be disabled if so desired.
+Instantiation begins with a `Console` and then proceeds with the loading
+of all the other entities.  For convenience, a `FrameworkConsole` 
+containing some some base functionalities is provided. It serves as a
+good starting point for newcomers to Sploitkit.
 
 !!! note "Back-referencing"
     
-    For easilly calling objects of a type from bound objects of another type, back-referencing is extensively used. For instance,
+    Back-referencing is heavily used throughout Sploitkit:
     
-    - from a module, its parent console is reachable by simply using `self.console` in a method
-    - from an option, its config can be called by using `self.config` which has itself a back-reference to its parent console, therefore allowing to reach `self.config.console` (this makes triggers from an option possible into the parent console)
+    * `module.console` refers to the parent console of module
+    * calling `self.config.console` within an `option` allows to "walk up" the chain up to the console, and to create triggers for it
 
 ## Project structure
 
 The package is structured as follows :
 
-- `base` : This contains base entities to be included by default in any application. Note that if some base commands are not required, they can be disabled (see section *Classes*/`Command`).
-- `core` : This holds the core functionalities of Sploitkit with the class definitions for `Entity` and the main entity classes but also components for the main console.
-- `utils` : This contains utility modules that are not specifically part of the `base` and `core` subpackages.
+- `base` : This contains base entities to be included by default in any 
+application. Note that if some base commands are not required, they can 
+be disabled (see section *Classes*/`Command`).
+- `core` : This holds the core functionalities of Sploitkit with the 
+class definitions for `Entity` and the main entity classes but also 
+components for the main console.
+- `utils` : This contains utility modules that are not specifically 
+part of the `base` and `core` subpackages.
+
+![Classes](img/classes.png)
+
+![Packages](img/packages.png)
