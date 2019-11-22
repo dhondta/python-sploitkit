@@ -2,16 +2,13 @@
 import os
 import shutil
 from os.path import abspath, dirname, isdir, join, relpath
+
 from pyminizip import *
 
 from .misc import catch_logger
 from .password import input_password
 
-
-__all__ = [
-    'load_from_archive',
-    'save_to_archive',
-]
+__all__ = ["load_from_archive", "save_to_archive"]
 
 __author__ = "Alexandre D'Hondt"
 
@@ -31,12 +28,13 @@ def load_from_archive(src_arch, dst_path, pwd=None, ask=False, remove=False):
     :param remove:   remove after decompression
     """
     # handle password then decompress with 7-zip
-    pwd = input_password(silent=True, length=LENGTH, logger=logger) \
-          if ask else pwd
+    pwd = input_password(silent=True, length=LENGTH, logger=logger) if ask else pwd
     logger.debug("Loading {}archive".format(["encrypted ", ""][pwd is None]))
     logger.debug("> Decompressing '{}' to '{}'...".format(src_arch, dst_path))
     try:
+        current_working_dir = os.getcwd()
         uncompress(src_arch, pwd or "", dst_path, False)
+        os.chdir(current_working_dir)
         if remove:
             os.remove(src_arch)
         return True
@@ -68,7 +66,9 @@ def save_to_archive(src_path, dst_arch, pwd=None, ask=False, remove=False):
             src_list.append(join(root, f))
             dst_list.append(relpath(root, dirname(src)))
     try:
+        current_working_dir = os.getcwd()
         compress_multiple(src_list, dst_list, dst_arch, pwd or "", 9)
+        os.chdir(current_working_dir)
         if remove:
             shutil.rmtree(src_path) if isdir(src_path) else os.remove(src_path)
         return True
