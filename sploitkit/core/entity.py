@@ -2,7 +2,7 @@
 import gc
 import re
 import sys
-from importlib import find_loader
+from importlib.util import find_spec
 from inspect import getfile, getmro
 from shutil import which
 
@@ -221,12 +221,15 @@ class Entity(object):
                         errors["file"].append(fpath)
                         cls._enabled = False
             elif k == "python":
+                # check for available Python modules
                 for module in v:
                     if isinstance(module, tuple):
                         module, package = module
+                        found = find_spec(module, package)
                     else:
                         package = module
-                    if find_loader(module) is None:
+                        found = find_spec(module)
+                    if found is None:
                         errors.setdefault("python", [])
                         errors["python"].append(package)
                         cls._enabled = False
