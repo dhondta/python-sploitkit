@@ -19,11 +19,7 @@ from getpass import getpass
 from .misc import catch_logger
 
 
-__all__ = [
-    'input_password',
-]
-
-__author__ = "Alexandre D'Hondt"
+__all__ = ["input_password"]
 
 
 @catch_logger
