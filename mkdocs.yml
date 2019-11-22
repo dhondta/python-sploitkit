@@ -21,6 +21,8 @@ extra_javascript:
 use_directory_urls: false
 markdown_extensions:
   - admonition
+  - toc:
+      permalink: True
   - codehilite:
       linenums: true
   - pymdownx.details
