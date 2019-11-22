@@ -98,7 +98,7 @@ class Command(Entity, metaclass=MetaCommand):
     def _nargs(self):
         """ Get run's signature info (n = number of args,
                                       m = number of args with no default). """
-        argspec = getargspec(self.run)
+        argspec = getfullargspec(self.run)
         n = len(argspec.args) - 1  # substract 1 for self
         return n, n - len(argspec.defaults or ())
     
