@@ -33,9 +33,7 @@ good starting point for newcomers to Sploitkit.
     Back-referencing is heavily used throughout Sploitkit:
     
     * `module.console` refers to the parent console of module
-    * calling `self.config.console` within an `option` allows to
-    "walk up" the chain up to the console, and to create triggers for
-    it
+    * calling `self.config.console` within an `option` allows to "walk up" the chain up to the console, and to create triggers for it
 
 ## Project structure
 
