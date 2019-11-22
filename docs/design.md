@@ -1,28 +1,16 @@
-Sploitkit's API conveniently defines the CLI framework in 
-an Object-Oriented fashion. *Consoles* have a set of *commands* and can
-be associated with *modules*, which are capable of handling their
-context in isolation and save/restore data from a *datastore*
-according to user-defined *models*. Datastores can also be customized 
-using *store extensions.
+Sploitkit's API conveniently defines the CLI framework in an Object-Oriented fashion. *Consoles* have a set of *commands* and can
+be associated with *modules*, which are capable of handling their context in isolation and save/restore data from a *datastore*
+according to user-defined *models*. Datastores can also be customized using *store extensions.
 
-Thanks to compartmentalization in *projects*, *files*, *jobs* and 
-*sessions*, it becomes easier to organize your work or generate
+Thanks to compartmentalization in *projects*, *files*, *jobs* and *sessions*, it becomes easier to organize your work or generate
 reports.
  
-To sum it up, Sploitkit aims to be highly
-customizable while keeping the same CLI philosophy as Metasploit, while
-leveraging Python and the power of 
-[`prompt_toolkit`](https://github.com/prompt-toolkit/python-prompt-toolkit) 
-in order to enhance the user experience through command-line completion 
-and validation.
+To sum it up, Sploitkit aims to be highly customizable while keeping the same CLI philosophy as Metasploit, while
+leveraging Python and the power of [`prompt_toolkit`](https://github.com/prompt-toolkit/python-prompt-toolkit) in order to enhance the user experience through command-line completion and validation.
 
 ## Main architecture
 
-This library is designed around a central class called [*entity*](classes/entity.html).
-An entity centralizes features such as class registry, which keeps track
-of relevant sub-entities like *consoles*, *commands* and *modules*. 
-This means every entity class inherits from this main class and then 
-defines additional features of its own.
+This library is designed around a central class called [*entity*](classes/entity.html). An entity centralizes features such as class registry, which keeps track of relevant sub-entities like *consoles*, *commands* and *modules*. This means every entity class inherits from this main class and then defines additional features of its own.
 
 Basically, five different "main" entity classes are defined :
 
