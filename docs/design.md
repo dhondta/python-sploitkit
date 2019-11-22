@@ -18,7 +18,7 @@ and validation.
 
 ## Main architecture
 
-This library is designed around a central class called *entity*.
+This library is designed around a central class called [*entity*](classes/entity.html).
 An entity centralizes features such as class registry, which keeps track
 of relevant sub-entities like *consoles*, *commands* and *modules*. 
 This means every entity class inherits from this main class and then 
@@ -26,11 +26,11 @@ defines additional features of its own.
 
 Basically, five different "main" entity classes are defined :
 
-- `Console` : defines CLI console levels
-- `Command` : defines console commands, attached to console levels
-- `Module` : creates modules with specific purpose (like in Metasploit)
-- `Model` : describes the data schemas used to write in the datastore
-- `StoreExtension` : allows for mixins to be used within the datastore
+- [`Console`](classes/console.html) : for defining CLI console levels
+- [`Command`](classes/command.html) : for defining console commands, accessible from console levels
+- [`Module`](classes/module.html) : for declaring modules with specific functionalities like in Metasploit
+- [`Model`](classes/datastore.html) : for describing data schemas to be recorded in the datastore
+- [`StoreExtension`](classes/datastore.html) : for defining mixins to be used with the datastore
 
 At startup, Sploitkit loads every entity it finds in the user-defined 
 sources, as well as a pre-defined set of generic commands (like in 
