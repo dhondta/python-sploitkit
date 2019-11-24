@@ -1,9 +1,6 @@
-Sploitkit's API conveniently defines the CLI framework in an Object-Oriented fashion. *Consoles* have a set of *commands* and can
-be associated with *modules*, which are capable of handling their context in isolation and save/restore data from a *datastore*
-according to user-defined *models*. Datastores can also be customized using *store extensions.
+Sploitkit's API conveniently defines the CLI framework in an Object-Oriented fashion. *Consoles* have a set of *commands* and can be associated with *modules*, which are capable of handling their context in isolation and save/restore data from a *datastore* according to user-defined *models*. Datastores can also be customized using *store extensions.
 
-Thanks to compartmentalization in *projects*, *files*, *jobs* and *sessions*, it becomes easier to organize your work or generate
-reports.
+Thanks to compartmentalization in *projects*, *files*, *jobs* and *sessions*, it becomes easier to organize your work or generate reports.
  
 To sum it up, Sploitkit aims to be highly customizable while keeping the same CLI philosophy as Metasploit, while
 leveraging Python and the power of [`prompt_toolkit`](https://github.com/prompt-toolkit/python-prompt-toolkit) in order to enhance the user experience through command-line completion and validation.
@@ -12,7 +9,7 @@ leveraging Python and the power of [`prompt_toolkit`](https://github.com/prompt-
 
 This library is designed around a central class called [*entity*](classes/entity.html). An entity centralizes features such as class registry, which keeps track of relevant sub-entities like *consoles*, *commands* and *modules*. This means every entity class inherits from this main class and then defines additional features of its own.
 
-Basically, five different "main" entity classes are defined :
+Basically, [five different "main" entity classes](classes.html) are defined :
 
 - [`Console`](classes/console.html) : for defining CLI console levels
 - [`Command`](classes/command.html) : for defining console commands, accessible from console levels
@@ -39,14 +36,10 @@ good starting point for newcomers to Sploitkit.
 
 The package is structured as follows :
 
-- `base` : This contains base entities to be included by default in any 
-application. Note that if some base commands are not required, they can 
-be disabled (see section *Classes*/`Command`).
-- `core` : This holds the core functionalities of Sploitkit with the 
-class definitions for `Entity` and the main entity classes but also 
-components for the main console.
-- `utils` : This contains utility modules that are not specifically 
-part of the `base` and `core` subpackages.
+- `base` : This contains [base entities](/base.html) to be included by default in any 
+application. Note that if some base commands are not required, they can be disabled (see section *Classes*/`Command`).
+- `core` : This holds the core functionalities of Sploitkit with the class definitions for `Entity` and the main entity classes but also components for the main console.
+- `utils` : This contains utility modules that are not specifically part of the `base` and `core` subpackages.
 
 ![Classes](img/classes.png)
 
