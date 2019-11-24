@@ -165,7 +165,7 @@ class PyModulePath(Path):
         if self.is_pymodule:
             self.module = ImpImporter(str(self.resolve().parent)) \
                           .find_module(self.stem).load_module(self.stem)
-
+    
     def get_classes(self, *base_cls):
         """ Yield a list of all subclasses inheriting from the given class from
              the Python module. """
@@ -178,7 +178,7 @@ class PyModulePath(Path):
                     yield cls
             except TypeError:
                 pass
-
+    
     def has_class(self, base_cls):
         """ Check if the Python module has the given class. """
         if not self.is_pymodule:

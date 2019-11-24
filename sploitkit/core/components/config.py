@@ -20,7 +20,7 @@ class Config(dict):
     def __add__(self, config):
         """ Method for appending another config. """
         return ProxyConfig() + self + config
-
+    
     def __delitem__(self, key):
         """ Custom method for deleting an item, for triggering an unset callback
              from an Option. """
@@ -90,7 +90,7 @@ class Config(dict):
     def copy(self, config, key):
         """ Copy an option based on its key from another Config instance. """
         self[config.option(key)] = config[key]
-
+    
     def items(self, fail=True):
         """ Return (key, descr, value, required) instead of (key, value). """
         for o in sorted(self, key=lambda x: x.name):
@@ -102,7 +102,7 @@ class Config(dict):
                     raise e
                 v = ""
             yield n, o.description or "", v, o.required
-
+    
     def keys(self):
         """ Return string keys (like original dict). """
         for k in sorted(self.__d.keys()):
@@ -118,18 +118,18 @@ class Config(dict):
             if self.bound and self.console.parent is not None:
                 return self.console.parent.config.option(key)
             raise KeyError(key)
-
+    
     def options(self):
         """ Return Option instances instead of keys. """
         for k in sorted(self.__d.keys()):
             yield self.__d[k][0]
-
+    
     def setdefault(self, key, value=None):
         """ Custom method for forcing the use of the modified __setitem__. """
         if key not in self:
             self[key] = value
         return self[key]
-
+    
     def update(self, *args, **kwargs):
         """ Custom update method for handling update of another Config and
              forcing the use of the modified __setitem__. """

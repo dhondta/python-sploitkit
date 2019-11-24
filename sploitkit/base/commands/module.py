@@ -80,7 +80,7 @@ class Show(ModuleCommand):
                                      key=lambda x: x[0]):
                 r = ["N", "Y"][r]
                 if value is None or n == value:
-                    if v == "undefined":
+                    if v == "":
                         n = colored(n, "red", attrs=['bold'])
                         v = colored(v, "red", attrs=['bold'])
                         r = colored(r, "red", attrs=['bold'])
