@@ -218,21 +218,8 @@ class TempPath(Path):
             return super(TempPath, cls).__new__(cls, tmp, **kwargs)
         return super(TempPath, cls).__new__(cls, _, **kwargs)
     
-    #FIXME: e.g. when using temp_path.iterfiles(), yielded objects will be
-    #        TempPath instances, therefore causing __del__ to be triggered for
-    #        each new temporary file
-    #def __del__(self):
-    #    """ Clean the temporary folder when the instance is deleted. """
-    #    if str(self) != gettempdir():
-    #        try:
-    #            self.rmtree()
-    #        except NotADirectoryError:
-    #            pass
-    
     def joinpath(self, *args):
-        """ Modifed joinpath to return a Path instance instead of TempPath
-             (otherwise, it would trigger __del__ each time joinpath is called
-             without a variable reference). """
+        """ Modifed joinpath to return a Path instance instead of TempPath. """
         return Path(self).joinpath(*args)
     
     def tempfile(self, **kwargs):
