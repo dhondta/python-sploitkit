@@ -329,7 +329,12 @@ class Console(Entity, metaclass=MetaConsole):
         except ConsoleExit:
             return False
         except ValueError as e:
-            self.logger.failure(e)
+            if str(e).startswith("invalid width ") and \
+               str(e).endswith(" (must be > 0)"):
+                self.logger.warning("Cannot display ; terminal width too low")
+            else:
+                (self.logger.exception if self.config.option('DEBUG').value \
+                 else self.logger.failure)(e)
             return abort is False
         except Exception as e:
             self.logger.exception(e)
