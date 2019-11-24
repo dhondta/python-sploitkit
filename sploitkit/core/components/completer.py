@@ -13,12 +13,6 @@ wfilter    = lambda l, w: [x for x in l if w is None or x.startswith(w)]
 
 class CommandCompleter(Completer):
     """ Completer for console's commands and arguments. """
-    def __del__(self):
-        """ Custom deletion method, for removing back-references. """
-        if hasattr(self, "console"):
-            delattr(self, "console")
-        super().__del__()
-
     def get_completions(self, document, complete_event):
         # this completion method handles the following formats:
         #  1) COMMAND VALUE     ; e.g. create my-project

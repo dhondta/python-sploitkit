@@ -20,11 +20,6 @@ class Config(dict):
     def __add__(self, config):
         """ Method for appending another config. """
         return ProxyConfig() + self + config
-    
-    def __del__(self):
-        """ Custom deletion method, for removing back-references. """
-        if self.bound:
-            delattr(self, "_console")
 
     def __delitem__(self, key):
         """ Custom method for deleting an item, for triggering an unset callback
@@ -105,7 +100,7 @@ class Config(dict):
             except ValueError as e:
                 if fail:
                     raise e
-                v = "undefined"
+                v = ""
             yield n, o.description or "", v, o.required
 
     def keys(self):
