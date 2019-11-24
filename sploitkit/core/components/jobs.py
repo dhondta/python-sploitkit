@@ -35,22 +35,22 @@ class JobsPool(object):
         kwargs['stderr'] = PIPE
         kwargs['stdin'] = (None if stdin is None else PIPE)
         p = self.process(cmd, **kwargs)
-        communicate_kw = {}
+        com_kw = {}
         if stdin is not None:
-            communicate_kw['input'] = stdin.encode()
+            com_kw['input'] = stdin.encode()
         if timeout is not None:
-            communicate_kw['timeout'] = timeout
+            com_kw['timeout'] = timeout
         out, err = "", ""
         try:
             out, err = tuple(map(lambda x: x.decode().strip(),
-                                 p.communicate(**communicate_kw)))
-        except TimeoutExpired as e:
+                                 p.communicate(**com_kw)))
+        except (KeyboardInterrupt, TimeoutExpired):
             _ = []
-            for line in iter(popen.stdout.readline, ""):
+            for line in iter(p.stdout.readline, ""):
                 _.append(line)
             out = "\n".join(_)
             _ = []
-            for line in iter(popen.stderr.readline, ""):
+            for line in iter(p.stderr.readline, ""):
                 _.append(line)
             err = "\n".join(_)
         if show:
