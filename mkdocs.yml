@@ -12,6 +12,11 @@ nav:
     - Command: classes/command.md
     - Module: classes/module.md
     - Datastore: classes/datastore.md
+  - 'Base entities': base.md
+  - 'Base entities':
+    - Consoles: base/consoles.md
+    - Commands: base/commands.md
+    - Models: base/models.md
   - 'Real-life examples':
     - 'DroneSploit': examples/dronesploit.md
 extra:
@@ -22,8 +27,8 @@ extra_javascript:
 use_directory_urls: false
 markdown_extensions:
   - admonition
-  - toc:
-      permalink: True
   - codehilite:
       linenums: true
   - pymdownx.details
+  - toc:
+      permalink: True
