@@ -267,6 +267,22 @@ class Command(Entity, metaclass=MetaCommand):
                 except KeyError:
                     pass
     
+    def _complete_keys(self, *args, **kwargs):
+        """ Key completion executed method. """
+        self.set_keys(*args, **kwargs)
+        return self.complete_keys(*args, **kwargs)
+    
+    def _complete_values(self, *args, **kwargs):
+        """ Value completion executed method. """
+        self.set_values(*args, **kwargs)
+        return self.complete_values(*args, **kwargs)
+    
+    def _validate(self, *args):
+        """ Value completion executed method. """
+        self.set_keys()
+        self.set_values(*args[:1])
+        self.validate(*args)
+
     def complete_keys(self):
         """ Default key completion method.
              (will be triggered if the number of run arguments is 2) """
@@ -284,6 +300,14 @@ class Command(Entity, metaclass=MetaCommand):
             return getattr(self, "values", {}).get(key)
         return []
     
+    def set_keys(self):
+        """ Default key setting method. """
+        pass
+    
+    def set_values(self, key=None):
+        """ Default value setting method. """
+        pass
+    
     def validate(self, *args):
         """ Default validation method. """
         # check for the signature and, if relevant, validating keys and values
@@ -300,7 +324,7 @@ class Command(Entity, metaclass=MetaCommand):
         elif n == 2:  # command format: COMMAND KEY VALUE
             l = self.complete_keys()
             if n_in > 0 and len(l) > 0 and args[0] not in l:
-                    raise ValueError("invalid key")
+                raise ValueError("invalid key")
             l = self.complete_values(args[0])
             if n_in == 2 and len(l) > 0 and args[1] not in l:
                 raise ValueError("invalid value")

@@ -25,9 +25,9 @@ class CommandValidator(Validator):
         # when a valid first token is provided, handle command's validation, if
         #  any available
         elif l >= 1 and cmd in commands.keys():
-            c = commands[cmd]()
+            c = commands[cmd]._instance
             try:
-                c.validate(*tokens[1:])
+                c._validate(*tokens[1:])
             except Exception as e:
                 m = "Command syntax: %s{}" % c.signature.format(cmd)
                 e = str(e)
