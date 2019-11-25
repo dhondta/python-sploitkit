@@ -128,8 +128,8 @@ def set_metadata(c, docstr_parser):
         except ValueError:
             raise ValueError("Bad option ; should be (name, default, "
                              "required, description)")
-        if not hasattr(c, "config"):
-            c.config = Config()
+#        if not hasattr(c, "config"):
+#            c.config = Config()
         c.config[Option(name, description, required)] = default
     # dynamically declare properties for each metadata field
     for attr, value in c._metadata.items():
@@ -160,8 +160,8 @@ class Entity(object):
     _metadata   = {}
     _subclasses = ClassRegistry()
     
-    def __init__(self, *args, **kwargs):
-        self.__class__._instance = self
+#    def __init__(self, *args, **kwargs):
+#        self.__class__._instance = self
     
     def __getattribute__(self, name):
         if name == "config" and getattr(self.__class__, "_has_config", False):
@@ -186,6 +186,11 @@ class Entity(object):
         """ Shortcut for accessing the Entity class, for use instead of __base__
              which only leads to the direct base class. """
         return Entity
+    
+    @property
+    def cname(self):
+        """ Subclass name. """
+        return self.__class__.__name__
     
     @property
     def enabled(self):
@@ -375,34 +380,36 @@ class Entity(object):
         return t.rstrip() + "\n"
     
     @classmethod
-    def get_issues(cls):
-        """ List issues encountered while checking all the entities. """
-        for cls, l in Entity._subclasses.items() if cls is Entity else \
-                      cls.subclasses if cls in Entity._subclasses.keys() \
-                      else [(cls._entity_class, [cls])]:
-            for subcls in l:
-                e = {}
-                for b in subcls.__bases__:
-                    # do not consider base classes without the get_issues method
-                    #  (e.g. mixin classes)
-                    if not hasattr(b, "get_issues"):
-                        continue
-                    # break when at parent entity level
-                    if b in Entity._subclasses.keys() or b is Entity:
-                        break
-                    # update the errors dictionary starting with proxy classes
-                    for issues in b.get_issues():
-                        for c, i in issues[-1].items():
-                            e.setdefault(c, [])
-                            e[c].extend(i)
-                if hasattr(subcls, "_errors") and len(subcls._errors) > 0:
-                    for c, i in subcls._errors.items():
-                        e.setdefault(c, [])
-                        e[c].extend(i)
-                if len(e) > 0:
-                    for c, i in e.items():
-                        e[c] = list(sorted(set(i)))
-                    yield cls.__name__, subcls.__name__, e
+    def get_issues(cls, value=None):
+        """ List issues as a text. """
+        # message formatting function
+        def msg(key, item):
+            if key == "file":
+                return "'{}' not found".format(item)
+            elif key == "packages":
+                return "'{}' system package is not installed".format(item)
+            elif key == "python":
+                return "'{}' Python package is not installed".format(item)
+            elif key == "tools":
+                return "'{}' tool is not installed".format(item)
+            elif key == "state":
+                item = re.split(r"(\=|\?)", item, 1)
+                if len(item) == 1:
+                    return "'{}' state key is not defined".format(item[0])
+                elif item[1] == "=":
+                    return "'{}' state key does not match the expected " \
+                           "value '{}'".format(item[0], item[2])
+                elif item[1] == "?":
+                    return "'{}' state key is expected to have value '{}'" \
+                           " at least once".format(item[0], item[2])
+        # list issues using the related class method
+        t = "\n"
+        for cname, scname, errors in Entity.issues(value):
+            if value is None:
+                t += "{}: {}\n- ".format(cname, scname)
+            t += "\n- ".join(msg(k, e) for k, err in errors.items() \
+                                       for e in err) + "\n"
+        return "" if t.strip() == "" else t
 
     @classmethod
     def get_subclass(cls, key, name):
@@ -411,13 +418,48 @@ class Entity(object):
         return Entity._subclasses.value(key, name)
     
     @classmethod
-    def has_issues(cls):
+    def has_issues(cls, value=None):
         """ Tell if issues were encountered while checking all the entities. """
         try:
-            next(iter(cls.get_issues()))
+            next(iter(cls.issues(value)))
             return True
         except StopIteration:
             return False
+    
+    @classmethod
+    def issues(cls, subcls_name=None, category=None):
+        """ List issues encountered while checking all the entities. """
+        cls.check()
+        for cls, l in Entity._subclasses.items() if cls is Entity else \
+                      cls.subclasses if cls in Entity._subclasses.keys() \
+                      else [(cls._entity_class, [cls])]:
+            for subcls in l:
+                e = {}
+                for b in subcls.__bases__:
+                    # do not consider base classes without the issues method
+                    #  (e.g. mixin classes)
+                    if not hasattr(b, "issues"):
+                        continue
+                    # break when at parent entity level
+                    if b in Entity._subclasses.keys() or b is Entity:
+                        break
+                    # update the errors dictionary starting with proxy classes
+                    for _, __, errors in b.issues(category=category):
+                        for c, i in errors.items():
+                            e.setdefault(c, [])
+                            e[c].extend(i)
+                # now update the errors dictionary of the selected subclass
+                if hasattr(subcls, "_errors") and len(subcls._errors) > 0:
+                    for c, i in subcls._errors.items():
+                        if category in [None, c]:
+                            e.setdefault(c, [])
+                            e[c].extend(i)
+                if len(e) > 0:
+                    for c, i in e.items():  # [c]ategory, [i]ssues
+                        e[c] = list(sorted(set(i)))
+                    n = subcls.__name__
+                    if subcls_name in [None, n]:
+                        yield cls.__name__, n, e
 
     @classmethod
     def register_subclass(cls, subcls):

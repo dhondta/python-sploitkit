@@ -1,6 +1,8 @@
 # -*- coding: UTF-8 -*-
 import re
+from termcolor import colored
 
+from ...utils.objects import BorderlessTable
 from ...utils.path import Path
 
 
@@ -9,8 +11,8 @@ __all__ = ["Config", "Option", "ProxyConfig", "ROption"]
 
 class Config(dict):
     """ Enhanced dictionary for handling Option instances as its keys. """
-    bind = True  # class attribute used to bind a parent class to a Config
-                 #  instance
+    prefix = "Console"
+    
     def __init__(self, *args, **kwargs):
         self.__d = {}
         # this will set options for this config, that is, creating NEW Option
@@ -62,6 +64,21 @@ class Config(dict):
                 self.console.reset()
             except AttributeError:
                 pass
+    
+    def __str__(self):
+        """ Custom string method. """
+        data = [["Name", "Value", "Required", "Description"]]
+        for n, d, v, r in sorted(self.items(False), key=lambda x: x[0]):
+            r = ["N", "Y"][r]
+            if v == "":
+                n, v, r = map(lambda s: colored(s, "red", attrs=['bold']),
+                              [n, v, r])
+            data.append([n, v, r, d])
+        if len(data) > 1:
+            s = ["", "s"][len(data) > 2]
+            t = BorderlessTable(data, "{} option{}".format(self.prefix, s))
+            return t.table
+        return ""
     
     def __getkey(self, key):
         """ Proxy method for ensuring that the key is an Option instance. """
