@@ -5,14 +5,15 @@ import shutil
 from os.path import expanduser
 from pathlib import Path as BasePath
 from pkgutil import ImpImporter
-from pygments.lexers import PythonLexer
+from pygments.lexers import Python2Lexer
 from tempfile import gettempdir, NamedTemporaryFile as TempFile
 
 
 __all__ = ["Path", "PyFolderPath", "PyModulePath", "TempPath"]
 
 
-lexer = PythonLexer()
+# NB: PythonLexer.analyse_text only relies on shebang !
+lexer = Python2Lexer()
 
 
 class Path(BasePath):
