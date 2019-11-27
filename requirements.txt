@@ -11,3 +11,4 @@ pyvim
 requests
 termcolor
 terminaltables
+tinyscript
