@@ -117,6 +117,8 @@ class State(Command):
             if len(v) == 0:
                 continue
             if isinstance(v, Iterable):
+                if isinstance(v, dict):
+                    v = dict(**v)
                 for l in yaml.dump(v).split("\n"):
                     if len(l.strip()) == 0:
                         continue

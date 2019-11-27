@@ -25,7 +25,8 @@ class JobsPool(object):
     
     def process(self, cmd, **kwargs):
         if not kwargs.pop('no_debug', False):
-            self.logger.debug(cmd)
+            c = " ".join(cmd) if isinstance(cmd, (tuple, list)) else cmd
+            self.logger.debug(c)
         cmd = shlex.split(cmd) if isinstance(cmd, string_types) else cmd
         p = Popen(cmd, stdout=PIPE, **kwargs)
         #self.__jobs.append(p)
