@@ -13,18 +13,13 @@ Policy:
 - Do not use a password known in a dictionary (e.g. this of John the Ripper)
 """
 
-import logging
 import string
 from getpass import getpass
 
 from .misc import catch_logger
 
 
-__all__ = [
-    'input_password',
-]
-
-__author__ = "Alexandre D'Hondt"
+__all__ = ["input_password"]
 
 
 @catch_logger
@@ -111,4 +106,3 @@ def input_password(silent=False, bypass=False, length=(8, 40),
             pwd = None
             error = False
     return pwd
-
