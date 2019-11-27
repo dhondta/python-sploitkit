@@ -182,6 +182,7 @@ class Console(Entity, metaclass=MetaConsole):
         else:
             # gracefully close every DB in the pool
             self._storage.free()
+            self._jobs.terminate()
     
     def _get_tokens(self, text, suffix=("", "\"", "'")):
         """ Recursive token split function also handling ' and " (that is, when
