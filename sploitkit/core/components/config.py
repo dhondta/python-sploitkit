@@ -253,6 +253,11 @@ class Option(object):
             return c()
         except TypeError:
             return c(self)
+
+    @property
+    def console(self):
+        """ Shortcut to parent config's console attribute. """
+        return self.config.console
     
     @property
     def input(self):
@@ -261,6 +266,16 @@ class Option(object):
             return self.config[self]
         else:
             raise Exception("Unbound option {}".format(self.name))
+
+    @property
+    def root(self):
+        """ Shortcut to parent config's root console attribute. """
+        return self.config.console.root
+
+    @property
+    def state(self):
+        """ Shortcut to parent console's state attribute. """
+        return self.console.state
     
     @property
     def value(self):
