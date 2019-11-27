@@ -7,11 +7,11 @@ from termcolor import colored
 __all__ = ["get_logger", "null_logger"]
 
 
-SUCCESS = logging.ERROR + 1
-DATETIME_FORMAT = "%m/%d/%y %H:%M:%S"
-LOGFILE_FORMAT  = "%(asctime)s [%(process)5d] %(levelname)8s %(name)s - " \
-                  "%(message)s"
-LOG_FORMAT = "%(levelsymbol)s %(message)s"
+SUCCESS           = logging.ERROR + 1
+DATETIME_FORMAT   = "%m/%d/%y %H:%M:%S"
+LOGFILE_FORMAT    = "%(asctime)s [%(process)5d] %(levelname)8s %(name)s - " \
+                    "%(message)s"
+LOG_FORMAT        = "%(levelsymbol)s %(message)s"
 LOG_LEVEL_SYMBOLS = {
     logging.DEBUG:    colored("[#]", "white"),
     logging.INFO:     colored("[*]", "blue"),

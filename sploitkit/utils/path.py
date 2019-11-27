@@ -23,7 +23,7 @@ class Path(BasePath):
         if kwargs.pop("expand", False):
             _ = expanduser(str(BasePath(*args, **kwargs)))
             p = BasePath(_, *args[1:], **kwargs).resolve()
-            args = (str(p), ) + args[1:]
+            args = (str(p),) + args[1:]
         if kwargs.pop("create", False):
             BasePath(*args, **kwargs).mkdir(parents=True, exist_ok=True)
         return super(Path, cls).__new__(cls, *args, **kwargs)
@@ -165,7 +165,7 @@ class PyModulePath(Path):
         if self.is_pymodule:
             self.module = ImpImporter(str(self.resolve().parent)) \
                           .find_module(self.stem).load_module(self.stem)
-
+    
     def get_classes(self, *base_cls):
         """ Yield a list of all subclasses inheriting from the given class from
              the Python module. """
@@ -178,7 +178,7 @@ class PyModulePath(Path):
                     yield cls
             except TypeError:
                 pass
-
+    
     def has_class(self, base_cls):
         """ Check if the Python module has the given class. """
         if not self.is_pymodule:
@@ -218,21 +218,8 @@ class TempPath(Path):
             return super(TempPath, cls).__new__(cls, tmp, **kwargs)
         return super(TempPath, cls).__new__(cls, _, **kwargs)
     
-    # FIXME: e.g. when using temp_path.iterfiles(), yielded objects will be
-    #         TempPath instances, therefore causing __del__ to be triggered for
-    #         each new temporary file
-    #def __del__(self):
-    #    """ Clean the temporary folder when the instance is deleted. """
-    #    if str(self) != gettempdir():
-    #        try:
-    #            self.rmtree()
-    #        except NotADirectoryError:
-    #            pass
-    
     def joinpath(self, *args):
-        """ Modifed joinpath to return a Path instance instead of TempPath
-             (otherwise, it would trigger __del__ each time joinpath is called
-             without a variable reference). """
+        """ Modifed joinpath to return a Path instance instead of TempPath. """
         return Path(self).joinpath(*args)
     
     def tempfile(self, **kwargs):

@@ -1,10 +1,8 @@
 # -*- coding: UTF-8 -*-
 import re
-import types
-from collections import OrderedDict
 from os import remove
 from shutil import copy
-from peewee import Model, ModelBase, SqliteDatabase
+from peewee import SqliteDatabase
 
 
 __all__ = ["StoragePool"]
@@ -12,7 +10,7 @@ __all__ = ["StoragePool"]
 
 class StoragePool(object):
     """ Storage pool class. """
-    __pool      = []
+    __pool = []
     
     def __init__(self, ext_class=None):
         self.__entity_class = getattr(ext_class, "base_class", None)
