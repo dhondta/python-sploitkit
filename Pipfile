@@ -1,0 +1,28 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+pytest = "*"
+pytest-cov = "*"
+pipenv-setup = "*"
+
+[packages]
+ipaddress = "*"
+pathlib = "*"
+peewee = "*"
+prompt-toolkit = "*"
+pyfiglet = "*"
+pyminizip = "*"
+pypager = "*"
+pyvim = "*"
+requests = "*"
+termcolor = "*"
+terminaltables = "*"
+Pillow = "*"
+asciistuff = "*"
+tinyscript = "*"
+
+[requires]
+python_version = "3.8"
