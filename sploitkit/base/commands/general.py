@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 import re
 import shlex
+from prompt_toolkit.formatted_text import ANSI
 from sploitkit import *
-from subprocess import call
 
 
 projects = lambda cmd: [x.filename for x in cmd.workspace.iterpubdir()]
@@ -58,21 +58,17 @@ class Show(Command):
     level = "root"
     keys = ["modules", "options", "projects"]
     
-    def __init__(self):
-        if Entity.has_issues():
-            self.keys = self.keys + ["issues"]
-    
     def complete_values(self, key):
         if key == "modules":
             return [m for m in self.console.modules.keys()]
         elif key == "options":
-            return self.config.keys()
+            return list(self.config.keys())
         elif key == "projects":
             return projects(self)
         elif key == "issues":
             l = []
-            for cls, subcls, errors in Entity.get_issues():
-                l.extend(errors.keys())
+            for cls, subcls, errors in Entity.issues():
+                l.extend(list(errors.keys()))
             return l
     
     def run(self, key, value=None):
@@ -83,11 +79,12 @@ class Show(Command):
             else:
                 self.logger.warning("No module loaded")
         elif key == "options":
-            data = [["Name", "Value", "Required", "Description"]]
-            for n, d, v, r in sorted(self.config.items(), key=lambda x: x[0]):
-                if value is None or n == value:
-                    data.append([n, v, ["N", "Y"][r], d])
-            print_formatted_text(BorderlessTable(data, "Console options"))
+            if value is None:
+                print_formatted_text(ANSI(str(self.config)))
+            else:
+                c = Config()
+                c[self.config.option(value)] = self.config[value]
+                print_formatted_text(ANSI(str(c)))
         elif key == "projects":
             if value is None:
                 data = [["Name"]]
@@ -97,39 +94,16 @@ class Show(Command):
             else:
                 print_formatted_text(value)
         elif key == "issues":
-            # message formatting function
-            def msg(key, item):
-                if key == "file":
-                    return "'{}' not found".format(item)
-                elif key == "packages":
-                    return "'{}' system package is not installed".format(item)
-                elif key == "python":
-                    return "'{}' Python package is not installed".format(item)
-                elif key == "tools":
-                    return "'{}' tool is not installed".format(item)
-                elif key == "state":
-                    item = re.split(r"(\=|\?)", item, 1)
-                    if len(item) == 1:
-                        return "'{}' state key is not defined".format(item[0])
-                    elif item[1] == "=":
-                        return "'{}' state key does not match the expected " \
-                               "value '{}'".format(item[0], item[2])
-                    elif item[1] == "?":
-                        return "'{}' state key is expected to have value '{}'" \
-                               " at least once".format(item[0], item[2])
-            if Entity.has_issues():
-                print("")
-            for cls, subcls, errors in Entity.get_issues():
-                if value is None:
-                    t = "{}: {}\n- ".format(cls, subcls)
-                    t += "\n- ".join(msg(k, e) for k, err in errors.items() \
-                                               for e in err) + "\n"
-                else:
-                    t = ""
-                    for k, e in errors.items():
-                        if k == value:
-                            t += "- {}/{}: {}".format(cls, subcls, e)
+            t = Entity.get_issues()
+            if len(t) > 0:
                 print_formatted_text(t)
+    
+    def set_keys(self):
+        if Entity.has_issues():
+            self.keys += ["issues"]
+        else:
+            while "issues" in self.keys:
+                self.keys.remove("issues")
 
 
 # ---------------------------- OPTIONS-RELATED COMMANDS ------------------------

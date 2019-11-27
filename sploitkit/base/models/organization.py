@@ -19,7 +19,7 @@ class Employee(Model):
     title     = CharField()
     
     class Meta:
-        indexes = ((("firstname", "lastname", "role"), True), )
+        indexes = ((("firstname", "lastname", "role"), True),)
     
     @property
     def fullname(self):

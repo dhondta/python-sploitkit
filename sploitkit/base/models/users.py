@@ -31,11 +31,13 @@ class UserPassword(BaseModel):
         primary_key = CompositeKey("user", "password")
 
 
+#TODO: to be tested
 #class UsersStorage(StoreExtension):
 #    def set_user(self, username):
 #        User.get_or_create(username=username).execute()
 
 
+#TODO: to be tested
 #class PasswordsStorage(StoreExtension):
 #    def set_password(self, password):
 #        Password.insert(password=password).execute()

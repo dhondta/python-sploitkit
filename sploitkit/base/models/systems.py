@@ -10,7 +10,7 @@ class Host(Model):
     location = CharField()
     
     class Meta:
-        indexes = ((("hostname", "ip", "mac"), True), )
+        indexes = ((("hostname", "ip", "mac"), True),)
 
 
 class Port(Model):

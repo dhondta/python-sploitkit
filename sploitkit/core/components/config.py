@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 import re
-from copy import copy
-from itertools import chain
+from termcolor import colored
 
+from ...utils.objects import BorderlessTable
 from ...utils.path import Path
 
 
@@ -11,8 +11,8 @@ __all__ = ["Config", "Option", "ProxyConfig", "ROption"]
 
 class Config(dict):
     """ Enhanced dictionary for handling Option instances as its keys. """
-    bind = True  # class attribute used to bind a parent class to a Config
-                 #  instance
+    prefix = "Console"
+    
     def __init__(self, *args, **kwargs):
         self.__d = {}
         # this will set options for this config, that is, creating NEW Option
@@ -23,11 +23,6 @@ class Config(dict):
         """ Method for appending another config. """
         return ProxyConfig() + self + config
     
-    def __del__(self):
-        """ Custom deletion method, for removing back-references. """
-        if self.bound:
-            delattr(self, "_console")
-
     def __delitem__(self, key):
         """ Custom method for deleting an item, for triggering an unset callback
              from an Option. """
@@ -70,11 +65,26 @@ class Config(dict):
             except AttributeError:
                 pass
     
+    def __str__(self):
+        """ Custom string method. """
+        data = [["Name", "Value", "Required", "Description"]]
+        for n, d, v, r in sorted(self.items(False), key=lambda x: x[0]):
+            r = ["N", "Y"][r]
+            if v == "":
+                n, v, r = map(lambda s: colored(s, "red", attrs=['bold']),
+                              [n, v, r])
+            data.append([n, v, r, d])
+        if len(data) > 1:
+            s = ["", "s"][len(data) > 2]
+            t = BorderlessTable(data, "{} option{}".format(self.prefix, s))
+            return t.table
+        return ""
+    
     def __getkey(self, key):
         """ Proxy method for ensuring that the key is an Option instance. """
         if not isinstance(key, Option):
             if not isinstance(key, tuple):
-                key = (key, )
+                key = (key,)
             key = Option(*key)
         return key
     
@@ -97,7 +107,7 @@ class Config(dict):
     def copy(self, config, key):
         """ Copy an option based on its key from another Config instance. """
         self[config.option(key)] = config[key]
-
+    
     def items(self, fail=True):
         """ Return (key, descr, value, required) instead of (key, value). """
         for o in sorted(self, key=lambda x: x.name):
@@ -107,9 +117,9 @@ class Config(dict):
             except ValueError as e:
                 if fail:
                     raise e
-                v = "undefined"
+                v = ""
             yield n, o.description or "", v, o.required
-
+    
     def keys(self):
         """ Return string keys (like original dict). """
         for k in sorted(self.__d.keys()):
@@ -125,18 +135,18 @@ class Config(dict):
             if self.bound and self.console.parent is not None:
                 return self.console.parent.config.option(key)
             raise KeyError(key)
-
+    
     def options(self):
         """ Return Option instances instead of keys. """
         for k in sorted(self.__d.keys()):
             yield self.__d[k][0]
-
+    
     def setdefault(self, key, value=None):
         """ Custom method for forcing the use of the modified __setitem__. """
         if key not in self:
             self[key] = value
         return self[key]
-
+    
     def update(self, *args, **kwargs):
         """ Custom update method for handling update of another Config and
              forcing the use of the modified __setitem__. """
@@ -219,7 +229,7 @@ class Option(object):
         if isinstance(func, type(lambda:0)):
             setattr(self, name, func.__get__(self, self.__class__))
         else:
-            raise Exception("Bad {} lambda".format(name)) 
+            raise Exception("Bad {} lambda".format(name))
     
     def bind(self, parent):
         """ Register this instance as a key of the given Config or retrieve the
@@ -416,4 +426,4 @@ class ROption(Option):
     """ Class for handling a reset option (that is, an option that triggers a
          console reset after change) with its parameters while using it as key
          for a Config dictionary. """
-    _reset     = True
+    _reset = True

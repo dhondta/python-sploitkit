@@ -8,13 +8,7 @@ from .misc import catch_logger
 from .password import input_password
 
 
-__all__ = [
-    'load_from_archive',
-    'save_to_archive',
-]
-
-__author__ = "Alexandre D'Hondt"
-
+__all__ = ["load_from_archive", "save_to_archive"]
 
 LENGTH = (8, 64)
 
@@ -36,7 +30,12 @@ def load_from_archive(src_arch, dst_path, pwd=None, ask=False, remove=False):
     logger.debug("Loading {}archive".format(["encrypted ", ""][pwd is None]))
     logger.debug("> Decompressing '{}' to '{}'...".format(src_arch, dst_path))
     try:
+        # Pyminizip changes the current working directory after extraction of an
+        #  archive ; so backup the current working directory to restore it after
+        #  decompression
+        cwd = os.getcwd()
         uncompress(src_arch, pwd or "", dst_path, False)
+        os.chdir(cwd)
         if remove:
             os.remove(src_arch)
         return True
@@ -68,7 +67,12 @@ def save_to_archive(src_path, dst_arch, pwd=None, ask=False, remove=False):
             src_list.append(join(root, f))
             dst_list.append(relpath(root, dirname(src)))
     try:
+        # Pyminizip changes the current working directory after creation of an
+        #  archive ; so backup the current working directory to restore it after
+        #  compression
+        cwd = os.getcwd()
         compress_multiple(src_list, dst_list, dst_arch, pwd or "", 9)
+        os.chdir(cwd)
         if remove:
             shutil.rmtree(src_path) if isdir(src_path) else os.remove(src_path)
         return True

@@ -73,7 +73,7 @@ By default, the `Command` class has both `complete_keys` and `complete_values` m
     - `complete_keys`, handling the `keys` class attribute as a list in priority, otherwise the `values` class attribute as a dictionary whose keys are the equivalent to the `keys` class attribute
     - `complete_values`, handling the `values` class attribute as a dictionary whose values for the key given in argument (if not given, all the values aggregated from all the keys) give the completion list
 
-??? example "**Example**: "
+??? example "**Example**: Default completion for key-values (second command format)"
 
         :::python
         class DoSomething(Command):
@@ -86,13 +86,26 @@ By default, the `Command` class has both `complete_keys` and `complete_values` m
     
     This command will yield a completion list of :
 
-    - `["key1", "key2", "key3"]` when entering "`do-something `" and pressing the tab key twice
+    - `["key1", "key2", "key3"]` when entering "`do-something `" (or "`do-something `" and a part of the possible key, without a trailing whitespace) and pressing the tab key twice
+    
+        ![](/img/command-key-completion.png "Key completion")
+    
     - `["4", "5", "6"]`when entering "`do-something key2 `" and pressing the tab key twice
-
+    
+        ![](/img/command-value-completion.png "Value completion")
+    
 <br>
 
 ## Validation
 
-Validation works using, by default, the `complete_keys` and `complete_values` methods and therefore also relies on the signature of the `run()` method. It also takes only a value (first format) or a key and a value (second format) as arguments and its signature must then be adapted accordingly.
+Validation can be especially useful as, within the CLI application, an error is dynamically displayed while typing a command, relying on command's `validate()` method. Like the completion methods, this is defined according to the signature of the `run(...)` method.
 
-By default, 
+By default, the `Command` class has a `validate` method that relies on both `complete_keys` and `complete_values` methods to check inputs against valid keys and values.
+
+??? example "**Example**: Key-value validation"
+    
+    According to the previous example, a validation error is raised as the given value is not part of the possible values for the given key :
+    
+    ![](/img/command-validation.png "Validation error")
+    
+<br>
