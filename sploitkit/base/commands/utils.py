@@ -1,6 +1,8 @@
 # -*- coding: UTF-8 -*-
 import os
 import stat
+import yaml
+from collections.abc import Iterable
 from gc import collect, get_objects, get_referrers
 from pprint import pprint
 from subprocess import call
@@ -111,7 +113,16 @@ class State(Command):
     def run(self):
         for k, v in self.console.state.items():
             print_formatted_text("\n{}:".format(k))
-            pprint(v)
+            v = v or ""
+            if len(v) == 0:
+                continue
+            if isinstance(v, Iterable):
+                for l in yaml.dump(v).split("\n"):
+                    if len(l.strip()) == 0:
+                        continue
+                    print_formatted_text("  " + l)
+            else:
+                print_formatted_text(v)
         print_formatted_text("")
 
 
