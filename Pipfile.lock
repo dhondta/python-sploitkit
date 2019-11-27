@@ -355,14 +355,6 @@
             "index": "pypi",
             "version": "==0.2.4"
         },
-        "pypager": {
-            "hashes": [
-                "sha256:5ab5e37f721982621753d714396d723d789b52f69320ffc7907dcc7e23267892",
-                "sha256:af0b271264d14d6cfc569aa4e76e0837db6375667c50a8443c907c5963dc4f7c"
-            ],
-            "index": "pypi",
-            "version": "==0.3"
-        },
         "pyphen": {
             "hashes": [
                 "sha256:3b633a50873156d777e1f1075ba4d8e96a6ad0a3ca42aa3ea9a6259f93f18921",
@@ -389,15 +381,6 @@
                 "sha256:b02c06db6cf09c12dd25137e563b31700d3b80fcc4ad23abb7a315f2789819be"
             ],
             "version": "==2019.3"
-        },
-        "pyvim": {
-            "hashes": [
-                "sha256:27b8f244bebc49cf375b10d16046df24438798208d7eaf199e3d04babf08cc6f",
-                "sha256:4e1a40d78a1cd871479740d694464dea21d42acb7ee50eeab4e3823285d01a4a",
-                "sha256:70ac4ce43321624a8a1c9853b3997255f613f8073f5ddbc022e5261b11d52d67"
-            ],
-            "index": "pypi",
-            "version": "==2.0.24"
         },
         "requests": {
             "hashes": [
