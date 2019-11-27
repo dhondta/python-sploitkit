@@ -2,6 +2,7 @@
 import logging
 import os
 from collections import MutableMapping
+from shutil import which
 from subprocess import call
 from tempfile import TemporaryFile
 from termcolor import colored
@@ -30,10 +31,12 @@ def confirm(txt="Are you sure ?", color=None):
 
 
 def edit_file(filename):
-    """ Edit a file using PyVim. """
+    """ Edit a file using Vim. """
+    if which("vim") is None:
+        raise OSError("vim is not installed")
     if not os.path.isfile(str(filename)):
         raise OSError("File does not exist")
-    call("pyvim {}".format(filename), shell=True)
+    call(["vim", filename])
 
 
 def failsafe(f):
@@ -70,16 +73,16 @@ def human_readable_size(size, precision=0):
 
 
 def page_file(*filenames):
-    """ Page a list of files using PyPager. """
+    """ Page a list of files using Less. """
     filenames = list(map(str, filenames))
     for f in filenames:
         if not os.path.isfile(f):
             raise OSError("File does not exist")
-    call("cat {} | pypager".format(" ".join(filenames)), shell=True)
+    call(["less"] + filenames)
 
 
 def page_text(text):
-    """ Page a text using PyPager. """
+    """ Page a text using Less. """
     tmp = TemporaryFile()
     tmp.write(text)
     page_file(tmp.name)
