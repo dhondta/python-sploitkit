@@ -23,6 +23,3 @@ terminaltables = "*"
 Pillow = "*"
 asciistuff = "*"
 tinyscript = "*"
-
-[requires]
-python_version = "3.8"
