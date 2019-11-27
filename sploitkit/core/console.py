@@ -1,24 +1,18 @@
 # -*- coding: UTF-8 -*-
 import gc
 import os
-import random
-import re
 import shlex
-import string
 import sys
 from asciistuff import get_banner, get_quote
 from bdb import BdbQuit
 from datetime import datetime
-from importlib import find_loader
 from inspect import isfunction
 from itertools import chain
 from prompt_toolkit import print_formatted_text, PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.formatted_text import ANSI, FormattedText
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
-from prompt_toolkit.validation import ValidationError
 
 from .command import *
 from .components import *
@@ -335,7 +329,12 @@ class Console(Entity, metaclass=MetaConsole):
         except ConsoleExit:
             return False
         except ValueError as e:
-            self.logger.failure(e)
+            if str(e).startswith("invalid width ") and \
+               str(e).endswith(" (must be > 0)"):
+                self.logger.warning("Cannot display ; terminal width too low")
+            else:
+                (self.logger.exception if self.config.option('DEBUG').value \
+                 else self.logger.failure)(e)
             return abort is False
         except Exception as e:
             self.logger.exception(e)
@@ -367,12 +366,16 @@ class Console(Entity, metaclass=MetaConsole):
                 if not self.run(_):
                     break  # console run aborted
             except ConsoleDuplicate as e:
-                if self == e.higher:   # stop raising duplicate when reaching a
-                    reexec = e.cmd     #  console with a different level, then
-                    self.reset()       #  reset associated commands not to rerun
-                    continue           #  the erroneous command from the context
-                self._close()          #  of the just-exited console
-                raise e  # reraise up to the higher (level) console
+                # stop raising duplicate when reaching a console with a 
+                #  different level, then reset associated commands not to rerun
+                #  the erroneous one from the context of the just-exited console
+                if self == e.higher:   
+                    reexec = e.cmd
+                    self.reset()
+                    continue
+                self._close()
+                # reraise up to the higher (level) console
+                raise e
             except EOFError:
                 Console._recorder.save("exit")
                 break

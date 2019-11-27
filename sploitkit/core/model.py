@@ -1,9 +1,8 @@
 # -*- coding: UTF-8 -*-
 import datetime
-import re
 from peewee import *
+from peewee import Model as PeeweeModel, ModelBase
 
-from .components.store import Model as PeeweeModel, ModelBase
 from .entity import Entity, MetaEntityBase
 
 

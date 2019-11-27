@@ -5,8 +5,8 @@ ROOT_LEVEL = "root"  # console root level's name
 
 # list of folders from which related items are to be loaded
 SOURCES = {
-    'banners':  None,
-    'entities': ["commands", "models", "modules"],
+    'banners':   None,
+    'entities':  ["commands", "models", "modules"],
     'libraries': ".",
 }
 
@@ -25,7 +25,7 @@ PROMPT_FORMAT = [
 
 # prompt message style
 PROMPT_STYLE = {
-    '':        "#30b06f",  # text after the prompt
-    'prompt':  "#eeeeee",  # prompt message
+    '':        "#30b06f",            # text after the prompt
+    'prompt':  "#eeeeee",            # prompt message
     'appname': "#eeeeee underline",  # application name
 }
