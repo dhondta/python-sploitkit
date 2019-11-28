@@ -7,6 +7,7 @@ verify_ssl = true
 pytest = "*"
 pytest-cov = "*"
 pipenv-setup = "*"
+sploitkit = {editable = true,path = "."}
 
 [packages]
 ipaddress = "*"
