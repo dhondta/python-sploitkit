@@ -81,6 +81,9 @@ class ExpiringDict(OrderedDict):
         super(ExpiringDict, self).__setitem__(key, value)
         self.__times[key] = time()
     
+    def __str__(self):
+        return str(dict(**self))
+    
     def lock(self):
         self.__locked = True
     

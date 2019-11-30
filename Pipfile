@@ -1,0 +1,24 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+pytest = "*"
+pytest-cov = "*"
+pipenv-setup = "*"
+sploitkit = {editable = true,path = "."}
+
+[packages]
+ipaddress = "*"
+pathlib = "*"
+peewee = "*"
+prompt-toolkit = "*"
+pyfiglet = "*"
+pyminizip = "*"
+requests = "*"
+termcolor = "*"
+terminaltables = "*"
+Pillow = "*"
+asciistuff = "*"
+tinyscript = "*"

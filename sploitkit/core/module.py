@@ -122,6 +122,25 @@ class Module(Entity, metaclass=MetaModule):
     def get_modules(cls, path=None):
         """ Get the subdictionary of modules matching the given path. """
         return cls.modules[path]
+    
+    @classmethod
+    def get_summary(cls):
+        """ Get the summary of module counts per category. """
+        # display module stats
+        m = []
+        for category in cls.modules.keys():
+            l = "{} {}".format(Module.get_count(category), category)
+            disabled = Module.get_count(category, enabled=False)
+            if disabled > 0:
+                l += " ({} disabled)".format(disabled)
+            m.append(l)
+        if len(m) > 0:
+            mlen = max(map(len, m))
+            s = "\n"
+            for line in m:
+                s += ("\t-=[ {: <" + str(mlen) + "} ]=-\n").format(line)
+            return s
+        return ""
 
     @classmethod
     def register_module(cls, subcls):
@@ -138,3 +157,11 @@ class Module(Entity, metaclass=MetaModule):
             Module.subclasses.remove(subcls)
         except KeyError:
             pass
+    
+    def _feedback(self, success, failmsg):
+        """ Dummy feedback method using a fail-message formatted with the "not"
+             keyword (to be replaced by a null string in case of success). """
+        if success:
+            self.logger.success(failmsg.replace("not ", ""))
+        else:
+            self.logger.failure(failmsg)

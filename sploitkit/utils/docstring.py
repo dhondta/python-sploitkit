@@ -34,6 +34,8 @@ Module for transforming an instance's docstring to a metadata dictionary as
      'something': 'lorem ipsum paragraph',
      'version': '1.0'}
 """
+import re
+
 
 __all__ = ["parse_docstring"]
 
@@ -41,8 +43,10 @@ __all__ = ["parse_docstring"]
 def parse_docstring(something):
     """ Parse the docstring of the given object. """
     metadata = {}
-    if not hasattr(something, "__doc__") or something.__doc__ is None:
-        return metadata
+    if not isinstance(something, str):
+        if not hasattr(something, "__doc__") or something.__doc__ is None:
+            return metadata
+        something = something.__doc__
     # function for registering the key-value pair in the dictionary of metadata
     def setkv(key, value):
         if key is not None:
@@ -71,7 +75,7 @@ def parse_docstring(something):
         else:
             metadata[key] = value
     # parse trying to get key-values first, then full text
-    for p in something.__doc__.split("\n\n"):
+    for p in re.split(r"\n\s*\n", something):
         field, text = None, ""
         for l in p.splitlines():
             kv = list(map(lambda s: s.strip(), l.split(":", 1)))

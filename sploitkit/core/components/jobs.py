@@ -19,16 +19,25 @@ class JobsPool(object):
         self.__jobs = []
         self.max = max_jobs
     
+    def background(self, cmd, **kwargs):
+        p = self.process(cmd, **kwargs)
+        self.__jobs.append(p)
+    
     def call(self, cmd, **kwargs):
         kwargs['stdout'], kwargs['stderr'] = PIPE, PIPE
         return call(shlex.split(cmd), **kwargs)
     
+    def free(self):
+        for p in self.__jobs:
+            if p.poll():
+                self.__jobs.remove(p)
+    
     def process(self, cmd, **kwargs):
         if not kwargs.pop('no_debug', False):
-            self.logger.debug(cmd)
+            c = " ".join(cmd) if isinstance(cmd, (tuple, list)) else cmd
+            self.logger.debug(c)
         cmd = shlex.split(cmd) if isinstance(cmd, string_types) else cmd
         p = Popen(cmd, stdout=PIPE, **kwargs)
-        #self.__jobs.append(p)
         return p
     
     def run(self, cmd, stdin=None, show=False, timeout=None, **kwargs):
@@ -74,6 +83,11 @@ class JobsPool(object):
             p.kill()
         except:
             pass
+    
+    def terminate(self):
+        for p in self.__jobs:
+            p.terminate()
+            self.__jobs.remove(p)
     
     @property
     def logger(self):

@@ -128,8 +128,6 @@ def set_metadata(c, docstr_parser):
         except ValueError:
             raise ValueError("Bad option ; should be (name, default, "
                              "required, description)")
-#        if not hasattr(c, "config"):
-#            c.config = Config()
         c.config[Option(name, description, required)] = default
     # dynamically declare properties for each metadata field
     for attr, value in c._metadata.items():
@@ -159,9 +157,6 @@ class Entity(object):
     _enabled    = True
     _metadata   = {}
     _subclasses = ClassRegistry()
-    
-#    def __init__(self, *args, **kwargs):
-#        self.__class__._instance = self
     
     def __getattribute__(self, name):
         if name == "config" and getattr(self.__class__, "_has_config", False):
@@ -365,8 +360,11 @@ class Entity(object):
                 if v is None or len(v) == 0:
                     continue
                 elif isinstance(v, (list, tuple)):
-                    v = "- " + "\n- ".join(v)
-                data.append([_(alias), v])
+                    data.append([_(alias), v[0]])
+                    for i in v[1:]:
+                        data.append(["", i])
+                else:
+                    data.append([_(alias), v])
                 add_blankline = True
             if add_blankline:
                 data.append(["", ""])

@@ -1,12 +1,11 @@
 language: python
 sudo: required
 python:
-  - "3.5"
   - "3.6"
   - "3.7"
+  - "3.8"
 cache: pip
 install:
-  - pip install -r requirements.txt
-  - python setup.py install
+  - pipenv install --dev --deploy
 script:
   - echo "done"

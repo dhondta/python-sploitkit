@@ -147,21 +147,7 @@ class Console(Entity, metaclass=MetaConsole):
                 for lib in map(lambda p: os.path.abspath(p), lsrc[::-1]):
                     sys.path.insert(0, lib)
         # display module stats
-        m = []
-        for category in self.modules.keys():
-            l = "{} {}".format(Module.get_count(category), category)
-            disabled = Module.get_count(category, enabled=False)
-            if disabled > 0:
-                l += " ({} disabled)".format(disabled)
-            m.append(l)
-        if len(m) > 0:
-            mlen = max(map(len, m))
-            s = ""
-            print_formatted_text("")
-            for line in m:
-                line = ("-=[ {: <" + str(mlen) + "} ]=-").format(line)
-                print_formatted_text(FormattedText([("#00ff00", line)]))
-            print_formatted_text("")
+        print_formatted_text(FormattedText([("#00ff00", Module.get_summary())]))
         # setup the prompt message
         self.message.insert(0, ('class:appname', self.appname))
         # display warnings
@@ -196,6 +182,7 @@ class Console(Entity, metaclass=MetaConsole):
         else:
             # gracefully close every DB in the pool
             self._storage.free()
+            self._jobs.terminate()
     
     def _get_tokens(self, text, suffix=("", "\"", "'")):
         """ Recursive token split function also handling ' and " (that is, when
@@ -455,14 +442,14 @@ class FrameworkConsole(Console):
             'APP_FOLDER',
             "folder where application assets (i.e. logs) are saved",
             True,
-            set_callback=lambda o: o.config.console._set_app_folder(),
+            set_callback=lambda o: o.root._set_app_folder(),
         ): "~/.{appname}",
         ROption(
             'DEBUG',
             "debug mode",
             False,
             bool,
-            set_callback=lambda o: o.config.console._set_logging(o.value),
+            set_callback=lambda o: o.root._set_logging(o.value),
         ): "false",
         Option(
             'ENCRYPT_PROJECT',
@@ -474,6 +461,7 @@ class FrameworkConsole(Console):
             'WORKSPACE',
             "folder where results are saved",
             True,
+            set_callback=lambda o: o.root._set_workspace(),
         ): "~/Notes",
     })
 
@@ -487,9 +475,9 @@ class FrameworkConsole(Console):
         self._set_app_folder()
         super(FrameworkConsole, self).__init__(*args, **kwargs)
     
-    def _set_app_folder(self):
-        """ Set a new APP_FOLDER, moving an old to the new one if necessary. """
-        o = self.config.option('APP_FOLDER')
+    def __set_folder(self, option, subpath=""):
+        """ Set a new folder, moving an old to the new one if necessary. """
+        o = self.config.option(option)
         old, new = o.old_value, o.value
         if old == new:
             return
@@ -498,9 +486,12 @@ class FrameworkConsole(Console):
                 os.rename(old, new)
         except Exception as e:
             pass
-        fpath = Path(new).joinpath("files")
-        fpath.mkdir(parents=True, exist_ok=True)
-        self._files.root_dir = new
+        Path(new).joinpath(subpath).mkdir(parents=True, exist_ok=True)
+        return new
+
+    def _set_app_folder(self):
+        """ Set a new APP_FOLDER, moving an old to the new one if necessary. """
+        self._files.root_dir = self.__set_folder("APP_FOLDER", "files")
         self._set_logging()
     
     def _set_logging(self, debug=False, to_file=True):
@@ -512,6 +503,10 @@ class FrameworkConsole(Console):
             lpath.mkdir(parents=True, exist_ok=True)
             p = str(lpath.joinpath("main.log"))
         Console.logger = get_logger(self.__class__.name, p, l)
+
+    def _set_workspace(self):
+        """ Set a new APP_FOLDER, moving an old to the new one if necessary. """
+        self.__set_folder("WORKSPACE")
     
     @property
     def app_folder(self):

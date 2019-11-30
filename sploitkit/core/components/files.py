@@ -15,8 +15,7 @@ class FilesManager(dict):
 
     def _file(self, locator, *args, **kwargs):
         """ Simple local file copier. """
-        with open(locator.split("://", 1)[1], 'rb') as f:
-            self[url] = f.read()  #FIXME: use file descriptor
+        self[locator] = open(locator.split("://", 1)[1], 'rb')
     
     def _ftp(self, locator, *args, **kwargs):
         """ Simple FTP downloader. """
@@ -28,7 +27,6 @@ class FilesManager(dict):
         usr, pswd = kwargs.pop("user", ""), kwargs.pop("passwd", "")
         if usr != "" and pswd != "":
             client.login(usr, passwd)
-        #with open(
         #client.retrbinary(kwargs.pop("cmd", None),
         #                  kwargs.pop("callback", None))
         #FIXME
@@ -43,16 +41,17 @@ class FilesManager(dict):
     
     def edit(self, key):
         """ Edit a file using PyVim. """
-        edit_file(self[key])
+        #FIXME
+        edit_file(key)
     
-    def get(self, url, *args, **kwargs):
+    def get(self, locator, *args, **kwargs):
         """ Get a resource. """
-        if url in self.keys() and not kwargs.pop("force", False):
-            return self[url]
-        scheme = url.split("://")[0]
+        if locator in self.keys() and not kwargs.pop("force", False):
+            return self[locator]
+        scheme, path = locator.split("://")
         if scheme in ["http", "https"]:
-            r = requests.get(url, *args, **kwargs)
-            self[url] = r.content
+            r = requests.get(locator, *args, **kwargs)
+            self[locator] = r.content
             if r.status_code == 403:
                 raise ValueError("Forbidden")
         elif scheme in ["ftp", "ftps"]:
@@ -67,8 +66,8 @@ class FilesManager(dict):
                               kwargs.pop("callback", None))
             #FIXME
         elif scheme == "file":
-            with open(url.split("://", 1)[1], 'rb') as f:
-                self[url] = f.read()
+            with open(path, 'rb') as f:
+                self[locator] = f.read()
         else:
             raise ValueError("Unsupported scheme '{}'".format(scheme))
     
@@ -84,9 +83,9 @@ class FilesManager(dict):
     def tempfile(self, root=None):
         """ Create a temporary file. """
         if root is None or not isinstance(root, Path):
-            root = TempPath(prefix="dronesploit-", length=16)
+            root = self.tempdir()
         return root.tempfile()
     
     def view(self, key):
         """ View a file with PyPager. """
-        page_file(self[key])
+        page_text(self[key])

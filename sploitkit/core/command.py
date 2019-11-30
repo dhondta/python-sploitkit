@@ -318,13 +318,13 @@ class Command(Entity, metaclass=MetaCommand):
             raise TypeError("validate() takes %s positional argument%s but %d "
                             "were given" % (pargs, ["", "s"][n > 0], n_in))
         if n == 1:    # command format: COMMAND VALUE
-            l = self.complete_values()
+            l = self.complete_values() or []
             if n_in == 1 and len(l) > 0 and args[0] not in l:
                 raise ValueError("invalid value")
         elif n == 2:  # command format: COMMAND KEY VALUE
-            l = self.complete_keys()
+            l = self.complete_keys() or []
             if n_in > 0 and len(l) > 0 and args[0] not in l:
                 raise ValueError("invalid key")
-            l = self.complete_values(args[0])
+            l = self.complete_values(args[0]) or []
             if n_in == 2 and len(l) > 0 and args[1] not in l:
                 raise ValueError("invalid value")
