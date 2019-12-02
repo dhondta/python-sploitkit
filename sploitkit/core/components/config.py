@@ -33,14 +33,19 @@ class Config(dict):
         """ Custom method for getting an item, returning the original value from
              the current Config instance or, if the key does not exist and this
              instance has a parent, try to get it from the parent. """
-        if isinstance(key, Option):
-            key = key.name
-        try:
-            return self.__d[key][1]
+        try:  # search first in the private dictionary
+            return self._getitem(key)
         except KeyError:
-            if self.bound and self.console.parent is not None:
-                return self.console.parent.config[key]
-            raise KeyError(key)
+            pass
+        try:  # then search in the parent ProxyConfig
+            return self.parent[key]
+        except (AttributeError, KeyError):
+            pass
+        try:  # finally search in the config of the parent console
+            return self.console.parent.config[key]
+        except (AttributeError, KeyError):
+            pass
+        raise KeyError(key)
     
     def __setitem__(self, key, value):
         """ Custom method for setting an item, keeping the original value in a
@@ -104,6 +109,19 @@ class Config(dict):
                 raise ValueError("Invalid value '{}'".format(retval))
             self.__d[key.name] = (key, retval)
     
+    def _getitem(self, key):
+        """ Custom method for getting an item, returning the original value from
+             the current Config instance. """
+        if isinstance(key, Option):
+            key = key.name
+        return self.__d[key][1]
+    
+    def _getoption(self, key):
+        """ Return Option instance from key. """
+        if isinstance(key, Option):
+            key = key.name
+        return self.__d[key][0]
+    
     def copy(self, config, key):
         """ Copy an option based on its key from another Config instance. """
         self[config.option(key)] = config[key]
@@ -127,14 +145,19 @@ class Config(dict):
     
     def option(self, key):
         """ Return Option instance from key. """
-        if isinstance(key, Option):
-            key = key.name
-        try:
-            return self.__d[key][0]
+        try:  # search first in the private dictionary
+            return self._getoption(key)
         except KeyError:
-            if self.bound and self.console.parent is not None:
-                return self.console.parent.config.option(key)
-            raise KeyError(key)
+            pass
+        try:  # then search in the parent ProxyConfig
+            return self.parent.option(key)
+        except (AttributeError, KeyError):
+            pass
+        try:  # finally search in the config of the parent console
+            return self.console.parent.config.option(key)
+        except (AttributeError, KeyError):
+            pass
+        raise KeyError(key)
     
     def options(self):
         """ Return Option instances instead of keys. """
@@ -166,22 +189,29 @@ class Config(dict):
     
     @property
     def bound(self):
-        return hasattr(self, "_console")
+        return hasattr(self, "_console") or \
+               (hasattr(self, "module") and hasattr(self.module, "console"))
     
     @property
     def console(self):
+        # check first that the console is back-referenced on an attached module
+        #  instance
+        if hasattr(self, "module") and hasattr(self.module, "console"):
+            return self.module.console
+        # then check for a direct reference
+        if self.bound:
+            c = self._console
+            return c() if isinstance(c, type(lambda:0)) else c
+        # finally try to get it from the parent ProxyConfig
         if hasattr(self, "parent"):
             # reference the callee to let ProxyConfig.__getattribute__ avoid
             #  trying to get the console attribute from the current config
             #  object, ending in an infinite loop
-            self.parent._callee = self
+            self.parent._caller = self
             try:
                 return self.parent.console
             except AttributeError:
                 pass
-        if self.bound:
-            _ = self._console
-            return _() if isinstance(_, type(lambda:0)) else _
         raise AttributeError("'Config' object has no attribute 'console'")
     
     @console.setter
@@ -268,9 +298,14 @@ class Option(object):
             raise Exception("Unbound option {}".format(self.name))
 
     @property
+    def module(self):
+        """ Shortcut to parent config's console bound module attribute. """
+        return self.console.module
+
+    @property
     def root(self):
         """ Shortcut to parent config's root console attribute. """
-        return self.config.console.root
+        return self.console.root
 
     @property
     def state(self):
@@ -348,18 +383,13 @@ class ProxyConfig(object):
         # for this attribute, only try to get this of the first config
         if name == "console":
             c = self.__configs[0]
-            if c is not getattr(self, "_callee", None):
-                # check first that the console is back-referenced on an attached
-                #  module instance
-                if hasattr(self, "module") and hasattr(self.module, "console"):
-                    return self.module.console
-                # then check for a direct reference
+            if c is not getattr(self, "_caller", None):
                 if c.bound:
                     return c.console
         # for any other, get the first one found from the list of configs
         else:
             for c in self.__configs:
-                if name != "_callee" and c is getattr(self, "_callee", None):
+                if name != "_caller" and c is getattr(self, "_caller", None):
                     continue
                 try:
                     return c.__getattribute__(name)
@@ -372,9 +402,9 @@ class ProxyConfig(object):
         """ Get method for returning the first occurrence of a key among the
              list of Config instances. """
         # search for the first config that has this key and return the value
-        for config in self.configs:
+        for c in self.configs:
             try:
-                return config[key]
+                return c._getitem(key)
             except KeyError:
                 pass
         # if not found, raise KeyError
@@ -423,10 +453,10 @@ class ProxyConfig(object):
     def option(self, key):
         """ Adapted optoin method (wrt Config). """
         # search for the first config that has this key and return its Option
-        for config in self.configs:
+        for c in self.configs:
             try:
                 self[key]
-                return config.option(key)
+                return c._getoption(key)
             except KeyError:
                 pass
         # if not found, raise KeyError
