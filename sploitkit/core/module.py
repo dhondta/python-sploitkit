@@ -63,7 +63,9 @@ class MetaModule(MetaEntity):
     
     def search(self, text):
         """ Search for text in module's attributes. """
-        return any(text in "".join(v).lower() for v in self._metadata.values())
+        t = text.lower()
+        return any(t in "".join(v).lower() for v in self._metadata.values()) \
+            or t in self.fullpath
 
 
 class Module(Entity, metaclass=MetaModule):

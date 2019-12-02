@@ -49,7 +49,7 @@ class Search(Command):
         else:
             t = BorderlessTable(data, "Matching modules")
             print_formatted_text(t.table)
-            n = len(data) - 1
+            n = len(data) - 2
             self.logger.info("{} match{} found".format(n, ["", "es"][n > 0]))
 
 

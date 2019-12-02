@@ -179,9 +179,12 @@ class Console(Entity, metaclass=MetaConsole):
             del self.parent.child
             # rebind entities to the parent console
             self.parent.reset()
+            # remove all finished jobs from the pool
+            self._jobs.free()
         else:
             # gracefully close every DB in the pool
             self._storage.free()
+            # terminate all running jobs
             self._jobs.terminate()
     
     def _get_tokens(self, text, suffix=("", "\"", "'")):
@@ -366,7 +369,7 @@ class Console(Entity, metaclass=MetaConsole):
             except EOFError:
                 Console._recorder.save("exit")
                 break
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, ValueError):
                 continue
         # execute attached module's post-load function if relevant
         self._run_if_defined("postload")
