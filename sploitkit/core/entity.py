@@ -2,12 +2,13 @@
 import gc
 import re
 import sys
+from collections import OrderedDict
 from importlib.util import find_spec
 from inspect import getfile, getmro
 from shutil import which
 
 from .components.config import Config, Option, ProxyConfig
-from ..utils.dict import ClassRegistry
+from ..utils.dict import merge_dictionaries, ClassRegistry
 from ..utils.objects import BorderlessTable
 from ..utils.path import *
 
@@ -197,6 +198,11 @@ class Entity(object):
     def check(cls, other_cls=None):
         """ Check for entity's requirements. """
         cls = other_cls or cls
+        if cls is Entity:
+            something_went_wrong = False
+            for sc in Entity._subclasses:
+                something_went_wrong = something_went_wrong or not sc.check()
+            return something_went_wrong
         cls._enabled = True
         errors = {}
         # check for requirements
@@ -378,10 +384,15 @@ class Entity(object):
         return t.rstrip() + "\n"
     
     @classmethod
-    def get_issues(cls, value=None):
+    def get_issues(cls, subcls_name=None, category=None):
         """ List issues as a text. """
         # message formatting function
-        def msg(key, item):
+        def msg(scname, key, item):
+            subcls = Entity.get_subclass(None, scname)
+            m = getattr(subcls, "requirements_messages", {}) \
+                .get(key, {}).get(re.split(r"(\=|\?)", item, 1)[0])
+            if m is not None:
+                return m.format(item)
             if key == "file":
                 return "'{}' not found".format(item)
             elif key == "packages":
@@ -402,11 +413,20 @@ class Entity(object):
                            " at least once".format(item[0], item[2])
         # list issues using the related class method
         t = "\n"
-        for cname, scname, errors in Entity.issues(value):
-            if value is None:
-                t += "{}: {}\n- ".format(cname, scname)
-            t += "\n- ".join(msg(k, e) for k, err in errors.items() \
-                                       for e in err) + "\n"
+        d = OrderedDict()
+        for cname, scname, errors in Entity.issues(subcls_name, category):
+            e = str(errors)
+            d.setdefault(e, {})
+            d[e].setdefault(cname, [])
+            d[e][cname].append(scname)
+        for _, names in d.items():
+            errors = list(Entity.issues(list(names.values())[0][0]))[0][-1]
+            t = ""
+            for cname, scnames in names.items():
+                cname += ["", "s"][len(scnames) > 1]
+                t += "{}: {}\n- ".format(cname, ", ".join(sorted(scnames)))
+                t += "\n- ".join(msg(scname, k, e) for k, err in errors.items()\
+                                                   for e in err) + "\n"
         return "" if t.strip() == "" else t
 
     @classmethod
@@ -416,10 +436,10 @@ class Entity(object):
         return Entity._subclasses.value(key, name)
     
     @classmethod
-    def has_issues(cls, value=None):
-        """ Tell if issues were encountered while checking all the entities. """
+    def has_issues(cls, subcls_name=None, category=None):
+        """ Tell if issues were encountered while checking entities. """
         try:
-            next(iter(cls.issues(value)))
+            next(iter(cls.issues(subcls_name, category)))
             return True
         except StopIteration:
             return False
@@ -549,6 +569,15 @@ class MetaEntity(MetaEntityBase):
                     if _:
                         c += _
             return c
+        elif name in ["requirements", "requirements_messages"]:
+            r = {}
+            if hasattr(self, "_entity_class"):
+                for b in self.__bases__[::-1]:
+                    if b == self._entity_class:
+                        break
+                    merge_dictionaries(r, getattr(b, name, {}))
+            merge_dictionaries(r, self.__dict__.get(name, {}))
+            return r
         return super(MetaEntity, self).__getattribute__(name)
     
     @property
