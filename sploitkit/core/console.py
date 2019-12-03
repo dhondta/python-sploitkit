@@ -151,6 +151,7 @@ class Console(Entity, metaclass=MetaConsole):
         # setup the prompt message
         self.message.insert(0, ('class:appname', self.appname))
         # display warnings
+        self.reset()
         if Entity.has_issues():
             self.logger.warning("There are some issues ; use 'show issues' to "
                                 "see more details")

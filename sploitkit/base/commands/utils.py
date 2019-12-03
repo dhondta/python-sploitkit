@@ -14,7 +14,7 @@ from sploitkit import *
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
 class Edit(Command):
     """ Edit a file with PyVim """
-    requirements = {'python': ["pyvim"]}
+    requirements = {'system': ["vim"]}
     single_arg   = True
     
     def complete_values(self):
@@ -29,7 +29,7 @@ class Edit(Command):
 
 class History(Command):
     """ Inspect commands history """
-    requirements = {'python': ["pypager"]}
+    requirements = {'system': ["less"]}
     
     def run(self):
         h = Path(self.config.option("WORKSPACE").value).joinpath("history")
@@ -87,7 +87,7 @@ class Logs(Command):
     """ Inspect console logs """
     requirements = {
         'config': {'DEBUG': True},
-        'python': ["pypager"],
+        'system': ["less"],
     }
     
     def run(self):

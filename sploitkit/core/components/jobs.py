@@ -17,11 +17,13 @@ communicate = lambda p, **i: tuple(map(lambda x: x.decode().strip(),
 class Job(subprocess.Popen):
     def __init__(self, cmd, **kwargs):
         self.parent = kwargs.pop('parent')
-        if not kwargs.pop('no_debug', False):
+        debug = not kwargs.pop('no_debug', False)
+        if debug:
             c = " ".join(cmd) if isinstance(cmd, (tuple, list)) else cmd
             self.parent.logger.debug(c)
         cmd = shlex.split(cmd) if isinstance(cmd, string_types) else cmd
         super(Job, self).__init__(cmd, stdout=subprocess.PIPE, **kwargs)
+        self._debug = debug
     
     def close(self, wait=True):
         for s in ["stdin", "stdout", "stderr"]:
@@ -72,11 +74,10 @@ class JobsPool(object):
             for line in iter(p.stderr.readline, ""):
                 err.append(line)
             err = "\n".join(err)
-        if show:
-            if out != "":
-                self.logger.info(out)
-            if err != "":
-                self.logger.error(err)
+        if out != "" and p._debug:
+            getattr(self.logger, ["debug", "info"][show])(out)
+        if err != "" and p._debug:
+            getattr(self.logger, ["debug", "error"][show])(err)
         return out, err
     
     def run_iter(self, cmd, timeout=None, **kwargs):
@@ -87,6 +88,8 @@ class JobsPool(object):
         try:
             for line in iter(p.stdout.readline, ""):
                 if len(line) > 0:
+                    if p._debug:
+                        self.logger.debug(line)
                     yield line
                 if timeout is not None and time() - s > timeout:
                     break
@@ -95,7 +98,7 @@ class JobsPool(object):
             p.close()
     
     def terminate(self, subpool=None):
-        for p in self.__jobs[subpool]:
+        for p in self.__jobs.get(subpool, []):
             p.terminate()
             p.close()
             self.__jobs[subpool].remove(p)
