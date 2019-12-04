@@ -2,12 +2,13 @@
 import gc
 import re
 import sys
+from collections import OrderedDict
 from importlib.util import find_spec
 from inspect import getfile, getmro
 from shutil import which
 
 from .components.config import Config, Option, ProxyConfig
-from ..utils.dict import ClassRegistry
+from ..utils.dict import merge_dictionaries, ClassRegistry
 from ..utils.objects import BorderlessTable
 from ..utils.path import *
 
@@ -197,6 +198,11 @@ class Entity(object):
     def check(cls, other_cls=None):
         """ Check for entity's requirements. """
         cls = other_cls or cls
+        if cls is Entity:
+            good = True
+            for sc in Entity._subclasses:
+                good = good and sc.check()
+            return good
         cls._enabled = True
         errors = {}
         # check for requirements
@@ -252,17 +258,20 @@ class Entity(object):
                 #  cannot be imported in this module (cfr circular import)
                 Console = cls.get_class("Console")
                 _tmp = []
+                # e.g. sk=INTERFACES and
+                #      sv={None:[True,None,None]}
                 for sk, sv in skeys.items():
                     # check if the state key exists
                     if sk not in Console._state.keys():
                         _tmp.append(sk)
                     # check if the value (if defined) matches
                     elif sv is not None:
+                        # e.g. cs={wlp4s0:[False,None,"[MAC_addr]"]}
                         cs = Console._state[sk]
                         # special case: state value is a dict
                         if isinstance(sv, dict) and isinstance(cs, dict):
-                            check_key, _ = True, list(sv.items())
-                            if len(_) == 1 and _[0][0] is None:
+                            check_key, l = True, list(sv.items())
+                            if len(l) == 1 and l[0][0] is None:
                                 check_key = False
                             # case 1: classical dict
                             if check_key:
@@ -270,11 +279,40 @@ class Entity(object):
                                     if ssk not in cs.keys() or cs[ssk] != ssv:
                                         _tmp.append("{}={}".format(sk, sv))
                                         break
-                            # case 2: {None: value}, meaning that we expect to
-                            #         find 'value' at least once for any key
+                            # case 2: {None: ...}
                             else:
-                                if _[0][1] not in cs.values():
-                                    _tmp.append("{}?{}".format(sk, _[0][1]))
+                                # e.g. ssv=[True,None,None]
+                                ssv = l[0][1]
+                                if isinstance(ssv, (tuple, list)):
+                                    # e.g. this zips [True,None,None] and
+                                    #       [False,None,"[MAC_addr]"] together
+                                    found = False
+                                    for values in zip(ssv, *list(cs.values())):
+                                        ref = values[0]
+                                        # None positional values are ignored
+                                        if ref is not None and \
+                                           ref in values[1:]:
+                                            found = True
+                                    if not found:
+                                        _tmp.append("{}?{}".format(sk, ref))
+                                elif isinstance(ssv, dict):
+                                    # e.g. {monitor:True}
+                                    found = False
+                                    for sssk, sssv in ssv.items():
+                                        for csd in cs.values():
+                                            if sssv is None:
+                                                if sssk in csd.keys():
+                                                    found = True
+                                                    break
+                                            elif csd.get(sssk) == sssv:
+                                                found = True
+                                                break
+                                        if not found:
+                                            v = "{}:{}".format(sssk, sssv)
+                                            v = [v, sssv][sssv is None]
+                                            _tmp.append("{}?{}".format(sk, v))
+                                elif ssv not in cs.values():
+                                    _tmp.append("{}?{}".format(sk, ssv))
                                     break
                         # exact match between any other type than dict
                         else:
@@ -378,10 +416,15 @@ class Entity(object):
         return t.rstrip() + "\n"
     
     @classmethod
-    def get_issues(cls, value=None):
+    def get_issues(cls, subcls_name=None, category=None):
         """ List issues as a text. """
         # message formatting function
-        def msg(key, item):
+        def msg(scname, key, item):
+            subcls = Entity.get_subclass(None, scname)
+            m = getattr(subcls, "requirements_messages", {}) \
+                .get(key, {}).get(re.split(r"(\=|\?)", item, 1)[0])
+            if m is not None:
+                return m.format(item)
             if key == "file":
                 return "'{}' not found".format(item)
             elif key == "packages":
@@ -402,11 +445,24 @@ class Entity(object):
                            " at least once".format(item[0], item[2])
         # list issues using the related class method
         t = "\n"
-        for cname, scname, errors in Entity.issues(value):
-            if value is None:
-                t += "{}: {}\n- ".format(cname, scname)
-            t += "\n- ".join(msg(k, e) for k, err in errors.items() \
-                                       for e in err) + "\n"
+        d = OrderedDict()
+        # this regroups class names for error dictionaries that are the same in
+        #  order to aggregate issues
+        for cname, scname, errors in Entity.issues(subcls_name, category):
+            e = str(errors)
+            d.setdefault(e, {})
+            d[e].setdefault(cname, [])
+            d[e][cname].append(scname)
+        # this then displays the issues with their list of related entities
+        #  having these same issues
+        for _, names in d.items():
+            errors = list(Entity.issues(list(names.values())[0][0]))[0][-1]
+            t = ""
+            for cname, scnames in names.items():
+                cname += ["", "s"][len(scnames) > 1]
+                t += "{}: {}\n".format(cname, ", ".join(sorted(scnames)))
+            t += "- " + "\n- ".join(msg(scname, k, e) for k, err in \
+                                    errors.items() for e in err) + "\n"
         return "" if t.strip() == "" else t
 
     @classmethod
@@ -416,20 +472,19 @@ class Entity(object):
         return Entity._subclasses.value(key, name)
     
     @classmethod
-    def has_issues(cls, value=None):
-        """ Tell if issues were encountered while checking all the entities. """
-        try:
-            next(iter(cls.issues(value)))
+    def has_issues(cls, subcls_name=None, category=None):
+        """ Tell if issues were encountered while checking entities. """
+        for _ in cls.issues(subcls_name, category):
             return True
-        except StopIteration:
-            return False
+        return False
     
     @classmethod
     def issues(cls, subcls_name=None, category=None):
         """ List issues encountered while checking all the entities. """
         cls.check()
-        for cls, l in Entity._subclasses.items() if cls is Entity else \
-                      cls.subclasses if cls in Entity._subclasses.keys() \
+        sc = Entity._subclasses
+        for c, l in sc.items() if cls is Entity else \
+                      [cls, cls.subclasses] if cls in sc.keys() \
                       else [(cls._entity_class, [cls])]:
             for subcls in l:
                 e = {}
@@ -443,21 +498,21 @@ class Entity(object):
                         break
                     # update the errors dictionary starting with proxy classes
                     for _, __, errors in b.issues(category=category):
-                        for c, i in errors.items():
-                            e.setdefault(c, [])
-                            e[c].extend(i)
+                        for categ, i in errors.items():
+                            e.setdefault(categ, [])
+                            e[categ].extend(i)
                 # now update the errors dictionary of the selected subclass
                 if hasattr(subcls, "_errors") and len(subcls._errors) > 0:
-                    for c, i in subcls._errors.items():
-                        if category in [None, c]:
-                            e.setdefault(c, [])
-                            e[c].extend(i)
+                    for categ, i in subcls._errors.items():
+                        if category in [None, categ]:
+                            e.setdefault(categ, [])
+                            e[categ].extend(i)
                 if len(e) > 0:
-                    for c, i in e.items():  # [c]ategory, [i]ssues
-                        e[c] = list(sorted(set(i)))
+                    for categ, i in e.items():  # [categ]ory, [i]ssues
+                        e[categ] = list(sorted(set(i)))
                     n = subcls.__name__
                     if subcls_name in [None, n]:
-                        yield cls.__name__, n, e
+                        yield c.__name__, n, e
 
     @classmethod
     def register_subclass(cls, subcls):
@@ -549,6 +604,15 @@ class MetaEntity(MetaEntityBase):
                     if _:
                         c += _
             return c
+        elif name in ["requirements", "requirements_messages"]:
+            r = {}
+            if hasattr(self, "_entity_class"):
+                for b in self.__bases__[::-1]:
+                    if b == self._entity_class:
+                        break
+                    merge_dictionaries(r, getattr(b, name, {}))
+            merge_dictionaries(r, self.__dict__.get(name, {}))
+            return r
         return super(MetaEntity, self).__getattribute__(name)
     
     @property

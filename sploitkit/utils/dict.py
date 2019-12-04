@@ -6,7 +6,43 @@ from time import time
 from .path import Path
 
 
-__all__ = ["ClassRegistry", "ExpiringDict", "PathBasedDict"]
+__all__ = ["merge_dictionaries",
+           "ClassRegistry", "ExpiringDict", "PathBasedDict"]
+
+
+def merge_dictionaries(*dictionaries, **kwargs):
+    """ Merge dictionaries into the first given one, that is, merging child
+         dictionaries and lists.
+    
+    :param update:     update with the latest encountered value
+    :param duplicates: keep duplicates in lists and tuples
+    """
+    create_new = kwargs.get('create_new', False)
+    update = kwargs.get('update', True)
+    duplicates = kwargs.get('duplicates', False)
+    d = {} if create_new else dictionaries[0]
+    for dictionary in dictionaries[int(not create_new):]:
+        for k, v in dictionary.items():
+            if k not in d:
+                d[k] = v
+            elif not update:
+                continue
+            elif isinstance(v, dict):
+                d[k] = merge_dictionaries(d[k], v, **kwargs)
+            elif isinstance(v, (tuple, list)):
+                l = list(d[k])
+                for x in v:
+                    if x in l and duplicates or x not in l:
+                        l.append(x)
+                if isinstance(v, tuple):
+                    l = tuple(l)
+                d[k] = l
+            elif isinstance(v, set):
+                for x in v:
+                    d[k].add(x)
+            else:
+                d[k] = v
+    return d
 
 
 class ClassRegistry(dict):
@@ -19,6 +55,8 @@ class ClassRegistry(dict):
     
     def key(self, name):
         """ Get class-based key from its name. """
+        if name is None:
+            return
         for k in self.keys():
             if isclass(k) and k.__name__.lower() == name.lower():
                 return k
@@ -27,8 +65,8 @@ class ClassRegistry(dict):
         """ Get class-based value from a list associated to a given key. """
         if not isclass(key):
             key = self.key(key)
-        if key is not None:
-            for v in self[key]:
+        for k in (self.keys() if key is None else [key]):
+            for v in self[k]:
                 if isclass(v) and v.__name__.lower() == name.lower():
                     return v
 
