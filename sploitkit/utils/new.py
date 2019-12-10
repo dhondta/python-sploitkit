@@ -3,21 +3,18 @@ from tinyscript import *
 
 from sploitkit.utils.path import Path
 
-
-__author__   = "Alexandre D'Hondt"
-__version__  = "1.0"
+__author__ = "Alexandre D'Hondt"
+__version__ = "1.0"
 __examples__ = ["my_sploit_project"]
 __doc__ = """
 This tool allows to quickly create a new Sploitkit project.
 """
-
 
 RME_TEMPLATE = """
 # {}
 
 #TODO: Fill in the README
 """
-
 
 CMD_TEMPLATE = """
 from sploitkit import *
@@ -27,15 +24,15 @@ class CommandWithOneArg(Command):
     \""" Description here \"""
     level = "module"
     single_arg = True
-    
+
     def complete_values(self):
         #TODO: compute the list of possible values
         return []
-    
+
     def run(self):
         #TODO: compute results here
         pass
-    
+
     def validate(self, value):
         #TODO: validate the input value
         if value not in self.complete_values():
@@ -45,15 +42,15 @@ class CommandWithOneArg(Command):
 class CommandWithTwoArgs(Command):
     \""" Description here \"""
     level = "module"
-    
+
     def complete_keys(self):
         #TODO: compute the list of possible keys
         return []
-    
+
     def complete_values(self, key=None):
         #TODO: compute the list of possible values taking the key into account
         return []
-    
+
     def run(self):
         #TODO: compute results here
         pass
@@ -65,7 +62,7 @@ from sploitkit import *
 
 class MyFirstModule(Module):
     \""" Description here 
-    
+
     Author:  your name (your email)
     Version: 1.0
     \"""
@@ -76,7 +73,7 @@ class MyFirstModule(Module):
 
 def create_project(name):
     """ Create a project folder with its base files.
-    
+
     :param name: folder name for the project
     """
     new = Path(name)
@@ -96,7 +93,7 @@ def create_project(name):
 
 def show_todo(folder):
     """ Walk the given folder and display TODO statements from the walked files.
-    
+
     :param folder: folder to be walked through
     """
     MARKER = "#TODO:"
@@ -122,7 +119,7 @@ def show_todo(folder):
                         print(s)
 
 
-if __name__ == '__main__':
+def main():
     parser.add_argument("name", help="project name")
     parser.add_argument("-s", "--show-todo", dest="todo", action="store_true",
                         help="show the TODO list")
