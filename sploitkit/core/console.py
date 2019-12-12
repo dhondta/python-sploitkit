@@ -475,8 +475,8 @@ class FrameworkConsole(Console):
         o, v = self.config.option('APP_FOLDER'), str(self.config['APP_FOLDER'])
         self.config[o] = Path(v.format(appname=self.appname.lower()))
         o.old_value = None
-        # configure the file manager and the logger
         self._set_app_folder()
+        self._set_workspace()
         super(FrameworkConsole, self).__init__(*args, **kwargs)
     
     def __set_folder(self, option, subpath=""):
