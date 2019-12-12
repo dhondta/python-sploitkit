@@ -59,7 +59,7 @@ class Config(dict):
         key.old_value = self.__d.get(key.name)
         # then assign the new one if it is valid
         self.__d[key.name] = (key, value)
-        if value and not key.validate(value):
+        if value is not None and not key.validate(value):
             raise ValueError("Invalid value '{}'".format(value))
         super(Config, self).__setitem__(key, value)
         # when the value is validated and assigned, run the callback function

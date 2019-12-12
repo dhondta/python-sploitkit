@@ -21,7 +21,8 @@ class Job(subprocess.Popen):
         if debug:
             c = " ".join(cmd) if isinstance(cmd, (tuple, list)) else cmd
             self.parent.logger.debug(c)
-        cmd = shlex.split(cmd) if isinstance(cmd, string_types) else cmd
+        cmd = shlex.split(cmd) if isinstance(cmd, string_types) and \
+                                  not kwargs.get('shell', False) else cmd
         super(Job, self).__init__(cmd, stdout=subprocess.PIPE, **kwargs)
         self._debug = debug
     
@@ -85,8 +86,18 @@ class JobsPool(object):
         kwargs['universal_newlines'] = True
         p = Job(cmd, parent=self, **kwargs)
         s = time()
+        #FIXME: cleanup this part
+        def readline():
+            while True:
+                try:
+                    l = p.stdout.readline()
+                    if l == "":
+                        break
+                except UnicodeDecodeError:
+                    continue
+                yield l
         try:
-            for line in iter(p.stdout.readline, ""):
+            for line in readline():
                 if len(line) > 0:
                     if p._debug:
                         self.logger.debug(line)

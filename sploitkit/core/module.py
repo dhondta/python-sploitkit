@@ -163,7 +163,9 @@ class Module(Entity, metaclass=MetaModule):
     def _feedback(self, success, failmsg):
         """ Dummy feedback method using a fail-message formatted with the "not"
              keyword (to be replaced by a null string in case of success). """
-        if success:
+        if success is None:
+            return
+        elif success:
             self.logger.success(failmsg.replace("not ", ""))
         else:
             self.logger.failure(failmsg)
