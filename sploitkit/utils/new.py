@@ -5,18 +5,13 @@ from sploitkit.utils.path import Path
 
 __author__ = "Alexandre D'Hondt"
 __version__ = "1.0"
-__examples__ = ["my_sploit_project"]
+__examples__ = ["my-sploit", "my-sploit -s"]
 __doc__ = """
 This tool allows to quickly create a new Sploitkit project.
 """
 
-RME_TEMPLATE = """
-# {}
 
-#TODO: Fill in the README
-"""
-
-CMD_TEMPLATE = """
+COMMANDS = """
 from sploitkit import *
 
 
@@ -55,8 +50,23 @@ class CommandWithTwoArgs(Command):
         #TODO: compute results here
         pass
 """
+MAIN = """
+#!/usr/bin/python3
+from sploitkit import FrameworkConsole
 
-MOD_TEMPLATE = """
+
+class MySploitConsole(FrameworkConsole):
+    #TODO: set your console attributes
+    pass
+
+
+if __name__ == '__main__':
+    MySploitConsole(
+        "MySploit",
+        #TODO: configure your console settings
+    ).start()
+"""
+MODULE = """
 from sploitkit import *
 
 
@@ -69,6 +79,11 @@ class MyFirstModule(Module):
     def run(self):
         pass
 """
+README = """
+# {}
+
+#TODO: Fill in the README
+"""
 
 
 def create_project(name):
@@ -80,15 +95,16 @@ def create_project(name):
     if new.exists():
         return
     new.mkdir()
-    new.joinpath("README").append_text(RME_TEMPLATE.strip())
+    new.joinpath("README").append_text(README.strip())
+    new.joinpath("main.py").append_text(MAIN.strip())
     new.joinpath("requirements.txt").touch()
     new.joinpath("banners").mkdir(exist_ok=True)
     d = new.joinpath("commands")
     d.mkdir(exist_ok=True)
-    d.joinpath("template.py").append_text(CMD_TEMPLATE.strip())
+    d.joinpath("template.py").append_text(COMMANDS.strip())
     d = new.joinpath("modules")
     d.mkdir(exist_ok=True)
-    d.joinpath("template.py").append_text(MOD_TEMPLATE.strip())
+    d.joinpath("template.py").append_text(MODULE.strip())
 
 
 def show_todo(folder):
@@ -97,7 +113,7 @@ def show_todo(folder):
     :param folder: folder to be walked through
     """
     MARKER = "#TODO:"
-    print("TODO list:")
+    logger.info("TODO list:")
     for root, dirs, files in os.walk(folder):
         for fn in files:
             fp = os.path.join(root, fn)
@@ -123,7 +139,7 @@ def main():
     parser.add_argument("name", help="project name")
     parser.add_argument("-s", "--show-todo", dest="todo", action="store_true",
                         help="show the TODO list")
-    initialize(globals(), noargs_action="wizard")
+    initialize(noargs_action="wizard")
     create_project(args.name)
     if args.todo:
         show_todo(args.name)
