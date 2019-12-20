@@ -39,14 +39,14 @@ from sploitkit import FrameworkConsole
 
 
 class MySploitConsole(FrameworkConsole):
-    # set your console items here
+    #TODO: set your console attributes
     pass
 
 
 if __name__ == '__main__':
     MySploitConsole(
         "MySploit",
-        # configure your console settings here
+        #TODO: configure your console settings
     ).start()
 ```
 
