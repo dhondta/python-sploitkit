@@ -1,0 +1,21 @@
+#!/usr/bin/python3
+from tinyscript import *
+from sploitkit.utils.new import create_project, show_todo
+
+
+__author__ = "Alexandre D'Hondt"
+__version__ = "1.0"
+__examples__ = ["my-sploit", "my-sploit -s"]
+__doc__ = """
+This tool allows to quickly create a new Sploitkit project.
+"""
+
+
+if __name__ == '__main__':
+    parser.add_argument("name", help="project name")
+    parser.add_argument("-s", "--show-todo", dest="todo", action="store_true",
+                        help="show the TODO list")
+    initialize(noargs_action="wizard")
+    create_project(args.name)
+    if args.todo:
+        show_todo(args.name)

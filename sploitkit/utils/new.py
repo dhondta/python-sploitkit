@@ -3,13 +3,6 @@ from tinyscript import *
 
 from sploitkit.utils.path import Path
 
-__author__ = "Alexandre D'Hondt"
-__version__ = "1.0"
-__examples__ = ["my-sploit", "my-sploit -s"]
-__doc__ = """
-This tool allows to quickly create a new Sploitkit project.
-"""
-
 
 COMMANDS = """
 from sploitkit import *
@@ -133,13 +126,3 @@ def show_todo(folder):
                         s = s.format(m)
                         s += l.split(MARKER, 1)[1].strip()
                         print(s)
-
-
-def main():
-    parser.add_argument("name", help="project name")
-    parser.add_argument("-s", "--show-todo", dest="todo", action="store_true",
-                        help="show the TODO list")
-    initialize(noargs_action="wizard")
-    create_project(args.name)
-    if args.todo:
-        show_todo(args.name)
