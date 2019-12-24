@@ -127,6 +127,14 @@ class Console(Entity, metaclass=MetaConsole):
                     print_formatted_text(ANSI(text))
             except ValueError:
                 pass
+        # setup libraries
+        lsrc = self._sources("libraries")
+        if lsrc is not None:
+            if isinstance(lsrc, str):
+                lsrc = [lsrc]
+            if isinstance(lsrc, (list, tuple, set)):
+                for lib in map(lambda p: os.path.abspath(p), lsrc[::-1]):
+                    sys.path.insert(0, lib)
         # setup entities
         load_entities(
             [BaseModel, Command, Console, Model, Module, StoreExtension],
@@ -138,14 +146,6 @@ class Console(Entity, metaclass=MetaConsole):
             docstr_parser=kwargs.get("docstr_parser", parse_docstring),
         )
         Console._storage.models = Model.subclasses + BaseModel.subclasses
-        # setup libraries
-        lsrc = self._sources("libraries")
-        if lsrc is not None:
-            if isinstance(lsrc, str):
-                lsrc = [lsrc]
-            if isinstance(lsrc, (list, tuple, set)):
-                for lib in map(lambda p: os.path.abspath(p), lsrc[::-1]):
-                    sys.path.insert(0, lib)
         # display module stats
         print_formatted_text(FormattedText([("#00ff00", Module.get_summary())]))
         # setup the prompt message
