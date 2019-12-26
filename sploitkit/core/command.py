@@ -207,7 +207,7 @@ class Command(Entity, metaclass=MetaCommand):
     @classmethod
     def set_style(cls, style):
         """ Set the style of command name. """
-        if stule not in COMMAND_STYLES:
+        if style not in COMMAND_STYLES:
             raise ValueError("Command style must be one of the followings: [{}]"
                              .format("|".join(COMMAND_STYLES)))
         MetaCommand.style = style
