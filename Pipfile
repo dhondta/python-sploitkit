@@ -10,15 +10,15 @@ pipenv-setup = "*"
 sploitkit = {editable = true,path = "."}
 
 [packages]
+asciistuff = "*"
 ipaddress = "*"
 pathlib = "*"
 peewee = "*"
 prompt-toolkit = "*"
 pyfiglet = "*"
+Pygments = "*"
 pyminizip = "*"
 requests = "*"
 termcolor = "*"
 terminaltables = "*"
-Pillow = "*"
-asciistuff = "*"
 tinyscript = "*"
