@@ -1,16 +1,29 @@
-### Description
+[DroneSploit](https://github.com/dhondta/dronesploit) is a console tailored to drone hacking.
 
-This console is tailored to drone hacking.
-
-### Code
-
-See [this GitHub repository](https://github.com/dhondta/dronesploit).
-
-### Help
+### Setup
 
 ```sh
-$ dronesploit --help
+$ pip3 install dronesploit
 [...]
 ```
 
-![Under construction](../img/under-construction.png "Source: Pixabay (https://pixabay.com/images/search/under%20construction/)")
+### Usage
+
+```sh
+$ dronesploit --help
+usage: dronesploit [--dev] [-h] [-v]
+
+Dronesploit
+
+optional arguments:
+  --dev          development mode (default: False)
+
+extra arguments:
+  -h, --help     show this help message and exit
+  -v, --verbose  verbose mode (default: False)
+
+$ dronesploit
+[...]
+```
+
+![DroneSploit](https://dhondta.github.io/dronesploit/docs/img/dronesploit.png)
