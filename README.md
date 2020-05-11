@@ -1,6 +1,6 @@
 [![PyPi](https://img.shields.io/pypi/v/sploitkit.svg)](https://pypi.python.org/pypi/sploitkit/)
 [![Read The Docs](https://readthedocs.org/projects/python-sploitkit/badge/?version=latest)](https://python-sploitkit.readthedocs.io/en/latest/?badge=latest)
-[![Build Status](https://travis-ci.org/dhondta/python-sploitkit.svg?branch=master)](https://travis-ci.org/dhondta/sploitkit)
+[![Build Status](https://travis-ci.org/dhondta/python-sploitkit.svg?branch=master)](https://travis-ci.org/dhondta/python-sploitkit)
 [![Known Vulnerabilities](https://snyk.io/test/github/dhondta/python-sploitkit/badge.svg?targetFile=requirements.txt)](https://snyk.io/test/github/dhondta/python-sploitkit?targetFile=requirements.txt)
 [![Requirements Status](https://requires.io/github/dhondta/python-sploitkit/requirements.svg?branch=master)](https://requires.io/github/dhondta/python-sploitkit/requirements/?branch=master)
 [![Python Versions](https://img.shields.io/pypi/pyversions/sploitkit.svg)](https://pypi.python.org/pypi/sploitkit/)
