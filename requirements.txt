@@ -1,0 +1,8 @@
+peewee
+prompt-toolkit
+Pygments
+pyminizip
+requests
+termcolor
+terminaltables
+tinyscript>=1.22.4
