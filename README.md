@@ -5,7 +5,6 @@
 [![Requirements Status](https://requires.io/github/dhondta/python-sploitkit/requirements.svg?branch=master)](https://requires.io/github/dhondta/python-sploitkit/requirements/?branch=master)
 [![Python Versions](https://img.shields.io/pypi/pyversions/sploitkit.svg)](https://pypi.python.org/pypi/sploitkit/)
 [![License](https://img.shields.io/pypi/l/sploitkit.svg)](https://pypi.python.org/pypi/sploitkit/)
-[![Beerpay](https://img.shields.io/beerpay/hashdog/scrapfy-chrome-extension.svg)](https://beerpay.io/dhondta/python-sploitkit)
 [![Donate](https://img.shields.io/badge/donate-paypal-orange.svg)](https://www.paypal.me/dhondta)
 
 
@@ -13,23 +12,13 @@
 
 This toolkit is aimed to easilly build framework consoles in a Metasploit-like style. It provides a comprehensive interface to define CLI commands, modules and models for its storage database.
 
-## Quick Start
-
-### Setup
+## Setup
 
 ```
 pip install sploitkit
 ```
 
-### Create a project
-
-```sh
-$ sploitkit-new my-sploit
-$ cd my-sploit
-$ gedit main.py
-```
-
-### Usage
+## Usage
 
 From this point, `main.py` has the following code:
 
@@ -54,7 +43,7 @@ And you can run it from the terminal:
 
 ![](https://github.com/dhondta/python-sploitkit/tree/master/docs/img/my-sploit-start.png)
 
-### Base features
+## Features
 
 Sploitkit provides a base set of entities (consoles, commands, modules, models).
 
@@ -82,7 +71,7 @@ It also holds some base models for its storage:
 
 No module is provided with the framework as it is case-specific.
 
-### Customization
+## Customization
 
 Sploitkit defines multiple types of entities for various purposes. The following entities can be subclassed:
 
