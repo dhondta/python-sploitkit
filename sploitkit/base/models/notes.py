@@ -31,3 +31,4 @@ class NoteUser(BaseModel):
     
     class Meta:
         primary_key = CompositeKey("user", "note")
+

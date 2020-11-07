@@ -79,10 +79,8 @@ class Show(ModuleCommand):
                 c[self.config.option(value)] = self.config[value]
                 print_formatted_text(ANSI(str(c)))
         elif key == "info":
-            i = self.console.module.get_info(("fullpath|path", "description"),
-                                             ("author", "email", "version"),
-                                             ("comments",), ("options",),
-                                             show_all=True)
+            i = self.console.module.get_info(("fullpath|path", "description"), ("author", "email", "version"),
+                                             ("comments",), ("options",), show_all=True)
             if len(i.strip()) != "":
                 print_formatted_text(i)
         elif key == "issues":
@@ -96,3 +94,4 @@ class Show(ModuleCommand):
         else:
             while "issues" in self.keys:
                 self.keys.remove("issues")
+

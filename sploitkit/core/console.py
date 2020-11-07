@@ -26,16 +26,12 @@ from ..utils.path import Path
 __all__ = [
     "Entity",
     # subclassable main entities
-    "BaseModel", "Model", "StoreExtension",
-    "Command",
-    "Console",
-    "Module",
+    "BaseModel", "Command", "Console", "Model", "Module", "StoreExtension",
     # console-related classes
     "Config", "ConsoleExit", "ConsoleDuplicate", "FrameworkConsole", "Option",
 ]
 
-dcount = lambda d, n=0: sum([dcount(v, n) if isinstance(v, dict) else n + 1 \
-                             for v in d.values()])
+dcount = lambda d, n=0: sum([dcount(v, n) if isinstance(v, dict) else n + 1 for v in d.values()])
 
 
 class MetaConsole(MetaEntity):
@@ -45,8 +41,7 @@ class MetaConsole(MetaEntity):
 
 class Console(Entity, metaclass=MetaConsole):
     """ Base console class. """
-    # convention: mangled attributes should not be customized when subclassing
-    #              Console...
+    # convention: mangled attributes should not be customized when subclassing Console...
     _files    = FilesManager()
     _jobs     = JobsPool()
     _recorder = Recorder()
@@ -73,9 +68,8 @@ class Console(Entity, metaclass=MetaConsole):
         if self.parent is not None and self.parent.level == self.level:
             while parent is not None and parent.level == self.level:
                 parent = parent.parent  # go up of one console level
-            # raise an exception in the context of command's .run() execution,
-            #  to be propagated to console's .run() execution, setting the
-            #  directly higher level console in argument
+            # raise an exception in the context of command's .run() execution, to be propagated to console's .run()
+            #  execution, setting the directly higher level console in argument
             raise ConsoleDuplicate(self, parent)
         # back-reference the console
         self.config.console = self
@@ -153,22 +147,19 @@ class Console(Entity, metaclass=MetaConsole):
         # display warnings
         self.reset()
         if Entity.has_issues():
-            self.logger.warning("There are some issues ; use 'show issues' to "
-                                "see more details")
+            self.logger.warning("There are some issues ; use 'show issues' to see more details")
         # console's components back-referencing
         for attr in ["_files", "_jobs"]:
             setattr(getattr(Console, attr), "console", self)
     
     def _close(self):
         """ Gracefully close the console. """
-        self.logger.debug("Exiting {}[{}]".format(self.__class__.__name__,
-                                                  id(self)))
+        self.logger.debug("Exiting {}[{}]".format(self.__class__.__name__, id(self)))
         if hasattr(self, "close") and isfunction(self.close):
             self.close()
         # cleanup references for this console
         self.detach()
-        # important note: do not confuse '_session' (refers to prompt session)
-        #                  with sessions (sessions manager)
+        # important note: do not confuse '_session' (refers to prompt session) with sessions (sessions manager)
         if hasattr(self, "_session"):
             delattr(self._session.completer, "console")
             delattr(self._session.validator, "console")
@@ -189,8 +180,8 @@ class Console(Entity, metaclass=MetaConsole):
             self._jobs.terminate()
     
     def _get_tokens(self, text, suffix=("", "\"", "'")):
-        """ Recursive token split function also handling ' and " (that is, when
-             'text' is a partial input with a string not closed by a quote). """
+        """ Recursive token split function also handling ' and " (that is, when 'text' is a partial input with a string
+             not closed by a quote). """
         text = text.lstrip()
         try:
             tokens = shlex.split(text + suffix[0])
@@ -200,8 +191,7 @@ class Console(Entity, metaclass=MetaConsole):
             return []
         if len(tokens) > 0:
             cmd = tokens[0]
-            if len(tokens) > 2 and \
-                getattr(self.commands.get(cmd), "single_arg", False):
+            if len(tokens) > 2 and getattr(self.commands.get(cmd), "single_arg", False):
                 tokens = [cmd, " ".join(tokens[1:])]
             elif len(tokens) > 3:
                 tokens = [cmd, tokens[1], " ".join(tokens[2:])]
@@ -216,16 +206,15 @@ class Console(Entity, metaclass=MetaConsole):
     
     def _run_if_defined(self, func):
         """ Run the given function if it is defined at the module level. """
-        if hasattr(self, "module") and hasattr(self.module, func) and \
-            not (getattr(self.module._instance, func)() is None):
+        m = getattr(self, "module", None)
+        if m is not None and hasattr(m, func) and not (getattr(m._instance, func)() is None):
             self.logger.debug("{} failed".format(func))
             return False
         return True
 
     def _sources(self, items):
-        """ Return the list of sources for the related items
-             [banners|entities|libraries], first trying subclass' one then
-             Console class' one. """
+        """ Return the list of sources for the related items [banners|entities|libraries], first trying subclass' one
+             then Console class' one. """
         try:
             return self.sources[items]
         except KeyError:
@@ -244,8 +233,7 @@ class Console(Entity, metaclass=MetaConsole):
         eccls._instance = getattr(eccls, "_instance", None) or eccls()
     
     def detach(self, eccls=None):
-        """ Detach an entity child class from the console and remove its
-             back-reference. """
+        """ Detach an entity child class from the console and remove its back-reference. """
         # if no argument, detach every class registered in self._attached
         if eccls is None:
             for subcls in Entity._subclasses:
@@ -266,14 +254,13 @@ class Console(Entity, metaclass=MetaConsole):
         return self.run(cmd, abort)
     
     def reset(self):
-        """ Setup commands for the current level, reset bindings between
-             commands and the current console then update store's object. """
+        """ Setup commands for the current level, reset bindings between commands and the current console then update
+             store's object. """
         self.detach("command")
         # setup level's commands, starting from general-purpose commands
         self.commands = {}
         # add commands
-        for n, c in chain(Command.commands.get("general", {}).items(),
-                          Command.commands.get(self.level, {}).items()):
+        for n, c in chain(Command.commands.get("general", {}).items(), Command.commands.get(self.level, {}).items()):
             self.attach(c)
             if self.level not in getattr(c, "except_levels", []) and c.check():
                 self.commands[n] = c
@@ -281,8 +268,7 @@ class Console(Entity, metaclass=MetaConsole):
                 self.detach(c)
         root = self.config.option('WORKSPACE').value
         # get the relevant store and bind it to loaded models
-        p = Path(root).joinpath("store.db")
-        Console.store = Console._storage.get(p)
+        Console.store = Console._storage.get(Path(root).joinpath("store.db"))
         # update command recorder's root directory
         self._recorder.root_dir = root
     
@@ -294,8 +280,8 @@ class Console(Entity, metaclass=MetaConsole):
             name, args = tokens[0], tokens[1:]
         except IndexError:
             return True
-        # get the command singleton instance (or abort if name not in
-        #  self.commands) ; if command arguments should not be split, adapt args
+        # get the command singleton instance (or abort if name not in self.commands) ; if command arguments should not
+        #  be split, adapt args
         try:
             obj = self.commands[name]._instance
         except KeyError:
@@ -312,20 +298,16 @@ class Console(Entity, metaclass=MetaConsole):
         except BdbQuit:  # when using pdb.set_trace()
             return True
         except ConsoleDuplicate as e:
-            # pass the higher console instance attached to the exception raised
-            #  from within a command's .run() execution to console's .start(),
-            #  keeping the current command to be reexecuted
-            raise ConsoleDuplicate(e.current, e.higher,
-                                   cmd if e.cmd is None else e.cmd)
+            # pass the higher console instance attached to the exception raised from within a command's .run() execution
+            #  to console's .start(), keeping the current command to be reexecuted
+            raise ConsoleDuplicate(e.current, e.higher, cmd if e.cmd is None else e.cmd)
         except ConsoleExit:
             return False
         except ValueError as e:
-            if str(e).startswith("invalid width ") and \
-               str(e).endswith(" (must be > 0)"):
+            if str(e).startswith("invalid width ") and str(e).endswith(" (must be > 0)"):
                 self.logger.warning("Cannot display ; terminal width too low")
             else:
-                (self.logger.exception if self.config.option('DEBUG').value \
-                 else self.logger.failure)(e)
+                (self.logger.exception if self.config.option('DEBUG').value else self.logger.failure)(e)
             return abort is False
         except Exception as e:
             self.logger.exception(e)
@@ -337,29 +319,25 @@ class Console(Entity, metaclass=MetaConsole):
         """ Start looping with console's session prompt. """
         reexec = None
         self._reset_logname()
-        self.logger.debug("Starting {}[{}]".format(self.__class__.__name__,
-                                                   id(self)))
+        self.logger.debug("Starting {}[{}]".format(self.__class__.__name__, id(self)))
         # execute attached module's pre-load function if relevant
         self._run_if_defined("preload")
         # now start the console loop
         while True:
             self._reset_logname()
             try:
-                _ = reexec if reexec is not None else \
-                    self._session.prompt(
+                c = reexec if reexec is not None else self._session.prompt(
                         auto_suggest=AutoSuggestFromHistory(),
-                        #bottom_toolbar="This is\na multiline toolbar",
-                        # important note: this disables terminal scrolling
+                        #bottom_toolbar="This is\na multiline toolbar", # note: this disables terminal scrolling
                         #mouse_support=True,
                     )
                 reexec = None
-                Console._recorder.save(_)
-                if not self.run(_):
+                Console._recorder.save(c)
+                if not self.run(c):
                     break  # console run aborted
             except ConsoleDuplicate as e:
-                # stop raising duplicate when reaching a console with a 
-                #  different level, then reset associated commands not to rerun
-                #  the erroneous one from the context of the just-exited console
+                # stop raising duplicate when reaching a console with a different level, then reset associated commands
+                #  not to rerun the erroneous one from the context of the just-exited console
                 if self == e.higher:   
                     reexec = e.cmd
                     self.reset()
@@ -393,8 +371,8 @@ class Console(Entity, metaclass=MetaConsole):
     def prompt(self):
         if self.parent is None:
             return self.message, self.style
-        # setup the prompt message by adding child's message tokens at the
-        #  end of parent's one (parent's last token is then re-appended)
+        # setup the prompt message by adding child's message tokens at the end of parent's one (parent's last token is
+        #  then re-appended)
         pmessage, pstyle = self.parent.prompt
         message = pmessage.copy()  # copy parent message tokens
         t = message.pop()
@@ -428,8 +406,7 @@ class ConsoleDuplicate(Exception):
     """ Dedicated exception class for exiting a duplicate (sub)console. """
     def __init__(self, current, higher, cmd=None):
         self.cmd, self.current, self.higher = cmd, current, higher
-        super(ConsoleDuplicate, self).__init__("Another console of the same "
-                                               "level is already running")
+        super(ConsoleDuplicate, self).__init__("Another console of the same level is already running")
 
 
 class ConsoleExit(Exception):
@@ -470,8 +447,7 @@ class FrameworkConsole(Console):
     })
 
     def __init__(self, appname=None, *args, **kwargs):
-        Console.appname = appname or \
-                          getattr(self, "appname", Console.appname)
+        Console.appname = appname or getattr(self, "appname", Console.appname)
         o, v = self.config.option('APP_FOLDER'), str(self.config['APP_FOLDER'])
         self.config[o] = Path(v.format(appname=self.appname.lower()))
         o.old_value = None
@@ -521,3 +497,4 @@ class FrameworkConsole(Console):
     def workspace(self):
         """ Shortcut to the current workspace. """
         return Path(self.config.option("WORKSPACE").value)
+

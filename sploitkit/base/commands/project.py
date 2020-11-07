@@ -20,14 +20,12 @@ class ProjectConsole(Console):
     def __init__(self, parent, name):
         self.logname = name
         self.message[1] = ('class:project', name)
-        self.config['WORKSPACE'] = str(Path(parent.config['WORKSPACE']) \
-                                       .joinpath(name))
+        self.config['WORKSPACE'] = str(Path(parent.config['WORKSPACE']).joinpath(name))
         super(ProjectConsole, self).__init__(parent)
 
 
 # ------------------------------ ROOT-LEVEL COMMANDS ---------------------------
-# These commands are available at the root level to reference a project
-#  (archive|create|select|...)
+# These commands are available at the root level to reference a project (archive|create|select|...)
 class RootCommand(Command):
     """ Proxy class for setting the level attribute. """
     level = "root"
@@ -47,8 +45,7 @@ class Archive(ProjectRootCommand):
         p = Path(self.workspace).joinpath(project)
         self.logger.debug("Archiving project '{}'...".format(project))
         ask = self.console.config.option("ENCRYPT_PROJECT").value
-        if save_to_archive(str(p), str(p) + ".zip", ask=ask, remove=True,
-                           logger=self.logger):
+        if save_to_archive(str(p), str(p) + ".zip", ask=ask, remove=True, logger=self.logger):
             self.logger.success("'{}' archived".format(project))
         else:
             self.logger.failure("'{}' not archived".format(project))
@@ -72,8 +69,7 @@ class Load(ProjectRootCommand):
         self.logger.debug("Loading archive '{}'...".format(project + ".zip"))
         archive = self.workspace.joinpath(project).with_suffix(".zip")
         ask = self.console.config.option("ENCRYPT_PROJECT").value
-        if load_from_archive(str(archive), str(self.workspace), ask=ask,
-                             remove=True, logger=self.logger):
+        if load_from_archive(str(archive), str(self.workspace), ask=ask, remove=True, logger=self.logger):
             self.logger.success("'{}' loaded".format(project))
         else:
             self.logger.failure("'{}' not loaded".format(project))
@@ -93,9 +89,8 @@ class Select(ProjectRootCommand):
     def run(self, project):
         p = self.workspace.joinpath(project)
         loader = Load()
-        if project in loader.complete_values() and \
-            confirm("An archive exists with this name ; load the archive "
-                    "instead ?"):
+        if project in loader.complete_values() and confirm("An archive with this name already exists ; "
+                                                           "do you want to load the archive instead ?"):
             loader.run(project)
         if not p.exists():
             self.logger.debug("Creating project '{}'...".format(project))
@@ -112,5 +107,5 @@ class Show(Command):
     values = ["options"]
     
     def run(self, value):
-        print_formatted_text(BorderlessTable(self.console.__class__.options,
-                                             "Console options"))
+        print_formatted_text(BorderlessTable(self.console.__class__.options, "Console options"))
+

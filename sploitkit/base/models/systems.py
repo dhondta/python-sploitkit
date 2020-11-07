@@ -36,3 +36,4 @@ class ServicePort(BaseModel):
     
     class Meta:
         primary_key = CompositeKey("service", "port")
+

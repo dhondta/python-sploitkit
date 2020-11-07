@@ -28,8 +28,7 @@ class MetaModel(ModelBase, MetaEntityBase):
 
 
 class BaseModel(PeeweeModel, Entity, metaclass=MetaModel):
-    """ Main class handling console store's base models (that is, without
-         pre-attached fields). """
+    """ Main class handling console store's base models (that is, without pre-attached fields). """
     pass
 
 
@@ -66,7 +65,8 @@ class StoreExtension(Entity, metaclass=MetaEntityBase):
     pass
 
 
-# source: https://stackoverflow.com/questions/34142550/sqlite-triggers-datetime-defaults-in-sql-ddl-using-peewee-in-python
+# source:
+#  https://stackoverflow.com/questions/34142550/sqlite-triggers-datetime-defaults-in-sql-ddl-using-peewee-in-python
 class Trigger(object):
     """Trigger template wrapper for use with peewee ORM."""
     _template = """
@@ -90,3 +90,4 @@ class Trigger(object):
 
     def __str__(self):
         return self._template.format(**self.__dict__)
+

@@ -16,8 +16,7 @@ class MetaModule(MetaEntity):
     
     def __new__(meta, name, bases, clsdict):
         subcls = type.__new__(meta, name, bases, clsdict)
-        # compute module's path from its root folder if no path attribute
-        #  defined on its class
+        # compute module's path from its root folder if no path attribute defined on its class
         if not hasattr(subcls, "path") or subcls.path is None:
             p = Path(getfile(subcls)).parent
             # collect the source temporary attribute
@@ -26,17 +25,15 @@ class MetaModule(MetaEntity):
                 subcls.path = str(p.relative_to(Path(s)))
             except ValueError:
                 subcls.path = None
-        # then pass the subclass with its freshly computed path attribute to the
-        #  original __new__ method, for registration in subclasses and in the
-        #  list of modules
+        # then pass the subclass with its freshly computed path attribute to the original __new__ method, for
+        #  registration in subclasses and in the list of modules
         super(MetaModule, meta).__new__(meta, name, bases, clsdict, subcls)
         return subcls
 
     @property
     def base(self):
         """ Module's category. """
-        return str(Path(self.fullpath).child) if self.category != "" else \
-               self.name
+        return str(Path(self.fullpath).child) if self.category != "" else self.name
     
     @property
     def category(self):
@@ -64,8 +61,7 @@ class MetaModule(MetaEntity):
     def search(self, text):
         """ Search for text in module's attributes. """
         t = text.lower()
-        return any(t in "".join(v).lower() for v in self._metadata.values()) \
-            or t in self.fullpath
+        return any(t in "".join(v).lower() for v in self._metadata.values()) or t in self.fullpath
 
 
 class Module(Entity, metaclass=MetaModule):
@@ -94,20 +90,18 @@ class Module(Entity, metaclass=MetaModule):
     
     @classmethod
     def get_count(cls, path=None, **attrs):
-        """ Count the number of modules under the given path and matching
-             attributes. """
+        """ Count the number of modules under the given path and matching attributes. """
         return cls.modules.count(path, **attrs)
-
+    
     @classmethod
     def get_help(cls, category=None):
         """ Display command's help, using its metaclass' properties. """
-        _ = cls.modules
-        categories = _.keys() if category is None else [category]
+        m = cls.modules
+        categories = m.keys() if category is None else [category]
         s, i = "", 0
         for c in categories:
             d = [["Name", "Path", "Enabled", "Description"]]
-            for n, m in sorted(flatten(_.get(c, {})).items(),
-                               key=lambda x: x[1].name):
+            for n, m in sorted(flatten(m.get(c, {})).items(), key=lambda x: x[1].name):
                 e = ["N", "Y"][m.enabled]
                 d.append([m.name, m.subpath, e, m.description])
             t = BorderlessTable(d, "{} modules".format(c.capitalize()))
@@ -143,14 +137,14 @@ class Module(Entity, metaclass=MetaModule):
                 s += ("\t-=[ {: <" + str(mlen) + "} ]=-\n").format(line)
             return s
         return ""
-
+    
     @classmethod
     def register_module(cls, subcls):
         """ Register a Module subclass to the dictionary of modules. """
         if subcls.path is None:
             return  # do not consider orphan modules
         cls.modules[subcls.path, subcls.name] = subcls
-
+    
     @classmethod
     def unregister_module(cls, subcls):
         """ Unregister a Module subclass from the dictionary of modules. """
@@ -161,11 +155,12 @@ class Module(Entity, metaclass=MetaModule):
             pass
     
     def _feedback(self, success, failmsg):
-        """ Dummy feedback method using a fail-message formatted with the "not"
-             keyword (to be replaced by a null string in case of success). """
+        """ Dummy feedback method using a fail-message formatted with the "not" keyword (to be replaced by a null string
+             in case of success). """
         if success is None:
             return
         elif success:
             self.logger.success(failmsg.replace("not ", ""))
         else:
             self.logger.failure(failmsg)
+

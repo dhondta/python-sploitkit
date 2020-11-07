@@ -69,22 +69,21 @@ class MetaCommand(MetaEntity):
     @property
     def name(self):
         """ Command name, according to the defined style. """
-        _ = self.__name__
+        n = self.__name__
         if self.style == "lowercase":
-            _ = _.lower()
+            n = n.lower()
         elif self.style in ["powershell", "slugified"]:
-            _ = re.sub(r'(.)([A-Z][a-z]+)', r'\1-\2', _)
-            _ = re.sub(r'([a-z0-9])([A-Z])', r'\1-\2', _)
-            _ = _.lower() if self.style == "slugified" else _
+            n = re.sub(r'(.)([A-Z][a-z]+)', r'\1-\2', _)
+            n = re.sub(r'([a-z0-9])([A-Z])', r'\1-\2', _)
+            n = n.lower() if self.style == "slugified" else n
         elif self.style == "uppercase":
-            _ = _.upper()
-        return _
+            n = n.upper()
+        return n
 
 
 class Command(Entity, metaclass=MetaCommand):
     """ Main class handling console commands. """
-    # convention: mangled attributes should not be customized when subclassing
-    #              Command...
+    # convention: mangled attributes should not be customized when subclassing Command...
     _functionalities = FUNCTIONALITIES
     _levels          = []
     # ... by opposition to public class attributes that can be tuned
@@ -97,8 +96,7 @@ class Command(Entity, metaclass=MetaCommand):
     
     @property
     def _nargs(self):
-        """ Get run's signature info (n = number of args,
-                                      m = number of args with no default). """
+        """ Get run's signature info (n = number of args, m = number of args with no default). """
         argspec = getfullargspec(self.run)
         n = len(argspec.args) - 1  # substract 1 for self
         return n, n - len(argspec.defaults or ())
@@ -111,9 +109,8 @@ class Command(Entity, metaclass=MetaCommand):
     @property
     def config(self):
         """ Shortcut to bound console's config instance. """
-        return self.module.config if hasattr(self, "module") and \
-                                     self.module is not None else \
-               self.__class__.console.__class__.config
+        m = getattr(self, "module", None)
+        return self.module.config if m is not None else self.__class__.console.__class__.config
     
     @property
     def files(self):
@@ -149,9 +146,8 @@ class Command(Entity, metaclass=MetaCommand):
     @classmethod
     def check_applicability(cls):
         """ Check for Command's applicability. """
-        _ = getattr(cls, "applies_to", [])
-        return len(_) == 0 or not hasattr(cls, "console") or \
-               cls.console.module.fullpath in _
+        a = getattr(cls, "applies_to", [])
+        return len(_) == 0 or not hasattr(cls, "console") or cls.console.module.fullpath in a
 
     @classmethod
     def get_help(cls, *levels, **kwargs):
@@ -160,15 +156,14 @@ class Command(Entity, metaclass=MetaCommand):
             levels = Command._levels
         if len(levels) == 2 and "general" in levels:
             # process a new dictionary of commands, handling levels in order
-            _ = {}
+            d = {}
             for l in levels:
                 for n, c in cls.commands.get(l, {}).items():
-                    if c.level != "general" or all(l not in levels for l in \
-                                                   c.except_levels):
-                        _[n] = c
+                    if c.level != "general" or all(l not in levels for l in c.except_levels):
+                        d[n] = c
             # then rebuild the dictionary by levels from this dictionary
             levels = {"general": {}, "specific": {}}
-            for n, c in _.items():
+            for n, c in d.items():
                 levels[["specific", "general"][c.level == "general"]][n] = c
         else:
             _, levels = levels, {}
@@ -193,8 +188,8 @@ class Command(Entity, metaclass=MetaCommand):
     def register_command(cls, subcls):
         """ Register the command and its aliases in a dictionary according to
              its level. """
-        _ = subcls.level
-        levels = [_] if not isinstance(_, (list, tuple)) else _
+        l = subcls.level
+        levels = [l] if not isinstance(l, (list, tuple)) else l
         for l in levels:
             Command.commands.setdefault(l, {})
             if l not in Command._levels:
@@ -208,16 +203,14 @@ class Command(Entity, metaclass=MetaCommand):
     def set_style(cls, style):
         """ Set the style of command name. """
         if style not in COMMAND_STYLES:
-            raise ValueError("Command style must be one of the followings: [{}]"
-                             .format("|".join(COMMAND_STYLES)))
+            raise ValueError("Command style must be one of the followings: [{}]".format("|".join(COMMAND_STYLES)))
         MetaCommand.style = style
     
     @classmethod
     def unregister_command(cls, subcls):
-        """ Unregister a command class from the subclasses and the commands
-             dictionary. """
-        _ = subcls.level
-        levels = [_] if not isinstance(_, (list, tuple)) else _
+        """ Unregister a command class from the subclasses and the commands dictionary. """
+        l = subcls.level
+        levels = [l] if not isinstance(l, (list, tuple)) else l
         n = subcls.name
         # remove every reference in commands dictionary
         for l in levels:
@@ -244,21 +237,20 @@ class Command(Entity, metaclass=MetaCommand):
     
     @classmethod
     def unregister_commands(cls, *identifiers):
-        """ Unregister items from Command based on their 'identifiers'
-            (functionality or level/name). """
+        """ Unregister items from Command based on their 'identifiers' (functionality or level/name). """
         for i in identifiers:
-            _ = i.split("/", 1)
+            pair = i.split("/", 1)
             try:
-                l, n = _           # level, name
+                l, n = pair           # level, name
             except ValueError:
-                f, n = _[0], None  # functionality
+                f, n = pair[0], None  # functionality
             # apply deletions
             if n is None:
                 if f not in cls._functionalities:
                     raise ValueError("Unknown functionality {}".format(f))
-                _ = "../base/commands/" + f + ".py"
-                _ = Path(__file__).parent.joinpath(_).resolve()
-                for c in PyModulePath(str(_)).get_classes(Command):
+                p = "../base/commands/" + f + ".py"
+                p = Path(__file__).parent.joinpath(p).resolve()
+                for c in PyModulePath(str(p)).get_classes(Command):
                     Command.unregister_command(c)
             else:
                 try:
@@ -284,17 +276,14 @@ class Command(Entity, metaclass=MetaCommand):
         self.validate(*args)
 
     def complete_keys(self):
-        """ Default key completion method.
-             (will be triggered if the number of run arguments is 2) """
-        return getattr(self, "keys", []) or \
-               list(getattr(self, "values", {}).keys())
+        """ Default key completion method (will be triggered if the number of run arguments is 2). """
+        return getattr(self, "keys", []) or list(getattr(self, "values", {}).keys())
     
     def complete_values(self, key=None):
         """ Default value completion method. """
         if self._nargs[0] == 1:
             if key is not None:
-                raise TypeError("complete_values() takes 1 positional argument "
-                                "but 2 were given")
+                raise TypeError("complete_values() takes 1 positional argument but 2 were given")
             return getattr(self, "values", [])
         if self._nargs[0] == 2:
             return getattr(self, "values", {}).get(key)
@@ -314,17 +303,14 @@ class Command(Entity, metaclass=MetaCommand):
         n_in = len(args)
         n, m = self._nargs
         if n_in < m or n_in > n:
-            pargs = "from %d to %d" % (m, n) if n != m else "%d" % n
-            raise TypeError("validate() takes %s positional argument%s but %d "
-                            "were given" % (pargs, ["", "s"][n > 0], n_in))
+            p = "from %d to %d" % (m, n) if n != m else "%d" % n
+            raise TypeError("validate() takes %s positional argument%s but %d were given" % (p, ["", "s"][n > 0], n_in))
         if n == 1:    # command format: COMMAND VALUE
-            l = self.complete_values() or []
-            if n_in == 1 and len(l) > 0 and args[0] not in l:
+            if n_in == 1 and len(l) > 0 and args[0] not in (self.complete_values() or []):
                 raise ValueError("invalid value")
         elif n == 2:  # command format: COMMAND KEY VALUE
-            l = self.complete_keys() or []
-            if n_in > 0 and len(l) > 0 and args[0] not in l:
+            if n_in > 0 and len(l) > 0 and args[0] not in (self.complete_keys() or []):
                 raise ValueError("invalid key")
-            l = self.complete_values(args[0]) or []
-            if n_in == 2 and len(l) > 0 and args[1] not in l:
+            if n_in == 2 and len(l) > 0 and args[1] not in (self.complete_values(args[0]) or []):
                 raise ValueError("invalid value")
+

@@ -41,3 +41,4 @@ class UserPassword(BaseModel):
 #class PasswordsStorage(StoreExtension):
 #    def set_password(self, password):
 #        Password.insert(password=password).execute()
+

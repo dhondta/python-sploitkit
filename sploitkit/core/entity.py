@@ -20,16 +20,13 @@ ent_id = lambda c: (getattr(c, "__file__", getfile(c)), c.__name__)
 
 
 def load_entities(entities, *sources, **kwargs):
-    """ Load every entity class of the given type found in the given source
-         folders.
+    """ Load every entity class of the given type found in the given source folders.
     
-    :param sources:       paths (either with ~, relative or absolute) to folders
-                           containing entity subclasses
+    :param sources:       paths (either with ~, relative or absolute) to folders containing entity subclasses
     :param include_base:  include the base entities provided with the package
     :param select:        selected modules in the source folder
-    :param exclude:       list of entity identifiers (in custom format, or
-                           simply the entity class) to be excluded (useful when
-                           including the base but not every entity is required)
+    :param exclude:       list of entity identifiers (in custom format, or simply the entity class) to be excluded
+                           (useful when including the base but not every entity is required)
     :param backref:       list of attrs to get entity's class to be bound to
     :param docstr_parser: user-defined docstring parser for populating metadata
     """
@@ -37,8 +34,7 @@ def load_entities(entities, *sources, **kwargs):
     ENTITIES = [e.__name__ for e in entities]
     sources = list(sources)
     if kwargs.get("include_base", True):
-        # this allows to use sploitkit.base for starting a project with a
-        #  baseline of entities
+        # this allows to use sploitkit.base for starting a project with a baseline of entities
         for n in ENTITIES:
             n = n.lower()
             for m in kwargs.get("select", {}).get(n, [""]):
@@ -53,14 +49,12 @@ def load_entities(entities, *sources, **kwargs):
         source = Path(s).expanduser().resolve()
         if not source.exists():
             continue
-        # bind the source to the entity main class as, when MetaEntity.__new__
-        #  is called, the source is not passed from the PyFolderPath to child
-        #  PyModulePath instances ; this way, the entity path can be determined
+        # bind the source to the entity main class as, when MetaEntity.__new__ is called, the source is not passed from
+        #  the PyFolderPath to child PyModulePath instances ; this way, the entity path can be determined
         for e in entities:
             e._source = str(source)
-        # now, it loads every Python module from the list of source folders ;
-        #  when loading entity subclasses, these are registered to entity's
-        #  registry for further use (i.e. from the console)
+        # now, it loads every Python module from the list of source folders ; when loading entity subclasses, these are
+        #  registered to entity's registry for further use (i.e. from the console)
         PyModulePath(source) if source.suffix == ".py" else PyFolderPath(source)
     for e in entities:
         tbr = []
@@ -71,21 +65,16 @@ def load_entities(entities, *sources, **kwargs):
         n = e.__name__.lower()
         for c in e.subclasses[:]:
             if len(c.__subclasses__()) > 0:
-                getattr(e, "unregister_{}".format(n),
-                        Entity.unregister_subclass)(c)
-        # handle specific entities or sets of entities exclusions ; this will
-        #  remove them from Entity's registries
+                getattr(e, "unregister_{}".format(n), Entity.unregister_subclass)(c)
+        # handle specific entities or sets of entities exclusions ; this will remove them from Entity's registries
         excludes = kwargs.get("exclude", {}).get(n)
         if excludes is not None:
-            getattr(e, "unregister_{}s".format(n),
-                    Entity.unregister_subclasses)(*excludes)
-        # handle conditional entities ; this will remove entities having a
-        #  "condition" method returning False
+            getattr(e, "unregister_{}s".format(n), Entity.unregister_subclasses)(*excludes)
+        # handle conditional entities ; this will remove entities having a "condition" method returning False
         for c in e.subclasses[:]:
             # convention: conditional entities are unregistered and removed
             if hasattr(c, "condition") and not c().condition():
-                getattr(e, "unregister_{}".format(n),
-                        Entity.unregister_subclass)(c)
+                getattr(e, "unregister_{}".format(n), Entity.unregister_subclass)(c)
         # now populate metadata for each class
         for c in e.subclasses:
             set_metadata(c, kwargs.get("docstr_parser", lambda s: {}))
@@ -98,12 +87,10 @@ def load_entities(entities, *sources, **kwargs):
                         a, bn = br  # [a]ttribute, [b]ackref [n]ame
                     except ValueError:
                         a, bn = None, br[0] if isinstance(br, tuple) else br
-                    bc = list(filter(lambda _: _.__name__.lower() == bn,
-                                     entities))[0]  # [b]ackref [c]lass
-                    v = lambda: bc._instance
+                    bc = list(filter(lambda _: _.__name__.lower() == bn, entities))[0]  # [b]ackref [c]lass
                     if a and getattr(c, a, None):
                         c = getattr(c, a)
-                    setattr(c, bn, v)
+                    setattr(c, bn, lambda: bc._instance)
     # then trigger garbage collection (for removed classes)
     gc.collect()
 
@@ -116,8 +103,7 @@ def set_metadata(c, docstr_parser):
     """
     # populate metadata starting by parsing entity class' docstring
     c._metadata = docstr_parser(c)
-    # "meta" or "metadata" attributes then have precedence on the docstr
-    #  (because of .update())
+    # "meta" or "metadata" attributes then have precedence on the docstr (because of .update())
     for a in ["meta", "metadata"]:
         if hasattr(c, a):
             c._metadata.update(getattr(c, a))
@@ -127,8 +113,7 @@ def set_metadata(c, docstr_parser):
         try:
             name, default, required, description = o
         except ValueError:
-            raise ValueError("Bad option ; should be (name, default, "
-                             "required, description)")
+            raise ValueError("Bad option ; should be (name, default, required, description)")
         c.config[Option(name, description, required)] = default
     # dynamically declare properties for each metadata field
     for attr, value in c._metadata.items():
@@ -163,8 +148,7 @@ class Entity(object):
         if name == "config" and getattr(self.__class__, "_has_config", False):
             c = ProxyConfig(self.__class__.config)
             # merge parent config if relevant
-            if hasattr(self, "parent") and self.parent is not None and \
-                self.parent is not self:
+            if hasattr(self, "parent") and self.parent is not None and self.parent is not self:
                 c += self.parent.config
             # back-reference the entity
             setattr(c, self.__class__.entity, self)
@@ -173,14 +157,12 @@ class Entity(object):
     
     @property
     def applicable(self):
-        """ Boolean indicating if the entity is applicable to the current
-             context (i.e. of attached entities). """
+        """ Boolean indicating if the entity is applicable to the current context (i.e. of attached entities). """
         return self.__class__._applicable
     
     @property
     def base_class(self):
-        """ Shortcut for accessing the Entity class, for use instead of __base__
-             which only leads to the direct base class. """
+        """ Shortcut for accessing Entity, for use instead of __base__ which only leads to the direct base class. """
         return Entity
     
     @property
@@ -190,8 +172,7 @@ class Entity(object):
     
     @property
     def enabled(self):
-        """ Boolean indicating if the entity is enabled (i.e. if it has no
-             missing requirement. """
+        """ Boolean indicating if the entity is enabled (i.e. if it has no missing requirement. """
         return self.__class__.enabled
     
     @classmethod
@@ -254,12 +235,11 @@ class Entity(object):
                     skeys = v
                 else:
                     raise ValueError("Bad state requirements")
-                # catch Console from Entity's registered subclasses as Console
-                #  cannot be imported in this module (cfr circular import)
+                # catch Console from Entity's registered subclasses as Console cannot be imported in this module (cfr
+                #  circular import)
                 Console = cls.get_class("Console")
                 _tmp = []
-                # e.g. sk=INTERFACES and
-                #      sv={None:[True,None,None]}
+                # e.g. sk=INTERFACES and sv={None:[True,None,None]}
                 for sk, sv in skeys.items():
                     # check if the state key exists
                     if sk not in Console._state.keys():
@@ -284,14 +264,12 @@ class Entity(object):
                                 # e.g. ssv=[True,None,None]
                                 ssv = l[0][1]
                                 if isinstance(ssv, (tuple, list)):
-                                    # e.g. this zips [True,None,None] and
-                                    #       [False,None,"[MAC_addr]"] together
+                                    # e.g. this zips [True,None,None] and [False,None,"[MAC_addr]"] together
                                     found = False
                                     for values in zip(ssv, *list(cs.values())):
                                         ref = values[0]
                                         # None positional values are ignored
-                                        if ref is not None and \
-                                           ref in values[1:]:
+                                        if ref is not None and ref in values[1:]:
                                             found = True
                                     if not found:
                                         _tmp.append("{}?{}".format(sk, ref))
@@ -308,8 +286,7 @@ class Entity(object):
                                                 found = True
                                                 break
                                         if not found:
-                                            v = "{}:{}".format(sssk, sssv)
-                                            v = [v, sssv][sssv is None]
+                                            v = ["{}:{}".format(sssk, sssv), sssv][sssv is None]
                                             _tmp.append("{}?{}".format(sk, v))
                                 elif ssv not in cs.values():
                                     _tmp.append("{}?{}".format(sk, ssv))
@@ -353,10 +330,10 @@ class Entity(object):
             else:
                 # format: ("attr1", "attr2", ..., "attrN", "value")
                 #   e.g.: ("module", "fullpath", "my/module/do_something")
-                for _ in getattr(cls, "applies_to", []):
-                    _, must_match, value = list(_[:-1]), _[-1], cls
-                    while len(_) > 0:
-                        value = getattr(value, _.pop(0), None)
+                for l in getattr(cls, "applies_to", []):
+                    l, must_match, value = list(l[:-1]), l[-1], cls
+                    while len(l) > 0:
+                        value = getattr(value, l.pop(0), None)
                     if value and value == must_match:
                         cls._applicable = True
                         break
@@ -364,8 +341,7 @@ class Entity(object):
     
     @classmethod
     def get_class(cls, name):
-        """ Get a class (key) from _subclasses by name (useful when the related
-             class is not imported in the current scope). """
+        """ Get a class (key) from _subclasses by name (useful when the class is not imported in the current scope). """
         return Entity._subclasses.key(name)
     
     @classmethod
@@ -373,14 +349,11 @@ class Entity(object):
         """ Display entity's metadata and other information.
         
         :param fields:   metadata fields to be output
-        :param show_all: also include unselected fields, to be output behind the
-                          list of selected fields
+        :param show_all: also include unselected fields, to be output behind the list of selected fields
         """
         t = ""
         if len(fields) == 0:
-            fields = [("name", "description"),
-                      ("author", "email", "version", "comments"),
-                      ("options",)]
+            fields = [("name", "description"), ("author", "email", "version", "comments"), ("options",)]
         # make a data table with the given fields and corresponding values
         data, __used = [], []
         _ = lambda s: s.capitalize() + ":"
@@ -406,8 +379,7 @@ class Entity(object):
                 add_blankline = True
             if add_blankline:
                 data.append(["", ""])
-        t = BorderlessTable(data, header=False).table + "\n" if len(data) > 0 \
-            else ""
+        t = BorderlessTable(data, header=False).table + "\n" if len(data) > 0 else ""
         # add other metadata if relevant
         if show_all:
             unused = set(cls._metadata.keys()) - set(__used)
@@ -438,37 +410,32 @@ class Entity(object):
                 if len(item) == 1:
                     return "'{}' state key is not defined".format(item[0])
                 elif item[1] == "=":
-                    return "'{}' state key does not match the expected " \
-                           "value '{}'".format(item[0], item[2])
+                    return "'{}' state key does not match the expected value '{}'".format(item[0], item[2])
                 elif item[1] == "?":
-                    return "'{}' state key is expected to have value '{}'" \
-                           " at least once".format(item[0], item[2])
+                    return "'{}' state key is expected to have value '{}' at least once".format(item[0], item[2])
         # list issues using the related class method
         t = "\n"
         d = OrderedDict()
-        # this regroups class names for error dictionaries that are the same in
-        #  order to aggregate issues
+        # this regroups class names for error dictionaries that are the same in order to aggregate issues
         for cname, scname, errors in Entity.issues(subcls_name, category):
             e = str(errors)
             d.setdefault(e, {})
             d[e].setdefault(cname, [])
             d[e][cname].append(scname)
-        # this then displays the issues with their list of related entities
-        #  having these same issues
+        # this then displays the issues with their list of related entities having these same issues
         for _, names in d.items():
             errors = list(Entity.issues(list(names.values())[0][0]))[0][-1]
             t = ""
             for cname, scnames in names.items():
                 cname += ["", "s"][len(scnames) > 1]
                 t += "{}: {}\n".format(cname, ", ".join(sorted(scnames)))
-            t += "- " + "\n- ".join(msg(scname, k, e) for k, err in \
-                                    errors.items() for e in err) + "\n"
+            t += "- " + "\n- ".join(msg(scname, k, e) for k, err in errors.items() for e in err) + "\n"
         return "" if t.strip() == "" else t
-
+    
     @classmethod
     def get_subclass(cls, key, name):
-        """ Get a subclass (value) from _subclasses by name (useful when the
-             related class is not imported in the current scope). """
+        """ Get a subclass (value) from _subclasses by name (useful when the related class is not imported in the
+             current scope). """
         return Entity._subclasses.value(key, name)
     
     @classmethod
@@ -483,14 +450,12 @@ class Entity(object):
         """ List issues encountered while checking all the entities. """
         cls.check()
         sc = Entity._subclasses
-        for c, l in sc.items() if cls is Entity else \
-                      [cls, cls.subclasses] if cls in sc.keys() \
+        for c, l in sc.items() if cls is Entity else [cls, cls.subclasses] if cls in sc.keys() \
                       else [(cls._entity_class, [cls])]:
             for subcls in l:
                 e = {}
                 for b in subcls.__bases__:
-                    # do not consider base classes without the issues method
-                    #  (e.g. mixin classes)
+                    # do not consider base classes without the issues method (e.g. mixin classes)
                     if not hasattr(b, "issues"):
                         continue
                     # break when at parent entity level
@@ -513,28 +478,25 @@ class Entity(object):
                     n = subcls.__name__
                     if subcls_name in [None, n]:
                         yield c.__name__, n, e
-
+    
     @classmethod
     def register_subclass(cls, subcls):
         """ Maintain a registry of subclasses inheriting from Entity. """
         # get the base entity class
         ecls = subcls._entity_class
         Entity._subclasses.setdefault(ecls, [])
-        # now register the subcls, ensured to be an end-subclass of the entity,
-        #  avoiding duplicates (based on the source path and the class name)
+        # now register the subcls, ensured to be an end-subclass of the entity, avoiding duplicates (based on the source
+        #  path and the class name)
         if ent_id(subcls) not in list(map(ent_id, Entity._subclasses[ecls])):
-            # the following line is necessary because of the issue with
-            #  inspect.getfile when multiple classes with the same name are
-            #  imported from different modules ; this way, __file__ attribute
-            #  (not attached by default for a class) is checked first before
-            #  trying getfile(...)
+            # the following line is necessary because of the issue with inspect.getfile when multiple classes with the
+            #  same name are imported from different modules ; this way, __file__ attribute (not attached by default for
+            #  a class) is checked first before trying getfile(...)
             subcls.__file__ = getfile(subcls)
             Entity._subclasses[ecls].append(subcls)
         # back-reference the entity from its config if existing
         if getattr(cls, "_has_config", False):
-            setattr(subcls.config, "_" + subcls.entity,
-                    lambda: subcls._instance)
-
+            setattr(subcls.config, "_" + subcls.entity, lambda: subcls._instance)
+    
     @classmethod
     def unregister_subclass(cls, subcls):
         """ Remove an entry from the registry of subclasses. """
@@ -543,7 +505,7 @@ class Entity(object):
                 Entity._subclasses[cls].remove(subcls)
             except ValueError:
                 pass
-
+    
     @classmethod
     def unregister_subclasses(cls, *subclss):
         """ Remove entries from the registry of subclasses. """
@@ -552,8 +514,7 @@ class Entity(object):
     
     def run(self, *args, **kwargs):
         """ Generic method for running Entity's logic. """
-        raise NotImplementedError("{}'s run() method is not implemented"
-                                  .format(self.__class__.__name__))
+        raise NotImplementedError("{}'s run() method is not implemented".format(self.__class__.__name__))
 
 
 class MetaEntityBase(type):
@@ -568,14 +529,12 @@ class MetaEntityBase(type):
             if len(mro_bases) <= 2 or subcls.__name__ in ENTITIES:
                 return subcls
             # set the base entity class
-            ecls = [c for c in mro_bases if c.__name__ in ENTITIES][0]
-            subcls._entity_class = ecls
+            subcls._entity_class = [c for c in mro_bases if c.__name__ in ENTITIES][0]
             # trigger class registration
             for b in bases:
                 for a in dir(b):
                     m = getattr(b, a)
-                    if callable(m) and any(a == "register_{}".format(w.lower())\
-                                           for w in ["subclass"] + ENTITIES):
+                    if callable(m) and any(a == "register_{}".format(w.lower()) for w in ["subclass"] + ENTITIES):
                         m(subcls)
         return subcls
     
@@ -617,15 +576,13 @@ class MetaEntity(MetaEntityBase):
     
     @property
     def applicable(self):
-        """ Boolean indicating if the entity is applicable to the current
-             context (i.e. of attached entities). """
+        """ Boolean indicating if the entity is applicable to the current context (i.e. of attached entities). """
         self.check()
         return self._applicable
     
     @property
     def enabled(self):
-        """ Boolean indicating if the entity is enabled (i.e. if it has no
-             missing requirement. """
+        """ Boolean indicating if the entity is enabled (i.e. if it has no missing requirement. """
         self.check()
         return self._enabled
     
@@ -637,8 +594,7 @@ class MetaEntity(MetaEntityBase):
     @property
     def name(self):
         """ Normalized entity subclass name. """
-        _ = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', self.__name__)
-        return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', _).lower()
+        return re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', self.__name__)).lower()
     
     @property
     def options(self):
@@ -649,3 +605,4 @@ class MetaEntity(MetaEntityBase):
                 if v is None or n == v:
                     data.append([n, v, ["N", "Y"][r], d])
             return data
+

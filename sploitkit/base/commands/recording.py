@@ -12,8 +12,7 @@ class RecordStatus(Command):
     values = ["status"]
 
     def run(self, status):
-        _ = ["disabled", "enabled"][self.recorder.enabled]
-        self.logger.info("Recording is {}".format(_))
+        self.logger.info("Recording is {}".format(["disabled", "enabled"][self.recorder.enabled]))
 
 
 # ------------------------------ ROOT-LEVEL COMMANDS ---------------------------
@@ -37,8 +36,7 @@ class Record(RootProjectCommand):
         elif key == "stop":
             self.recorder.stop()
         elif key == "status":
-            _ = ["disabled", "enabled"][self.recorder.enabled]
-            self.logger.info("Recording is {}".format(_))
+            self.logger.info("Recording is {}".format(["disabled", "enabled"][self.recorder.enabled]))
     
     def validate(self, key, rcfile=None):
         if key == "start":
@@ -57,8 +55,8 @@ class Replay(RootProjectCommand):
         return [x.name for x in Path(self.workspace).iterfiles(".rc")]
 
     def run(self, rcfile):
-        self.logger.debug("Replaying commands from file '{}'..."
-                          .format(rcfile))
+        self.logger.debug("Replaying commands from file '{}'...".format(rcfile))
         with open(rcfile) as f:
             for cmd in f:
                 self.parent.execute(cmd, True)
+

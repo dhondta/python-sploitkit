@@ -30,3 +30,4 @@ class Help(Command):
         if category is None and value is None:
             return
         super(Help, self).validate(category, value)
+

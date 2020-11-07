@@ -48,3 +48,4 @@ class EmployeeUser(BaseModel):
     
     class Meta:
         primary_key = CompositeKey("employee", "user")
+

@@ -165,8 +165,8 @@ class Memory(DevCommand):
         if key == "graph":
             from objgraph import show_refs
             if value is None:
-                show_refs(self.console if self.console.parent is None else \
-                          self.console.parent, refcounts=True, max_depth=3)
+                p = self.console.parent
+                show_refs(self.console if p is None else p, refcounts=True, max_depth=3)
             else:
                 show_refs(obj, refcounts=True, max_depth=3)
         elif key == "growth":
@@ -197,3 +197,4 @@ class Memory(DevCommand):
                 raise ValueError("bad object")
         elif value:
             raise ValueError("this key takes no value")
+

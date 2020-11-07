@@ -119,11 +119,9 @@ class Set(Command):
     
     def run(self, key, value):
         self.config[key] = value
-        self.logger.success("{} => {}"
-                            .format(key, self.config.option(key).value))
+        self.logger.success("{} => {}".format(key, self.config.option(key).value))
         if hasattr(self.config, "_last_error"):
-            self.logger.warning("Callback error: {}"
-                                .format(self.config._last_error))
+            self.logger.warning("Callback error: {}".format(self.config._last_error))
     
     def validate(self, key, value):
         if key not in self.config.keys():
@@ -147,6 +145,6 @@ class Unset(Command):
     def validate(self, key):
         if key not in self.config.keys():
             raise ValueError("invalid key")
-        r = self.config.option(key).required
-        if r and value is None:
+        if self.config.option(key).required and value is None:
             raise ValueError("a value is required")
+
