@@ -17,3 +17,4 @@ class CustomLayout(object):
         self.layout = console._session.app.layout
         #self.layout.container.children = self.layout.container.children[:-1]
         #print(self.layout.container.children)
+

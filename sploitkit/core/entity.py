@@ -6,11 +6,9 @@ from collections import OrderedDict
 from importlib.util import find_spec
 from inspect import getfile, getmro
 from shutil import which
+from tinyscript.helpers import merge_dictionaries, BorderlessTable, ClassRegistry, Path, PythonPath
 
 from .components.config import Config, Option, ProxyConfig
-from ..utils.dict import merge_dictionaries, ClassRegistry
-from ..utils.objects import BorderlessTable
-from ..utils.path import *
 
 
 __all__ = ["load_entities", "Entity", "MetaEntity", "MetaEntityBase"]
@@ -55,7 +53,7 @@ def load_entities(entities, *sources, **kwargs):
             e._source = str(source)
         # now, it loads every Python module from the list of source folders ; when loading entity subclasses, these are
         #  registered to entity's registry for further use (i.e. from the console)
-        PyModulePath(source) if source.suffix == ".py" else PyFolderPath(source)
+        PythonPath(source)
     for e in entities:
         tbr = []
         # clean up the temporary attribute

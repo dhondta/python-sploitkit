@@ -1,9 +1,8 @@
 # -*- coding: UTF-8 -*-
 from inspect import getfile
+from tinyscript.helpers import BorderlessTable, Path, PathBasedDict
 
 from .entity import Entity, MetaEntity
-from ..utils import *
-from ..utils.dict import PathBasedDict
 
 
 __all__ = ["Module"]

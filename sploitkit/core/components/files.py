@@ -1,9 +1,9 @@
 # -*- coding: UTF-8 -*-
 import requests
 from ftplib import FTP, FTP_TLS
+from tinyscript.helpers import Path, TempPath
 
 from ...utils.misc import edit_file, page_file
-from ...utils.path import Path, TempPath
 
 __all__ = ["FilesManager"]
 
@@ -89,3 +89,4 @@ class FilesManager(dict):
     def view(self, key):
         """ View a file with PyPager. """
         page_text(self[key])
+

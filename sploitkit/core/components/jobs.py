@@ -10,8 +10,7 @@ from sploitkit.core.components.logger import null_logger
 __all__ = ["JobsPool"]
 
 
-communicate = lambda p, **i: tuple(map(lambda x: x.decode().strip(),
-                                       p.communicate(**i)))
+communicate = lambda p, **i: tuple(map(lambda x: x.decode().strip(), p.communicate(**i)))
 
 
 class Job(subprocess.Popen):
@@ -21,8 +20,7 @@ class Job(subprocess.Popen):
         if debug:
             c = " ".join(cmd) if isinstance(cmd, (tuple, list)) else cmd
             self.parent.logger.debug(c)
-        cmd = shlex.split(cmd) if isinstance(cmd, string_types) and \
-                                  not kwargs.get('shell', False) else cmd
+        cmd = shlex.split(cmd) if isinstance(cmd, string_types) and not kwargs.get('shell', False) else cmd
         super(Job, self).__init__(cmd, stdout=subprocess.PIPE, **kwargs)
         self._debug = debug
     
@@ -64,8 +62,7 @@ class JobsPool(object):
             com_kw['timeout'] = timeout
         out, err = "", ""
         try:
-            out, err = tuple(map(lambda x: x.decode().strip(),
-                                 p.communicate(**com_kw)))
+            out, err = tuple(map(lambda x: x.decode().strip(), p.communicate(**com_kw)))
         except (KeyboardInterrupt, subprocess.TimeoutExpired):
             out = []
             for line in iter(p.stdout.readline, ""):
@@ -119,3 +116,4 @@ class JobsPool(object):
         if hasattr(self, "console"):
             return self.console.logger
         return null_logger
+

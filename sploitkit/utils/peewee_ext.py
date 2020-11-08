@@ -36,3 +36,4 @@ class MACAddressField(BigIntegerField):
             return ":".join(re.findall("..", "%012x" % value))
         except Exception:
             raise ValueError("Invalid MAC Address")
+

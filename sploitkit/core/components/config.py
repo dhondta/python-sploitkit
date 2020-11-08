@@ -1,9 +1,7 @@
 # -*- coding: UTF-8 -*-
 import re
 from termcolor import colored
-
-from ...utils.objects import BorderlessTable
-from ...utils.path import Path
+from tinyscript.helpers import BorderlessTable, Path
 
 
 __all__ = ["Config", "Option", "ProxyConfig", "ROption"]
@@ -472,3 +470,4 @@ class ROption(Option):
          console reset after change) with its parameters while using it as key
          for a Config dictionary. """
     _reset = True
+

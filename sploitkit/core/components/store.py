@@ -138,3 +138,4 @@ class Store(SqliteDatabase):
     def volatile(self):
         """ Simple attribute for telling if the DB is in memory. """
         return self.path == ":memory:"
+

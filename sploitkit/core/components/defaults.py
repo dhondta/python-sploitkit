@@ -29,3 +29,4 @@ PROMPT_STYLE = {
     'prompt':  "#eeeeee",            # prompt message
     'appname': "#eeeeee underline",  # application name
 }
+

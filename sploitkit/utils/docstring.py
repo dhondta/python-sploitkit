@@ -89,3 +89,4 @@ def parse_docstring(something):
                 field, text = kv
         setkv(field, text)
     return metadata
+

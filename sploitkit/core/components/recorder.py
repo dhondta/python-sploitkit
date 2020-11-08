@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from ...utils.path import Path
+from tinyscript.helpers import Path
 
 
 __all__ = ["Recorder"]
@@ -34,3 +34,4 @@ class Recorder(object):
     def stop(self):
         """ Stop the recorder by removing the record file reference. """
         self.__file = None
+

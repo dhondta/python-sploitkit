@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-import logging
 import os
 from collections import MutableMapping
 from shutil import which
@@ -10,18 +9,6 @@ from termcolor import colored
 
 __all__ = ["catch_logger", "confirm", "edit_file", "failsafe", "flatten",
            "human_readable_size", "page_file", "page_text", "user_input"]
-
-
-def catch_logger(f):
-    """ Decoractor for catching the keyword-argument 'logger' and passing the
-         logger to function's global scope. """
-    def _wrapper(*a, **kw):
-        logger = kw.pop("logger", None)
-        if not isinstance(logger, logging.Logger):
-            logger = logging.getLogger("root")
-        f.__globals__['logger'] = logger
-        return f(*a, **kw)
-    return _wrapper
 
 
 def confirm(txt="Are you sure ?", color=None):

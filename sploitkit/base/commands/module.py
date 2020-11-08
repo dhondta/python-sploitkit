@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 from prompt_toolkit.formatted_text import ANSI
+
 from sploitkit import *
 
 

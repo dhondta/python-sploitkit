@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
+from tinyscript.helpers import ProjectPath
+
 from sploitkit import *
-from sploitkit.utils.archive import load_from_archive, save_to_archive
 
 
 # ----------------------------- SUBCONSOLE DEFINITION --------------------------
@@ -42,12 +43,15 @@ class ProjectRootCommand(RootCommand):
 class Archive(ProjectRootCommand):
     """ Archive a project to a ZIP file (it removes the project folder) """
     def run(self, project):
-        p = Path(self.workspace).joinpath(project)
+        projpath = Path(self.workspace).joinpath(project)
+        folder = ProjectPath(projpath)
         self.logger.debug("Archiving project '{}'...".format(project))
         ask = self.console.config.option("ENCRYPT_PROJECT").value
-        if save_to_archive(str(p), str(p) + ".zip", ask=ask, remove=True, logger=self.logger):
+        try:
+            folder.archive(ask=ask)
             self.logger.success("'{}' archived".format(project))
-        else:
+        except OSError as e:
+            logger.error(str(e))
             self.logger.failure("'{}' not archived".format(project))
 
 
@@ -67,11 +71,14 @@ class Load(ProjectRootCommand):
     
     def run(self, project):
         self.logger.debug("Loading archive '{}'...".format(project + ".zip"))
-        archive = self.workspace.joinpath(project).with_suffix(".zip")
+        projpath = Path(self.workspace).joinpath(project)
+        archive = ProjectPath(projpath.with_suffix(".zip"))
         ask = self.console.config.option("ENCRYPT_PROJECT").value
-        if load_from_archive(str(archive), str(self.workspace), ask=ask, remove=True, logger=self.logger):
+        try:
+            archive.load(ask=ask)
             self.logger.success("'{}' loaded".format(project))
-        else:
+        except Exception as e:
+            logger.error("Bad password" if "error -3" in str(e) else str(e))
             self.logger.failure("'{}' not loaded".format(project))
     
     def validate(self, project):

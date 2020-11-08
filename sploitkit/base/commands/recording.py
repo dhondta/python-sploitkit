@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
+from tinyscript.helpers import Path
+
 from sploitkit import Command
-from sploitkit.utils.path import Path
 
 
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------

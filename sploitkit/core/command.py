@@ -2,12 +2,11 @@
 import gc
 import re
 from inspect import getfullargspec
+from tinyscript.helpers import BorderlessTable, Path, PythonPath
 
 from .components.config import Config
 from .entity import Entity, MetaEntity
 from ..utils.misc import failsafe
-from ..utils.objects import BorderlessTable
-from ..utils.path import Path, PyModulePath
 
 
 __all__ = ["Command"]
@@ -250,7 +249,7 @@ class Command(Entity, metaclass=MetaCommand):
                     raise ValueError("Unknown functionality {}".format(f))
                 p = "../base/commands/" + f + ".py"
                 p = Path(__file__).parent.joinpath(p).resolve()
-                for c in PyModulePath(str(p)).get_classes(Command):
+                for c in PythonPath(str(p)).get_classes(Command):
                     Command.unregister_command(c)
             else:
                 try:

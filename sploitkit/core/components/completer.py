@@ -6,8 +6,7 @@ from prompt_toolkit.completion import Completer, Completion
 __all__ = ["CommandCompleter"]
 
 
-sorted_set = lambda l:    sorted(map(lambda s: str(s), set(l)),
-                                 key=lambda s: str(s).casefold())
+sorted_set = lambda l:    sorted(map(lambda s: str(s), set(l)), key=lambda s: str(s).casefold())
 wfilter    = lambda l, w: [x for x in l if w is None or x.startswith(w)]
 
 
@@ -81,3 +80,4 @@ class CommandCompleter(Completer):
                 for _ in wfilter(sorted_set(c._complete_values(t1) or []), t2):
                     yield Completion(_, start_position=o2)
         # handle no other format
+

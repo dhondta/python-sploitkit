@@ -39,3 +39,4 @@ class CommandValidator(Validator):
         # otherwise, the command is considered bad
         else:
             raise ValidationError(message="Bad command")
+

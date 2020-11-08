@@ -13,6 +13,7 @@ from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import ANSI, FormattedText
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
+from tinyscript.helpers import Path
 
 from .command import *
 from .components import *
@@ -20,7 +21,6 @@ from .entity import *
 from .model import *
 from .module import *
 from ..utils.docstring import parse_docstring
-from ..utils.path import Path
 
 
 __all__ = [
