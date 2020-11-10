@@ -1,5 +1,4 @@
 peewee
 prompt_toolkit
 requests
-termcolor
-tinyscript>=1.23.2
+tinyscript>=1.23.3
