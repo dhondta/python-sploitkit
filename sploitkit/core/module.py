@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from inspect import getfile
-from tinyscript.helpers import BorderlessTable, Path, PathBasedDict
+from tinyscript.helpers import flatten_dict, BorderlessTable, Path, PathBasedDict
 
 from .entity import Entity, MetaEntity
 
@@ -100,7 +100,7 @@ class Module(Entity, metaclass=MetaModule):
         s, i = "", 0
         for c in categories:
             d = [["Name", "Path", "Enabled", "Description"]]
-            for n, m in sorted(flatten(m.get(c, {})).items(), key=lambda x: x[1].name):
+            for n, m in sorted(flatten_dict(m.get(c, {})).items(), key=lambda x: x[1].name):
                 e = ["N", "Y"][m.enabled]
                 d.append([m.name, m.subpath, e, m.description])
             t = BorderlessTable(d, "{} modules".format(c.capitalize()))

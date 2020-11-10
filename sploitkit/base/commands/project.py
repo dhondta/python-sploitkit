@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers import ProjectPath
+from tinyscript.helpers import confirm, Path, ProjectPath
 
 from sploitkit import *
 

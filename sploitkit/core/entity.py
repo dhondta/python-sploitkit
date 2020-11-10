@@ -6,7 +6,7 @@ from collections import OrderedDict
 from importlib.util import find_spec
 from inspect import getfile, getmro
 from shutil import which
-from tinyscript.helpers import merge_dictionaries, BorderlessTable, ClassRegistry, Path, PythonPath
+from tinyscript.helpers import merge_dict, BorderlessTable, ClassRegistry, Path, PythonPath
 
 from .components.config import Config, Option, ProxyConfig
 
@@ -567,8 +567,8 @@ class MetaEntity(MetaEntityBase):
                 for b in self.__bases__[::-1]:
                     if b == self._entity_class:
                         break
-                    merge_dictionaries(r, getattr(b, name, {}))
-            merge_dictionaries(r, self.__dict__.get(name, {}))
+                    merge_dict(r, getattr(b, name, {}))
+            merge_dict(r, self.__dict__.get(name, {}))
             return r
         return super(MetaEntity, self).__getattribute__(name)
     

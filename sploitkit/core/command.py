@@ -2,11 +2,10 @@
 import gc
 import re
 from inspect import getfullargspec
-from tinyscript.helpers import BorderlessTable, Path, PythonPath
+from tinyscript.helpers import failsafe, BorderlessTable, Path, PythonPath
 
 from .components.config import Config
 from .entity import Entity, MetaEntity
-from ..utils.misc import failsafe
 
 
 __all__ = ["Command"]

@@ -7,6 +7,7 @@ from gc import collect, get_objects, get_referrers
 from pprint import pprint
 from subprocess import call
 from sys import getrefcount
+from tinyscript.helpers import human_readable_size
 
 from sploitkit import *
 
