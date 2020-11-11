@@ -7,7 +7,7 @@ from gc import collect, get_objects, get_referrers
 from pprint import pprint
 from subprocess import call
 from sys import getrefcount
-from tinyscript.helpers import human_readable_size
+from tinyscript.helpers import human_readable_size, BorderlessTable, Path
 
 from sploitkit import *
 
@@ -25,7 +25,7 @@ class Edit(Command):
     
     def run(self, filename):
         f = Path(self.config.option("WORKSPACE").value).joinpath(filename)
-        edit_file(str(f))
+        self.console._files.edit(str(f))
 
 
 class History(Command):
@@ -34,7 +34,7 @@ class History(Command):
     
     def run(self):
         h = Path(self.config.option("WORKSPACE").value).joinpath("history")
-        page_file(str(h))
+        self.console._files.page(str(h))
 
 
 class Shell(Command):
@@ -92,7 +92,7 @@ class Logs(Command):
     }
     
     def run(self):
-        page_file(self.logger.__logfile__)
+        self.console._files.page(self.logger.__logfile__)
 
 
 class Pydbg(Command):

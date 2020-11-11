@@ -9,8 +9,7 @@ __all__ = ["get_logger", "null_logger"]
 
 SUCCESS           = logging.ERROR + 1
 DATETIME_FORMAT   = "%m/%d/%y %H:%M:%S"
-LOGFILE_FORMAT    = "%(asctime)s [%(process)5d] %(levelname)8s %(name)s - " \
-                    "%(message)s"
+LOGFILE_FORMAT    = "%(asctime)s [%(process)5d] %(levelname)8s %(name)s - %(message)s"
 LOG_FORMAT        = "%(levelsymbol)s %(message)s"
 LOG_LEVEL_SYMBOLS = {
     logging.DEBUG:    colored("[#]", "white"),
@@ -85,8 +84,7 @@ def get_logger(name, logfile=None, level="INFO"):
             logger.__logfile__ = logfile
             # setup a FileHandler for logging to a file (at level DEBUG)
             fh = RotatingFileHandler(logfile)
-            fh.setFormatter(logging.Formatter(LOGFILE_FORMAT,
-                                              datefmt=DATETIME_FORMAT))
+            fh.setFormatter(logging.Formatter(LOGFILE_FORMAT, datefmt=DATETIME_FORMAT))
             fh.setLevel(logging.DEBUG)
             logger.addHandler(fh)
         else:

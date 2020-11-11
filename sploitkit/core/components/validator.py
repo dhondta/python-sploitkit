@@ -22,8 +22,7 @@ class CommandValidator(Validator):
         cmd = tokens[0]
         if l == 1 and cmd not in commands.keys():
             raise ValidationError(message="Unknown command")
-        # when a valid first token is provided, handle command's validation, if
-        #  any available
+        # when a valid first token is provided, handle command's validation, if any available
         elif l >= 1 and cmd in commands.keys():
             c = commands[cmd]._instance
             try:

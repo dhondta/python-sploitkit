@@ -20,8 +20,7 @@ class MetaModel(ModelBase, MetaEntityBase):
             # add triggers here
             #try:
             #    trigger = "{}_updated".format(subcls._meta.table_name)
-            #    subcls.add_trigger(trigger, "AFTER", "UPDATE",
-            #                       "UPDATE", "SET updated=CURRENT_TIMESTAMP")
+            #    subcls.add_trigger(trigger, "AFTER", "UPDATE", "UPDATE", "SET updated=CURRENT_TIMESTAMP")
             #except AttributeError:
             #    pass
         return subcls

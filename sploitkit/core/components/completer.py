@@ -45,8 +45,7 @@ class CommandCompleter(Completer):
             if ts == 0 and c not in cmds:
                 for _ in wfilter(cmds, cmd):
                     yield Completion(_, start_position=-bc)
-            # when a valid command is provided, yield the list of valid keys
-            #  or values, depending on the type of command
+            # when a valid command is provided, yield the list of valid keys or values, depending on the type of command
             elif ts > 0 and c is not None:
                 if nargs == 1:    # COMMAND VALUE
                     for _ in sorted_set(c._complete_values() or []):

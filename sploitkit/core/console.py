@@ -205,8 +205,8 @@ class Console(Entity, metaclass=MetaConsole):
     
     def _run_if_defined(self, func):
         """ Run the given function if it is defined at the module level. """
-        m = getattr(self, "module", None)
-        if m is not None and hasattr(m, func) and not (getattr(m._instance, func)() is None):
+        if hasattr(self, "module") and hasattr(self.module, func) and \
+            not (getattr(self.module._instance, func)() is None):
             self.logger.debug("{} failed".format(func))
             return False
         return True

@@ -13,34 +13,7 @@ from .core import __all__ as _core
 
 
 __all__ = _core + _peewee
-__all__ += ["edit_file", "page_file", "page_text", "print_formatted_text", "IPAddressField", "MACAddressField"]
-
-
-# --------------------------------------- Utility functions ---------------------------------------
-def edit_file(filename):
-    """ Edit a file using Vim. """
-    if which("vim") is None:
-        raise OSError("vim is not installed")
-    if not os.path.isfile(str(filename)):
-        raise OSError("File does not exist")
-    call(["vim", filename])
-
-
-def page_file(*filenames):
-    """ Page a list of files using Less. """
-    filenames = list(map(str, filenames))
-    for f in filenames:
-        if not os.path.isfile(f):
-            raise OSError("File does not exist")
-    call(["less"] + filenames)
-
-
-def page_text(text):
-    """ Page a text using Less. """
-    tmp = TemporaryFile()
-    tmp.write(text)
-    page_file(tmp.name)
-    tmp.close()
+__all__ += ["print_formatted_text", "IPAddressField", "MACAddressField"]
 
 
 # -------------------------------------- Peewee extra fields --------------------------------------

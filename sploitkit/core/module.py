@@ -95,12 +95,22 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def get_help(cls, category=None):
         """ Display command's help, using its metaclass' properties. """
-        m = cls.modules
-        categories = m.keys() if category is None else [category]
+        _ = cls.modules
+        uncat = {}
+        for c, v in _.items():
+            if not isinstance(v, dict):
+                uncat[c] = v
+        if category is None:
+            categories = list(set(_.keys()) - set(uncat.keys()))
+            if len(uncat) > 0:
+                categories += ["uncategorized"]
+        else:
+            categories = [category]
         s, i = "", 0
         for c in categories:
             d = [["Name", "Path", "Enabled", "Description"]]
-            for n, m in sorted(flatten_dict(m.get(c, {})).items(), key=lambda x: x[1].name):
+            for n, m in sorted((flatten_dict(_.get(c, {})) if c != "uncategorized" else uncat).items(),
+                               key=lambda x: x[1].name):
                 e = ["N", "Y"][m.enabled]
                 d.append([m.name, m.subpath, e, m.description])
             t = BorderlessTable(d, "{} modules".format(c.capitalize()))

@@ -71,8 +71,8 @@ class MetaCommand(MetaEntity):
         if self.style == "lowercase":
             n = n.lower()
         elif self.style in ["powershell", "slugified"]:
-            n = re.sub(r'(.)([A-Z][a-z]+)', r'\1-\2', _)
-            n = re.sub(r'([a-z0-9])([A-Z])', r'\1-\2', _)
+            n = re.sub(r'(.)([A-Z][a-z]+)', r'\1-\2', n)
+            n = re.sub(r'([a-z0-9])([A-Z])', r'\1-\2', n)
             n = n.lower() if self.style == "slugified" else n
         elif self.style == "uppercase":
             n = n.upper()
@@ -107,8 +107,8 @@ class Command(Entity, metaclass=MetaCommand):
     @property
     def config(self):
         """ Shortcut to bound console's config instance. """
-        m = getattr(self, "module", None)
-        return self.module.config if m is not None else self.__class__.console.__class__.config
+        return self.module.config if hasattr(self, "module") and self.module is not None else \
+               self.__class__.console.__class__.config
     
     @property
     def files(self):
@@ -145,7 +145,7 @@ class Command(Entity, metaclass=MetaCommand):
     def check_applicability(cls):
         """ Check for Command's applicability. """
         a = getattr(cls, "applies_to", [])
-        return len(_) == 0 or not hasattr(cls, "console") or cls.console.module.fullpath in a
+        return len(a) == 0 or not hasattr(cls, "console") or cls.console.module.fullpath in a
 
     @classmethod
     def get_help(cls, *levels, **kwargs):
@@ -154,14 +154,14 @@ class Command(Entity, metaclass=MetaCommand):
             levels = Command._levels
         if len(levels) == 2 and "general" in levels:
             # process a new dictionary of commands, handling levels in order
-            d = {}
+            _ = {}
             for l in levels:
                 for n, c in cls.commands.get(l, {}).items():
                     if c.level != "general" or all(l not in levels for l in c.except_levels):
-                        d[n] = c
+                        _[n] = c
             # then rebuild the dictionary by levels from this dictionary
             levels = {"general": {}, "specific": {}}
-            for n, c in d.items():
+            for n, c in _.items():
                 levels[["specific", "general"][c.level == "general"]][n] = c
         else:
             _, levels = levels, {}
@@ -184,10 +184,9 @@ class Command(Entity, metaclass=MetaCommand):
 
     @classmethod
     def register_command(cls, subcls):
-        """ Register the command and its aliases in a dictionary according to
-             its level. """
-        l = subcls.level
-        levels = [l] if not isinstance(l, (list, tuple)) else l
+        """ Register the command and its aliases in a dictionary according to its level. """
+        _ = subcls.level
+        levels = [_] if not isinstance(_, (list, tuple)) else _
         for l in levels:
             Command.commands.setdefault(l, {})
             if l not in Command._levels:
@@ -207,8 +206,8 @@ class Command(Entity, metaclass=MetaCommand):
     @classmethod
     def unregister_command(cls, subcls):
         """ Unregister a command class from the subclasses and the commands dictionary. """
-        l = subcls.level
-        levels = [l] if not isinstance(l, (list, tuple)) else l
+        _ = subcls.level
+        levels = [_] if not isinstance(_, (list, tuple)) else _
         n = subcls.name
         # remove every reference in commands dictionary
         for l in levels:
@@ -237,17 +236,16 @@ class Command(Entity, metaclass=MetaCommand):
     def unregister_commands(cls, *identifiers):
         """ Unregister items from Command based on their 'identifiers' (functionality or level/name). """
         for i in identifiers:
-            pair = i.split("/", 1)
+            _ = i.split("/", 1)
             try:
-                l, n = pair           # level, name
+                l, n = _           # level, name
             except ValueError:
-                f, n = pair[0], None  # functionality
+                f, n = _[0], None  # functionality
             # apply deletions
             if n is None:
                 if f not in cls._functionalities:
                     raise ValueError("Unknown functionality {}".format(f))
-                p = "../base/commands/" + f + ".py"
-                p = Path(__file__).parent.joinpath(p).resolve()
+                p = Path(__file__).parent.joinpath("../base/commands/" + f + ".py").resolve()
                 for c in PythonPath(str(p)).get_classes(Command):
                     Command.unregister_command(c)
             else:
@@ -301,14 +299,18 @@ class Command(Entity, metaclass=MetaCommand):
         n_in = len(args)
         n, m = self._nargs
         if n_in < m or n_in > n:
-            p = "from %d to %d" % (m, n) if n != m else "%d" % n
-            raise TypeError("validate() takes %s positional argument%s but %d were given" % (p, ["", "s"][n > 0], n_in))
+            pargs = "from %d to %d" % (m, n) if n != m else "%d" % n
+            raise TypeError("validate() takes %s positional argument%s but %d were given" % \
+                            (pargs, ["", "s"][n > 0], n_in))
         if n == 1:    # command format: COMMAND VALUE
-            if n_in == 1 and len(l) > 0 and args[0] not in (self.complete_values() or []):
+            l = self.complete_values() or []
+            if n_in == 1 and len(l) > 0 and args[0] not in l:
                 raise ValueError("invalid value")
         elif n == 2:  # command format: COMMAND KEY VALUE
-            if n_in > 0 and len(l) > 0 and args[0] not in (self.complete_keys() or []):
+            l = self.complete_keys() or []
+            if n_in > 0 and len(l) > 0 and args[0] not in l:
                 raise ValueError("invalid key")
-            if n_in == 2 and len(l) > 0 and args[1] not in (self.complete_values(args[0]) or []):
+            l = self.complete_values(args[0]) or []
+            if n_in == 2 and len(l) > 0 and args[1] not in l:
                 raise ValueError("invalid value")
 

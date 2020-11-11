@@ -26,8 +26,7 @@ class StoragePool(object):
         self.close(True)
     
     def get(self, path, *args, **kwargs):
-        """ Get a database from the pool ; if the DB does not exist yet, create
-             and register it. """
+        """ Get a database from the pool ; if the DB does not exist yet, create and register it. """
         path = str(path)  # ensure the input is str, e.g. not a Path instance
         try:
             db = [_ for _ in self.__pool if _.path == path][0]
@@ -35,13 +34,10 @@ class StoragePool(object):
             classes = tuple([Store] + self.extensions)
             cls = type("ExtendedStore", classes, {})
             db = cls(path, *args, **kwargs)
-            # as the store extension class should subclass Entity, in 'classes',
-            #  store extension subclasses will be present, therefore making
-            #  ExtendedStore registered in its list of subclasses ; this line
-            #  prevents from having multiple combined classes having the same
-            #  Store base class
-            if self.__ext_class is not None and \
-                hasattr(self.__ext_class, "unregister_subclass"):
+            # as the store extension class should subclass Entity, in 'classes', store extension subclasses will be
+            #  present, therefore making ExtendedStore registered in its list of subclasses ; this line prevents from
+            #  having multiple combined classes having the same Store base class
+            if self.__ext_class is not None and hasattr(self.__ext_class, "unregister_subclass"):
                 self.__ext_class.unregister_subclass(cls)
             self.__pool.append(db)
             for m in self.models:
@@ -97,19 +93,16 @@ class Store(SqliteDatabase):
                     return cls.get
                 elif hasattr(cls, "set"):
                     return cls.set
-        raise AttributeError("%r object has no attribute %r" %
-                             (self.__name__, name))
+        raise AttributeError("%r object has no attribute %r" % (self.__name__, name))
         
     def get_model(self, name, base=False):
         """ Get a model class from its name. """
-        return self.__entity_class.get_subclass("model", name) or \
-               self.__entity_class.get_subclass("basemodel", name)
+        return self.__entity_class.get_subclass("model", name) or self.__entity_class.get_subclass("basemodel", name)
     
     def snapshot(self, save=True):
-        """ Snapshot the store in order to be able to get back to this state
-             afterwards if the results are corrupted by a module OR provide
-             the reference number of the snapshot to get back to, and remove
-             every other snapshot after this number. """
+        """ Snapshot the store in order to be able to get back to this state afterwards if the results are corrupted by
+             a module OR provide the reference number of the snapshot to get back to, and remove every other snapshot
+             after this number. """
         if not save and self._last_snapshot == 0:
             return
         self.close()

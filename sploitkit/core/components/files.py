@@ -1,16 +1,17 @@
 # -*- coding: UTF-8 -*-
 import requests
 from ftplib import FTP, FTP_TLS
+from shutil import which
+from subprocess import call
+from tempfile import TemporaryFile
 from tinyscript.helpers import Path, TempPath
 
-from ...utils.misc import edit_file, page_file
 
 __all__ = ["FilesManager"]
 
 
 class FilesManager(dict):
-    """ Files dictionary for registering files, if necessary downloading them
-         using multiple supported schemes. """
+    """ Files dictionary for registering files, if necessary downloading them using multiple supported schemes. """
     root_dir = "."
 
     def _file(self, locator, *args, **kwargs):
@@ -27,22 +28,23 @@ class FilesManager(dict):
         usr, pswd = kwargs.pop("user", ""), kwargs.pop("passwd", "")
         if usr != "" and pswd != "":
             client.login(usr, passwd)
-        #client.retrbinary(kwargs.pop("cmd", None),
-        #                  kwargs.pop("callback", None))
+        #client.retrbinary(kwargs.pop("cmd", None), kwargs.pop("callback", None))
         #FIXME
-
     _ftps = _ftp
     
     def _http(self, url, *args, **kwargs):
         """ Simple HTTP downloader. """
         self[url] = requests.get(url, *args, **kwargs).content
-
     _https = _http
     
-    def edit(self, key):
+    def edit(self, filename):
         """ Edit a file using PyVim. """
-        #FIXME
-        edit_file(key)
+        #FIXME: edit by calling the locator and manage its local file (e.g. for a URL, point to a temp folder)
+        if which("vim") is None:
+            raise OSError("vim is not installed")
+        if not os.path.isfile(str(filename)):
+            raise OSError("File does not exist")
+        call(["vim", filename])
     
     def get(self, locator, *args, **kwargs):
         """ Get a resource. """
@@ -62,14 +64,28 @@ class FilesManager(dict):
             usr, pswd = kwargs.pop("user", ""), kwargs.pop("passwd", "")
             if usr != "" and pswd != "":
                 client.login(usr, passwd)
-            client.retrbinary(kwargs.pop("cmd", None),
-                              kwargs.pop("callback", None))
+            client.retrbinary(kwargs.pop("cmd", None), kwargs.pop("callback", None))
             #FIXME
         elif scheme == "file":
             with open(path, 'rb') as f:
                 self[locator] = f.read()
         else:
             raise ValueError("Unsupported scheme '{}'".format(scheme))
+    
+    def page(self, *filenames):
+        """ Page a list of files using Less. """
+        filenames = list(map(str, filenames))
+        for f in filenames:
+            if not os.path.isfile(f):
+                raise OSError("File does not exist")
+        call(["less"] + filenames)
+    
+    def page_text(self, text):
+        """ Page a text using Less. """
+        tmp = TemporaryFile()
+        tmp.write(text)
+        self.page(tmp.name)
+        tmp.close()
     
     def save(self, key, dst):
         """ Save a resource. """
@@ -88,5 +104,5 @@ class FilesManager(dict):
     
     def view(self, key):
         """ View a file with PyPager. """
-        page_text(self[key])
+        self.page_text(self[key])
 

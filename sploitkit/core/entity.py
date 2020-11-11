@@ -47,8 +47,7 @@ def load_entities(entities, *sources, **kwargs):
         source = Path(s).expanduser().resolve()
         if not source.exists():
             continue
-        # bind the source to the entity main class as, when MetaEntity.__new__ is called, the source is not passed from
-        #  the PyFolderPath to child PyModulePath instances ; this way, the entity path can be determined
+        # bind the source to the entity main class
         for e in entities:
             e._source = str(source)
         # now, it loads every Python module from the list of source folders ; when loading entity subclasses, these are
@@ -319,8 +318,8 @@ class Entity(object):
         cls._errors = errors
         # check for applicability
         cls._applicable = True
-        a = getattr(cls, "applies_to", [])
-        if len(a) > 0:
+        applies_to = getattr(cls, "applies_to", [])
+        if len(applies_to) > 0:
             cls._applicable = False
             chk = getattr(cls, "check_applicability", None)
             if chk is not None:
@@ -328,7 +327,7 @@ class Entity(object):
             else:
                 # format: ("attr1", "attr2", ..., "attrN", "value")
                 #   e.g.: ("module", "fullpath", "my/module/do_something")
-                for l in getattr(cls, "applies_to", []):
+                for l in applies_to:
                     l, must_match, value = list(l[:-1]), l[-1], cls
                     while len(l) > 0:
                         value = getattr(value, l.pop(0), None)
@@ -340,7 +339,7 @@ class Entity(object):
     @classmethod
     def get_class(cls, name):
         """ Get a class (key) from _subclasses by name (useful when the class is not imported in the current scope). """
-        return Entity._subclasses.key(name)
+        return Entity._subclasses[name]
     
     @classmethod
     def get_info(cls, *fields, show_all=False):
@@ -391,8 +390,7 @@ class Entity(object):
         # message formatting function
         def msg(scname, key, item):
             subcls = Entity.get_subclass(None, scname)
-            m = getattr(subcls, "requirements_messages", {}) \
-                .get(key, {}).get(re.split(r"(\=|\?)", item, 1)[0])
+            m = getattr(subcls, "requirements_messages", {}).get(key, {}).get(re.split(r"(\=|\?)", item, 1)[0])
             if m is not None:
                 return m.format(item)
             if key == "file":
@@ -449,7 +447,7 @@ class Entity(object):
         cls.check()
         sc = Entity._subclasses
         for c, l in sc.items() if cls is Entity else [cls, cls.subclasses] if cls in sc.keys() \
-                      else [(cls._entity_class, [cls])]:
+                                                else [(cls._entity_class, [cls])]:
             for subcls in l:
                 e = {}
                 for b in subcls.__bases__:
