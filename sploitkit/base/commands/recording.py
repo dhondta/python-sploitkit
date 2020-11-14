@@ -57,7 +57,5 @@ class Replay(RootProjectCommand):
 
     def run(self, rcfile):
         self.logger.debug("Replaying commands from file '{}'...".format(rcfile))
-        with open(rcfile) as f:
-            for cmd in f:
-                self.parent.execute(cmd, True)
+        self.console.replay(rcfile)
 

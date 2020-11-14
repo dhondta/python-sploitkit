@@ -84,33 +84,30 @@ class Stats(Command):
 
 
 # ------------------------------- DEBUGGING COMMANDS ---------------------------
-class Logs(Command):
+class DebugCommand(Command):
+    """ Proxy class for development commands """
+    requirements = {'config': {'DEBUG': True}}
+
+
+class Logs(DebugCommand):
     """ Inspect console logs """
-    requirements = {
-        'config': {'DEBUG': True},
-        'system': ["less"],
-    }
+    requirements = {'system': ["less"]}
     
     def run(self):
         self.console._files.page(self.logger.__logfile__)
 
 
-class Pydbg(Command):
+class Pydbg(DebugCommand):
     """ Start a Python debugger session """
-    requirements = {
-        'config': {'DEBUG': True},
-        'python': ["pdb"],
-    }
+    requirements = {'python': ["pdb"]}
 
     def run(self):
         import pdb
         pdb.set_trace()
 
 
-class State(Command):
+class State(DebugCommand):
     """ Display console's shared state """
-    requirements = {'config': {'DEBUG': True}}
-
     def run(self):
         for k, v in self.console.state.items():
             print_formatted_text("\n{}:".format(k))
@@ -130,7 +127,7 @@ class State(Command):
 
 
 # ------------------------------ DEVELOPMENT COMMANDS --------------------------
-class DevCommand(Command):
+class DevCommand(DebugCommand):
     """ Proxy class for development commands """
     def condition(self):
         return getattr(Console, "_dev_mode", False)
