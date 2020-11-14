@@ -24,6 +24,9 @@ class MetaModel(ModelBase, MetaEntityBase):
             #except AttributeError:
             #    pass
         return subcls
+    
+    def __repr__(self):
+        return "<%s: %s>" % (self.entity.capitalize(), self.__name__)
 
 
 class BaseModel(PeeweeModel, Entity, metaclass=MetaModel):
@@ -33,7 +36,7 @@ class BaseModel(PeeweeModel, Entity, metaclass=MetaModel):
 
 class Model(BaseModel):
     """ Main class handling console store's models. """
-    source  = CharField()
+    source  = CharField(null=True)
     created = DateTimeField(default=datetime.datetime.now, null=False)
     updated = DateTimeField(default=datetime.datetime.now, null=False)
     

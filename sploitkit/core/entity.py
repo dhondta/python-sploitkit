@@ -6,6 +6,7 @@ from collections import OrderedDict
 from importlib.util import find_spec
 from inspect import getfile, getmro
 from shutil import which
+from tinyscript import logging
 from tinyscript.helpers import merge_dict, BorderlessTable, ClassRegistry, Path, PythonPath
 
 from .components.config import Config, Option, ProxyConfig
@@ -17,6 +18,7 @@ ENTITIES = []
 ent_id = lambda c: (getattr(c, "__file__", getfile(c)), c.__name__)
 
 
+@logging.bindLogger
 def load_entities(entities, *sources, **kwargs):
     """ Load every entity class of the given type found in the given source folders.
     
@@ -31,27 +33,29 @@ def load_entities(entities, *sources, **kwargs):
     global ENTITIES
     ENTITIES = [e.__name__ for e in entities]
     sources = list(sources)
+    lpath = Path(sources[0])  # launcher path
     if kwargs.get("include_base", True):
         # this allows to use sploitkit.base for starting a project with a baseline of entities
         for n in ENTITIES:
             n = n.lower()
             for m in kwargs.get("select", {}).get(n, [""]):
                 m = "../base/{}s/".format(n) + m + [".py", ""][m == ""]
-                _ = Path(__file__).parent.joinpath(m).resolve()
-                if _.exists():
-                    sources.insert(0, str(_))
-    # include the launcher script itself to include the subclassed console
-    sources.insert(0, str(Path(sys.argv[0]).resolve()))
-    # now load every single source (folder of modules or single module)
+                p = Path(__file__).parent.joinpath(m).resolve()
+                if p.exists():
+                    sources.insert(0, str(p))
+    # load every single source (folder of modules or single module)
     for s in sources:
-        source = Path(s).expanduser().resolve()
+        # if relative paths are given, they are resolved relative to Console.parent's source folder
+        source = lpath.dirname.joinpath(s).expanduser().resolve()
         if not source.exists():
+            logger.debug("Source file does not exist: %s" % source)
             continue
         # bind the source to the entity main class
         for e in entities:
             e._source = str(source)
         # now, it loads every Python module from the list of source folders ; when loading entity subclasses, these are
         #  registered to entity's registry for further use (i.e. from the console)
+        logger.debug("Loading Python source: %s" % source)
         PythonPath(source)
     for e in entities:
         tbr = []
@@ -104,7 +108,10 @@ def set_metadata(c, docstr_parser):
     for a in ["meta", "metadata"]:
         if hasattr(c, a):
             c._metadata.update(getattr(c, a))
-            delattr(c, a)
+            try:
+                delattr(c, a)
+            except AttributeError:
+                pass  # occurs when class 'c' has no 'meta' anymore, but its base class well
     # if the metadata has options, create the config object
     for o in c._metadata.pop("options", []):
         try:
@@ -127,11 +134,6 @@ def set_metadata(c, docstr_parser):
             for k, v in b._metadata.items():
                 if k not in c._metadata.keys():
                     c._metadata[k] = v
-
-
-class BadSource(Exception):
-    """ Custom exception for handling bad entity source. """
-    pass
 
 
 class Entity(object):
@@ -432,7 +434,7 @@ class Entity(object):
     def get_subclass(cls, key, name):
         """ Get a subclass (value) from _subclasses by name (useful when the related class is not imported in the
              current scope). """
-        return Entity._subclasses.value(key, name)
+        return Entity._subclasses[key, name]
     
     @classmethod
     def has_issues(cls, subcls_name=None, category=None):
@@ -525,7 +527,10 @@ class MetaEntityBase(type):
             if len(mro_bases) <= 2 or subcls.__name__ in ENTITIES:
                 return subcls
             # set the base entity class
-            subcls._entity_class = [c for c in mro_bases if c.__name__ in ENTITIES][0]
+            try:
+                subcls._entity_class = [c for c in mro_bases if c.__name__ in ENTITIES][0]
+            except IndexError:
+                return subcls
             # trigger class registration
             for b in bases:
                 for a in dir(b):
@@ -533,6 +538,17 @@ class MetaEntityBase(type):
                     if callable(m) and any(a == "register_{}".format(w.lower()) for w in ["subclass"] + ENTITIES):
                         m(subcls)
         return subcls
+    
+    def __repr__(self):
+        return "<%s: %s>" % (self.entity.capitalize(), self.__name__)
+    
+    @property
+    def entity(self):
+        """ Normalized base entity name. """
+        try:
+            return self._entity_class.__name__.lower()
+        except AttributeError:
+            return "entity"
     
     @property
     def subclasses(self):
@@ -581,11 +597,6 @@ class MetaEntity(MetaEntityBase):
         """ Boolean indicating if the entity is enabled (i.e. if it has no missing requirement. """
         self.check()
         return self._enabled
-    
-    @property
-    def entity(self):
-        """ Normalized base entity name. """
-        return self._entity_class.__name__.lower()
     
     @property
     def name(self):

@@ -95,13 +95,12 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def get_help(cls, category=None):
         """ Display command's help, using its metaclass' properties. """
-        _ = cls.modules
         uncat = {}
-        for c, v in _.items():
+        for c, v in cls.modules.items():
             if not isinstance(v, dict):
                 uncat[c] = v
         if category is None:
-            categories = list(set(_.keys()) - set(uncat.keys()))
+            categories = list(set(cls.modules.keys()) - set(uncat.keys()))
             if len(uncat) > 0:
                 categories += ["uncategorized"]
         else:
@@ -109,7 +108,7 @@ class Module(Entity, metaclass=MetaModule):
         s, i = "", 0
         for c in categories:
             d = [["Name", "Path", "Enabled", "Description"]]
-            for n, m in sorted((flatten_dict(_.get(c, {})) if c != "uncategorized" else uncat).items(),
+            for n, m in sorted((flatten_dict(cls.modules.get(c, {})) if c != "uncategorized" else uncat).items(),
                                key=lambda x: x[1].name):
                 e = ["N", "Y"][m.enabled]
                 d.append([m.name, m.subpath, e, m.description])
@@ -126,7 +125,7 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def get_modules(cls, path=None):
         """ Get the subdictionary of modules matching the given path. """
-        return cls.modules[path]
+        return cls.modules[path or ""]
     
     @classmethod
     def get_summary(cls):
@@ -157,11 +156,17 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def unregister_module(cls, subcls):
         """ Unregister a Module subclass from the dictionary of modules. """
-        try:
-            del cls.modules[subcls.path, subcls.name]
-            Module.subclasses.remove(subcls)
-        except KeyError:
-            pass
+        del cls.modules[subcls.path, subcls.name]
+        for M in Module.subclasses:
+            if subcls.path == M.path and subcls.name == M.name:
+                break
+        Module.subclasses.remove(M)
+    
+    @classmethod
+    def unregister_modules(cls, *subcls):
+        """ Unregister Module subclasses from the dictionary of modules. """
+        for sc in subcls:
+            cls.unregister_module(sc)
     
     def _feedback(self, success, failmsg):
         """ Dummy feedback method using a fail-message formatted with the "not" keyword (to be replaced by a null string

@@ -146,7 +146,7 @@ class Command(Entity, metaclass=MetaCommand):
         """ Check for Command's applicability. """
         a = getattr(cls, "applies_to", [])
         return len(a) == 0 or not hasattr(cls, "console") or cls.console.module.fullpath in a
-
+    
     @classmethod
     def get_help(cls, *levels, **kwargs):
         """ Display commands' help(s), using its metaclass' properties. """
@@ -185,8 +185,8 @@ class Command(Entity, metaclass=MetaCommand):
     @classmethod
     def register_command(cls, subcls):
         """ Register the command and its aliases in a dictionary according to its level. """
-        _ = subcls.level
-        levels = [_] if not isinstance(_, (list, tuple)) else _
+        l = subcls.level
+        levels = [l] if not isinstance(l, (list, tuple)) else l
         for l in levels:
             Command.commands.setdefault(l, {})
             if l not in Command._levels:

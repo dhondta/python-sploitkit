@@ -1,19 +1,22 @@
 # -*- coding: UTF-8 -*-
 import gc
+import io
 import os
 import shlex
 import sys
 from asciistuff import get_banner, get_quote
 from bdb import BdbQuit
 from datetime import datetime
-from inspect import isfunction
+from inspect import getfile, isfunction
 from itertools import chain
-from prompt_toolkit import print_formatted_text, PromptSession
+from prompt_toolkit import print_formatted_text as print_ft, PromptSession
+from prompt_toolkit.application.current import get_app_session
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import ANSI, FormattedText
 from prompt_toolkit.history import FileHistory
+from prompt_toolkit.output import DummyOutput
 from prompt_toolkit.styles import Style
-from tinyscript.helpers import parse_docstring, Path
+from tinyscript.helpers import get_terminal_size, parse_docstring, Capture, Path
 
 from .command import *
 from .components import *
@@ -30,7 +33,25 @@ __all__ = [
     "Config", "ConsoleExit", "ConsoleDuplicate", "FrameworkConsole", "Option",
 ]
 
+_output = get_app_session().output
 dcount = lambda d, n=0: sum([dcount(v, n) if isinstance(v, dict) else n + 1 for v in d.values()])
+
+
+def print_formatted_text(*args, **kwargs):
+    """ Proxy function that uses the global (capturable) _output. """
+    kwargs['output'] = kwargs.get('output', _output)
+    return print_ft(*args, **kwargs)
+
+
+class _CaptureOutput(DummyOutput):
+    def __init__(self):
+        self.__file = io.StringIO()
+    
+    def __str__(self):
+        return self.__file.getvalue().strip()
+    
+    def write(self, data):
+        self.__file.write(data)
 
 
 class MetaConsole(MetaEntity):
@@ -59,7 +80,7 @@ class Console(Entity, metaclass=MetaConsole):
     parent  = None
     sources = SOURCES
     style   = PROMPT_STYLE
-
+    
     def __init__(self, parent=None, **kwargs):
         super(Console, self).__init__()
         # determine the relevant parent
@@ -80,6 +101,7 @@ class Console(Entity, metaclass=MetaConsole):
             Console.parent._start_time = datetime.now()
             Console.appdispname = Console.appname
             Console.appname = Console.appname.lower()
+            self._root = Path(getfile(self.__class__)).resolve()
             self.__init(**kwargs)
         else:
             self.parent.child = self
@@ -128,10 +150,13 @@ class Console(Entity, metaclass=MetaConsole):
             if isinstance(lsrc, (list, tuple, set)):
                 for lib in map(lambda p: os.path.abspath(p), lsrc[::-1]):
                     sys.path.insert(0, lib)
+        # insert the source path of Console's parent
+        sources = self._sources("entities")
+        sources.insert(0, self._root)
         # setup entities
         load_entities(
             [BaseModel, Command, Console, Model, Module, StoreExtension],
-            *self._sources("entities"),
+            *sources,
             include_base=kwargs.get("include_base", True),
             select=kwargs.get("select", {'command': Command._functionalities}),
             exclude=kwargs.get("exclude", {}),
@@ -210,7 +235,7 @@ class Console(Entity, metaclass=MetaConsole):
             self.logger.debug("{} failed".format(func))
             return False
         return True
-
+    
     def _sources(self, items):
         """ Return the list of sources for the related items [banners|entities|libraries], first trying subclass' one
              then Console class' one. """
@@ -252,6 +277,38 @@ class Console(Entity, metaclass=MetaConsole):
         """ Alias for run. """
         return self.run(cmd, abort)
     
+    def play(self, *commands, capture=False):
+        """ Execute a list of commands. """
+        global _output
+        if capture:
+            r = []
+        error = False
+        w, _ = get_terminal_size()
+        for c in commands:
+            if capture:
+                if error:
+                    r.append((c, None, None))
+                    continue
+                __tmp = _output
+                _output = _CaptureOutput()
+                error = not self.run(c, True)
+                r.append((c, str(_output)))
+                _output = __tmp
+            else:
+                print_formatted_text("\n" + (" " + c + " ").center(w, "+") + "\n")
+                if not self.run(c, True):
+                    break
+        if capture:
+            if r[-1][0] == "exit":
+                r.pop(-1)
+            return r
+    
+    def rcfile(self, rcfile, capture=False):
+        """ Execute commands from a .rc file. """
+        with open(rcfile) as f:
+            commands = [c.strip() for c in f]
+        return self.play(*commands, capture)
+    
     def reset(self):
         """ Setup commands for the current level, reset bindings between commands and the current console then update
              store's object. """
@@ -278,12 +335,16 @@ class Console(Entity, metaclass=MetaConsole):
         try:
             name, args = tokens[0], tokens[1:]
         except IndexError:
+            if abort:
+                raise
             return True
         # get the command singleton instance (or abort if name not in self.commands) ; if command arguments should not
         #  be split, adapt args
         try:
             obj = self.commands[name]._instance
         except KeyError:
+            if abort:
+                raise
             return True
         # now handle the command (and its validation if existing)
         try:
@@ -408,7 +469,7 @@ class ConsoleDuplicate(Exception):
         super(ConsoleDuplicate, self).__init__("Another console of the same level is already running")
 
 
-class ConsoleExit(Exception):
+class ConsoleExit(SystemExit):
     """ Dedicated exception class for exiting a (sub)console. """
     pass
 
@@ -444,7 +505,7 @@ class FrameworkConsole(Console):
             set_callback=lambda o: o.root._set_workspace(),
         ): "~/Notes",
     })
-
+    
     def __init__(self, appname=None, *args, **kwargs):
         Console.appname = appname or getattr(self, "appname", Console.appname)
         o, v = self.config.option('APP_FOLDER'), str(self.config['APP_FOLDER'])
@@ -467,7 +528,7 @@ class FrameworkConsole(Console):
             pass
         Path(new).joinpath(subpath).mkdir(parents=True, exist_ok=True)
         return new
-
+    
     def _set_app_folder(self):
         """ Set a new APP_FOLDER, moving an old to the new one if necessary. """
         self._files.root_dir = self.__set_folder("APP_FOLDER", "files")
@@ -482,7 +543,7 @@ class FrameworkConsole(Console):
             lpath.mkdir(parents=True, exist_ok=True)
             p = str(lpath.joinpath("main.log"))
         Console.logger = get_logger(self.__class__.name, p, l)
-
+    
     def _set_workspace(self):
         """ Set a new APP_FOLDER, moving an old to the new one if necessary. """
         self.__set_folder("WORKSPACE")
