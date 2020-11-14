@@ -1,0 +1,14 @@
+[run]
+cover_pylib = false
+source = sploitkit
+omit =
+    /home/travis/virtualenv/*
+    */site-packages/*
+    tests/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    class IPAddressField
+    class MACAddressField
+    class Trigger
