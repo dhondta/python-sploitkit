@@ -12,6 +12,7 @@ This tool allows to quickly create a new Sploitkit project.
 
 MAIN = """#!/usr/bin/python3
 from sploitkit import FrameworkConsole
+from tinyscript import *
 
 
 class MySploitConsole(FrameworkConsole):
@@ -20,10 +21,15 @@ class MySploitConsole(FrameworkConsole):
 
 
 if __name__ == '__main__':
-    MySploitConsole(
+    parser.add_argument("-d", "--dev", action="store_true", help="enable development mode")
+    parser.add_argument("-r", "--rcfile", type=ts.file_exists, help="execute commands from a rcfile")
+    initialize()
+    c = MySploitConsole(
         "MySploit",
         #TODO: configure your console settings
-    ).start()
+        dev=args.dev,
+    )
+    c.rcfile(args.rcfile) if args.rcfile else c.start()
 """
 COMMANDS = """from sploitkit import *
 
@@ -67,6 +73,16 @@ MODULES = """from sploitkit import *
 
 
 class MyFirstModule(Module):
+    \""" Description here 
+
+    Author:  your name (your email)
+    Version: 1.0
+    \"""
+    def run(self):
+        pass
+
+
+class MySecondModule(Module):
     \""" Description here 
 
     Author:  your name (your email)
