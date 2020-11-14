@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import re
 from termcolor import colored
-from tinyscript.helpers import BorderlessTable, Path
+from tinyscript.helpers import is_function, BorderlessTable, Path
 
 
 __all__ = ["Config", "Option", "ProxyConfig", "ROption"]
@@ -218,7 +218,7 @@ class Option(object):
         self._choices = choices
         self.__set_func(transform, "transform")
         if validate is None and choices is not None:
-            validate = lambda s, v: str(v).lower() in [str(_).lower() for _ in s.choices]
+            validate = lambda s, v: str(v).lower() in [str(c).lower() for c in s.choices]
         self.__set_func(validate, "validate")
         self.__set_func(set_callback, "set_callback", lambda *a, **kw: None)
         self.__set_func(unset_callback, "unset_callback", lambda *a, **kw: None)
@@ -255,7 +255,7 @@ class Option(object):
     def choices(self):
         """ Pre- or lazy-computed list of choices. """
         c = self._choices
-        if not isinstance(c, type(lambda:0)):
+        if not is_function(c):
             return c
         try:
             return c()

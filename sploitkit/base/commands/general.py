@@ -2,6 +2,7 @@
 import re
 import shlex
 from prompt_toolkit.formatted_text import ANSI
+from tinyscript.helpers import BorderlessTable, Path
 
 from sploitkit import *
 
@@ -23,7 +24,7 @@ class Exit(Command):
     aliases = ["quit"]
        
     def run(self):
-        raise SystemExit
+        raise ConsoleExit
 
 
 class Help(Command):
@@ -146,6 +147,6 @@ class Unset(Command):
     def validate(self, key):
         if key not in self.config.keys():
             raise ValueError("invalid key")
-        if self.config.option(key).required and value is None:
-            raise ValueError("a value is required")
+        if self.config.option(key).required:
+            raise ValueError("this key is required")
 

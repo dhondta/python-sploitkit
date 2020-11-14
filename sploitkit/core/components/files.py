@@ -42,7 +42,7 @@ class FilesManager(dict):
         #FIXME: edit by calling the locator and manage its local file (e.g. for a URL, point to a temp folder)
         if which("vim") is None:
             raise OSError("vim is not installed")
-        if not os.path.isfile(str(filename)):
+        if not Path(str(filename)).is_file():
             raise OSError("File does not exist")
         call(["vim", filename])
     
@@ -76,7 +76,7 @@ class FilesManager(dict):
         """ Page a list of files using Less. """
         filenames = list(map(str, filenames))
         for f in filenames:
-            if not os.path.isfile(f):
+            if not Path(str(f)).is_file():
                 raise OSError("File does not exist")
         call(["less"] + filenames)
     
