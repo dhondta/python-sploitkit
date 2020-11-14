@@ -1,5 +1,7 @@
 language: python
 sudo: required
+env:
+  global: PIP_ARGS="--upgrade --use-feature=2020-resolver"
 python:
   - "3.5"
   - "3.6"
@@ -7,7 +9,12 @@ python:
   - "3.8"
 cache: pip
 install:
-  - pip install -r requirements.txt
-  - python setup.py install
+  - python -m pip install --upgrade pip
+  - pip install $PIP_ARGS nose
+  - pip install $PIP_ARGS coveralls
+  - pip install $PIP_ARGS -r requirements.txt
+  - pip install $PIP_ARGS .
 script:
-  - echo "done"
+  - sploitkit testsploit
+  - nosetests -v --with-coverage --cover-tests --cover-package sploitkit tests
+after_success: coveralls
