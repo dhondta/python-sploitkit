@@ -1,9 +1,10 @@
 language: python
 sudo: required
 env:
-  global: PIP_ARGS="--upgrade --use-feature=2020-resolver"
+  global:
+    - PIP_ARGS="--upgrade --use-feature=2020-resolver"
+    - COLUMNS=120
 python:
-  - "3.5"
   - "3.6"
   - "3.7"
   - "3.8"
@@ -15,6 +16,7 @@ install:
   - pip install $PIP_ARGS -r requirements.txt
   - pip install $PIP_ARGS .
 script:
+  - stty cols 120
   - sploitkit testsploit
   - nosetests -v --with-coverage --cover-tests --cover-package sploitkit tests
 after_success: coveralls
