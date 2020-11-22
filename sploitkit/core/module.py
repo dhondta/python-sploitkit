@@ -156,11 +156,14 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def unregister_module(cls, subcls):
         """ Unregister a Module subclass from the dictionary of modules. """
-        del cls.modules[subcls.path, subcls.name]
+        try:
+            del cls.modules[subcls.path, subcls.name]
+        except KeyError:
+            pass
         for M in Module.subclasses:
             if subcls.path == M.path and subcls.name == M.name:
+                Module.subclasses.remove(M)
                 break
-        Module.subclasses.remove(M)
     
     @classmethod
     def unregister_modules(cls, *subcls):

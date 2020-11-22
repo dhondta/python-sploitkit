@@ -6,6 +6,7 @@ from peewee import __all__ as _peewee
 from shutil import which
 from subprocess import call
 from tempfile import TemporaryFile
+from tinyscript.helpers.path import Path
 
 from .core import *
 from .core import __all__ as _core
@@ -13,7 +14,7 @@ from .core.console import print_formatted_text
 
 
 __all__ = _core + _peewee
-__all__ += ["print_formatted_text", "IPAddressField", "MACAddressField"]
+__all__ += ["print_formatted_text", "IPAddressField", "MACAddressField", "Path"]
 
 
 # -------------------------------------- Peewee extra fields --------------------------------------

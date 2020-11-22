@@ -16,6 +16,7 @@ from prompt_toolkit.formatted_text import ANSI, FormattedText
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.output import DummyOutput
 from prompt_toolkit.styles import Style
+from random import choice
 from tinyscript.helpers import get_terminal_size, parse_docstring, Capture, Path
 
 from .command import *
@@ -125,8 +126,8 @@ class Console(Entity, metaclass=MetaConsole):
         """ Initialize the parent console with commands and modules. """
         Console._dev_mode = kwargs.pop("dev", False)
         # setup banners
-        bsrc = self._sources("banners")
-        if bsrc is not None:
+        try:
+            bsrc = str(choice(self._sources("banners")))
             print_formatted_text("")
             # display a random banner from the banners folder
             get_banner_func = kwargs.get('get_banner_func', get_banner)
@@ -142,21 +143,15 @@ class Console(Entity, metaclass=MetaConsole):
                     print_formatted_text(ANSI(text))
             except ValueError:
                 pass
+        except IndexError:
+            pass
         # setup libraries
-        lsrc = self._sources("libraries")
-        if lsrc is not None:
-            if isinstance(lsrc, str):
-                lsrc = [lsrc]
-            if isinstance(lsrc, (list, tuple, set)):
-                for lib in map(lambda p: os.path.abspath(p), lsrc[::-1]):
-                    sys.path.insert(0, lib)
-        # insert the source path of Console's parent
-        sources = self._sources("entities")
-        sources.insert(0, self._root)
+        for lib in self._sources("libraries"):
+            sys.path.insert(0, str(lib))
         # setup entities
         load_entities(
             [BaseModel, Command, Console, Model, Module, StoreExtension],
-            *sources,
+            *([self._root] + self._sources("entities")),
             include_base=kwargs.get("include_base", True),
             select=kwargs.get("select", {'command': Command._functionalities}),
             exclude=kwargs.get("exclude", {}),
@@ -238,11 +233,14 @@ class Console(Entity, metaclass=MetaConsole):
     
     def _sources(self, items):
         """ Return the list of sources for the related items [banners|entities|libraries], first trying subclass' one
-             then Console class' one. """
+             then Console class' one. Also, resolve paths relative to the path where the parent Console is found. """
         try:
-            return self.sources[items]
+            src = self.sources[items]
         except KeyError:
-            return Console.sources[items]
+            src = Console.sources[items]
+        if isinstance(src, str):
+            src = [src]
+        return [Path(self._root.dirname.joinpath(s).expanduser().resolve()) for s in (src or [])]
     
     def attach(self, eccls, directref=False, backref=True):
         """ Attach an entity child to the calling entity's instance. """

@@ -1,7 +1,6 @@
 # -*- coding: UTF-8 -*-
 import gc
 import re
-import sys
 from collections import OrderedDict
 from importlib.util import find_spec
 from inspect import getfile, getmro
@@ -33,7 +32,6 @@ def load_entities(entities, *sources, **kwargs):
     global ENTITIES
     ENTITIES = [e.__name__ for e in entities]
     sources = list(sources)
-    lpath = Path(sources[0])  # launcher path
     if kwargs.get("include_base", True):
         # this allows to use sploitkit.base for starting a project with a baseline of entities
         for n in ENTITIES:
@@ -42,21 +40,19 @@ def load_entities(entities, *sources, **kwargs):
                 m = "../base/{}s/".format(n) + m + [".py", ""][m == ""]
                 p = Path(__file__).parent.joinpath(m).resolve()
                 if p.exists():
-                    sources.insert(0, str(p))
+                    sources.insert(0, p)
     # load every single source (folder of modules or single module)
     for s in sources:
-        # if relative paths are given, they are resolved relative to Console.parent's source folder
-        source = lpath.dirname.joinpath(s).expanduser().resolve()
-        if not source.exists():
-            logger.debug("Source file does not exist: %s" % source)
+        if not s.exists():
+            logger.debug("Source file does not exist: %s" % s)
             continue
         # bind the source to the entity main class
         for e in entities:
-            e._source = str(source)
+            e._source = str(s)
         # now, it loads every Python module from the list of source folders ; when loading entity subclasses, these are
         #  registered to entity's registry for further use (i.e. from the console)
-        logger.debug("Loading Python source: %s" % source)
-        PythonPath(source)
+        logger.debug("Loading Python source: %s" % s)
+        PythonPath(s)
     for e in entities:
         tbr = []
         # clean up the temporary attribute
@@ -425,6 +421,7 @@ class Entity(object):
             errors = list(Entity.issues(list(names.values())[0][0]))[0][-1]
             t = ""
             for cname, scnames in names.items():
+                scnames = list(set(scnames))
                 cname += ["", "s"][len(scnames) > 1]
                 t += "{}: {}\n".format(cname, ", ".join(sorted(scnames)))
             t += "- " + "\n- ".join(msg(scname, k, e) for k, err in errors.items() for e in err) + "\n"

@@ -28,7 +28,7 @@ class TestModule(TestCase):
         class FakeModule(Module):
             path = "fake_module"
             name = "fake_module"
-        self.assertRaises(KeyError, Module.unregister_module, FakeModule)
+        self.assertIsNone(Module.unregister_module(FakeModule))
         class OrphanModule(Module):
             path = None
             name = "orphan_module"
