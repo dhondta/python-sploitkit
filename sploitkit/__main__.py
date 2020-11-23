@@ -1,11 +1,12 @@
 #!/usr/bin/python3
+# -*- coding: utf-8 -*-
+from sploitkit.__info__ import __author__, __copyright__, __email__, __license__, __version__
 from tinyscript import *
 
 
-__author__ = "Alexandre D'Hondt"
-__version__ = "1.0"
-__examples__ = ["my-sploit", "my-sploit -s"]
-__doc__ = """
+__script__    = "sploitkit"
+__examples__  = ["my-sploit", "my-sploit -s"]
+__doc__       = """
 This tool allows to quickly create a new Sploitkit project.
 """
 
@@ -103,7 +104,7 @@ PROJECT_STRUCTURE = {
 }
 
 
-if __name__ == '__main__':
+def main():
     parser.add_argument("name", help="project name")
     parser.add_argument("-s", "--show-todo", dest="todo", action="store_true", help="show the TODO list")
     initialize(noargs_action="wizard")
