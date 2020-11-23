@@ -524,11 +524,12 @@ class MetaEntityBase(type):
                 return subcls
             # trigger class registration
             for b in bases:
-                unreg = not hasattr(subcls, "registered") or not subcls.registered
-                for a in dir(b):
-                    m = getattr(b, a)
-                    if callable(m) and any(a == "register_%s" % w.lower() for w in ["subclass"] + ENTITIES) and unreg:
-                        m(subcls)
+                if not hasattr(subcls, "registered") or not subcls.registered:
+                    try:
+                        b.register_subclass(subcls)
+                        getattr(b, "register_" + subcls.entity)(subcls)
+                    except AttributeError:
+                        pass
         return subcls
     
     def __repr__(self):
@@ -541,6 +542,13 @@ class MetaEntityBase(type):
             return self._entity_class.__name__.lower()
         except AttributeError:
             return "entity"
+    
+    @property
+    def registered(self):
+        """ Boolean indicating if the entity is already registered. """
+        e = self._entity_class
+        Entity._subclasses.setdefault(e, [])
+        return ent_id(self) in list(map(ent_id, Entity._subclasses[e]))
     
     @property
     def subclasses(self):
@@ -604,11 +612,4 @@ class MetaEntity(MetaEntityBase):
                 if v is None or n == v:
                     data.append([n, v, ["N", "Y"][r], d])
             return data
-    
-    @property
-    def registered(self):
-        """ Boolean indicating if the entity is already registered. """
-        ecls = self._entity_class
-        Entity._subclasses.setdefault(ecls, [])
-        return ent_id(self) in list(map(ent_id, Entity._subclasses[ecls]))
 
