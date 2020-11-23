@@ -62,16 +62,16 @@ def load_entities(entities, *sources, **kwargs):
         n = e.__name__.lower()
         for c in e.subclasses[:]:
             if len(c.__subclasses__()) > 0:
-                getattr(e, "unregister_{}".format(n), Entity.unregister_subclass)(c)
+                getattr(e, "unregister_%s" % n, Entity.unregister_subclass)(c)
         # handle specific entities or sets of entities exclusions ; this will remove them from Entity's registries
         excludes = kwargs.get("exclude", {}).get(n)
         if excludes is not None:
-            getattr(e, "unregister_{}s".format(n), Entity.unregister_subclasses)(*excludes)
+            getattr(e, "unregister_%ss" % n, Entity.unregister_subclasses)(*excludes)
         # handle conditional entities ; this will remove entities having a "condition" method returning False
         for c in e.subclasses[:]:
             # convention: conditional entities are unregistered and removed
             if hasattr(c, "condition") and not c().condition():
-                getattr(e, "unregister_{}".format(n), Entity.unregister_subclass)(c)
+                getattr(e, "unregister_%s" % n, Entity.unregister_subclass)(c)
         # now populate metadata for each class
         for c in e.subclasses:
             set_metadata(c, kwargs.get("docstr_parser", lambda s: {}))
@@ -480,14 +480,8 @@ class Entity(object):
         # get the base entity class
         ecls = subcls._entity_class
         Entity._subclasses.setdefault(ecls, [])
-        # now register the subcls, ensured to be an end-subclass of the entity, avoiding duplicates (based on the source
-        #  path and the class name)
-        if ent_id(subcls) not in list(map(ent_id, Entity._subclasses[ecls])):
-            # the following line is necessary because of the issue with inspect.getfile when multiple classes with the
-            #  same name are imported from different modules ; this way, __file__ attribute (not attached by default for
-            #  a class) is checked first before trying getfile(...)
-            subcls.__file__ = getfile(subcls)
-            Entity._subclasses[ecls].append(subcls)
+        # now register the subcls, ensured to be an end-subclass of the entity
+        Entity._subclasses[ecls].append(subcls)
         # back-reference the entity from its config if existing
         if getattr(cls, "_has_config", False):
             setattr(subcls.config, "_" + subcls.entity, lambda: subcls._instance)
@@ -530,9 +524,10 @@ class MetaEntityBase(type):
                 return subcls
             # trigger class registration
             for b in bases:
+                unreg = not hasattr(subcls, "registered") or not subcls.registered
                 for a in dir(b):
                     m = getattr(b, a)
-                    if callable(m) and any(a == "register_{}".format(w.lower()) for w in ["subclass"] + ENTITIES):
+                    if callable(m) and any(a == "register_%s" % w.lower() for w in ["subclass"] + ENTITIES) and unreg:
                         m(subcls)
         return subcls
     
@@ -609,4 +604,11 @@ class MetaEntity(MetaEntityBase):
                 if v is None or n == v:
                     data.append([n, v, ["N", "Y"][r], d])
             return data
+    
+    @property
+    def registered(self):
+        """ Boolean indicating if the entity is already registered. """
+        ecls = self._entity_class
+        Entity._subclasses.setdefault(ecls, [])
+        return ent_id(self) in list(map(ent_id, Entity._subclasses[ecls]))
 
