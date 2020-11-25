@@ -14,18 +14,24 @@ from sploitkit import *
 
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
 class Edit(Command):
-    """ Edit a file with PyVim """
+    """ Edit a text file """
     requirements = {'system': ["vim"]}
     single_arg   = True
     
+    def check_requirements(self):
+        return self.config.option("TEXT_EDITOR").value is not None
+    
     def complete_values(self):
-        p = self.config.option("WORKSPACE").value
-        f = Path(p).iterfiles(relative=True)
-        return list(map(lambda _: str(_), f))
+        p = Path(self.config.option("WORKSPACE").value)
+        f = p.iterfiles(relative=True)
+        return list(map(lambda x: str(x), f))
     
     def run(self, filename):
         f = Path(self.config.option("WORKSPACE").value).joinpath(filename)
         self.console._files.edit(str(f))
+    
+    def validate(self, filename):
+        return
 
 
 class History(Command):
@@ -75,10 +81,10 @@ class Stats(Command):
     
     def run(self):
         d = [["Item", "Path", "Size"]]
-        _ = self.console.app_folder
-        d.append(["APP_FOLDER", str(_), human_readable_size(_.size)])
-        _ = self.workspace
-        d.append(["WORKSPACE", str(_), human_readable_size(_.size)])
+        p = self.console.app_folder
+        d.append(["APP_FOLDER", str(p), human_readable_size(p.size)])
+        p = self.workspace
+        d.append(["WORKSPACE", str(p), human_readable_size(p.size)])
         t = BorderlessTable(d, "Statistics")
         print_formatted_text(t.table)
 

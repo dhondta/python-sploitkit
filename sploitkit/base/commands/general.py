@@ -2,9 +2,10 @@
 import re
 import shlex
 from prompt_toolkit.formatted_text import ANSI
-from tinyscript.helpers import BorderlessTable, Path
+from tinyscript.helpers import human_readable_size, BorderlessTable, Path
 
 from sploitkit import *
+from sploitkit.core.module import MetaModule
 
 
 projects = lambda cmd: [x.filename for x in cmd.workspace.iterpubdir()]
@@ -58,23 +59,42 @@ class Search(Command):
 class Show(Command):
     """ Show options, projects, modules or issues (if any) """
     level = "root"
-    keys = ["modules", "options", "projects"]
+    keys = ["files", "modules", "options", "projects"]
     
     def complete_values(self, key):
-        if key == "modules":
-            return [m for m in self.console.modules.keys()]
-        elif key == "options":
-            return list(self.config.keys())
-        elif key == "projects":
-            return projects(self)
+        if key == "files":
+            if self.config.option("TEXT_VIEWER").value is not None:
+                return list(map(str, self.console._files.list))
+            return []
         elif key == "issues":
             l = []
             for cls, subcls, errors in Entity.issues():
                 l.extend(list(errors.keys()))
             return l
+        elif key == "modules":
+            uncat = any(isinstance(m, MetaModule) for m in self.console.modules.values())
+            l = [c for c, m in self.console.modules.items() if not isinstance(m, MetaModule)]
+            return l + ["uncategorized"] if uncat else l
+        elif key == "options":
+            return list(self.config.keys())
+        elif key == "projects":
+            return projects(self)
     
     def run(self, key, value=None):
-        if key == "modules":
+        if key == "files":
+            if value is None:
+                data = [["Path", "Size"]]
+                p = Path(self.config.option("WORKSPACE").value)
+                for f in self.console._files.list:
+                    data.append([f, human_readable_size(p.joinpath(f).size)])
+                print_formatted_text(BorderlessTable(data, "Files from the workspace"))
+            elif self.config.option("TEXT_VIEWER").value:
+                self.console._files.view(value)
+        elif key == "issues":
+            t = Entity.get_issues()
+            if len(t) > 0:
+                print_formatted_text(t)
+        elif key == "modules":
             h = Module.get_help(value)
             if h.strip() != "":
                 print_formatted_text(h)
@@ -95,10 +115,6 @@ class Show(Command):
                 print_formatted_text(BorderlessTable(data, "Existing projects"))
             else:
                 print_formatted_text(value)
-        elif key == "issues":
-            t = Entity.get_issues()
-            if len(t) > 0:
-                print_formatted_text(t)
     
     def set_keys(self):
         if Entity.has_issues():
@@ -106,13 +122,35 @@ class Show(Command):
         else:
             while "issues" in self.keys:
                 self.keys.remove("issues")
+    
+    def validate(self, key, value=None):
+        if key not in self.keys:
+            raise ValueError("invalid key")
+        if value is not None:
+            if key == "files":
+                if self.config.option("TEXT_VIEWER").value is None:
+                    raise ValueError("cannot view file ; TEXT_VIEWER is not set")
+                if value not in self.complete_values(key):
+                    raise ValueError("invalid file")
+            elif key == "issues":
+                if value not in self.complete_values(key):
+                    raise ValueError("invalid error type")
+            elif key == "modules":
+                if value is not None and value not in self.complete_values(key):
+                    raise ValueError("invalid module")
+            elif key == "options":
+                if value is not None and value not in self.complete_values(key):
+                    raise ValueError("invalid option")
+            elif key == "projects":
+                if value is not None and value not in self.complete_values(key):
+                    raise ValueError("invalid project name")
 
 
 # ---------------------------- OPTIONS-RELATED COMMANDS ------------------------
 class Set(Command):
     """ Set an option in the current context """
     def complete_keys(self):
-        return list(self.config.keys())
+        return self.config.keys()
     
     def complete_values(self, key):
         if key.upper() == "WORKSPACE":
@@ -127,7 +165,7 @@ class Set(Command):
     
     def validate(self, key, value):
         if key not in self.config.keys():
-            raise ValueError("invalid key")
+            raise ValueError("invalid option")
         o = self.config.option(key)
         if o.required and value is None:
             raise ValueError("a value is required")
@@ -137,8 +175,10 @@ class Set(Command):
 
 class Unset(Command):
     """ Unset an option from the current context """
-    def complete_keys(self):
-        return list(self.console.config.keys())
+    def complete_values(self):
+        for k in self.config.keys():
+            if not self.config.option(k).required:
+                yield k
     
     def run(self, key):
         self.config[key] = None
@@ -146,7 +186,7 @@ class Unset(Command):
     
     def validate(self, key):
         if key not in self.config.keys():
-            raise ValueError("invalid key")
+            raise ValueError("invalid option")
         if self.config.option(key).required:
-            raise ValueError("this key is required")
+            raise ValueError("this option is required")
 
