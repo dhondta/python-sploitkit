@@ -1,10 +1,10 @@
 # -*- coding: UTF-8 -*-
+import re
 import requests
 from ftplib import FTP, FTP_TLS
 from shutil import which
-from subprocess import call
-from tempfile import TemporaryFile
-from tinyscript.helpers import Path, TempPath
+from subprocess import call, PIPE
+from tinyscript.helpers import b, ensure_str, txt_terminal_render, Path, TempPath
 
 
 __all__ = ["FilesManager"]
@@ -38,13 +38,15 @@ class FilesManager(dict):
     _https = _http
     
     def edit(self, filename):
-        """ Edit a file using PyVim. """
+        """ Edit a file using the configured text editor. """
         #FIXME: edit by calling the locator and manage its local file (e.g. for a URL, point to a temp folder)
-        if which("vim") is None:
-            raise OSError("vim is not installed")
-        if not Path(str(filename)).is_file():
-            raise OSError("File does not exist")
-        call(["vim", filename])
+        ted = self.console.config['TEXT_EDITOR']
+        if which(ted) is None:
+            raise ValueError("'%s' does not exist or is not installed" % ted)
+        p = Path(self.console.config['WORKSPACE']).joinpath(filename)
+        if not p.exists():
+            p.touch()
+        call([ted, str(p)], stderr=PIPE)
     
     def get(self, locator, *args, **kwargs):
         """ Get a resource. """
@@ -74,35 +76,55 @@ class FilesManager(dict):
     
     def page(self, *filenames):
         """ Page a list of files using Less. """
+        tvw = self.console.config['TEXT_VIEWER']
+        if which(tvw) is None:
+            raise ValueError("'%s' does not exist or is not installed" % tvw)
         filenames = list(map(str, filenames))
         for f in filenames:
             if not Path(str(f)).is_file():
                 raise OSError("File does not exist")
-        call(["less"] + filenames)
+        call([tvw] + filenames, stderr=PIPE)
     
     def page_text(self, text):
         """ Page a text using Less. """
-        tmp = TemporaryFile()
-        tmp.write(text)
-        self.page(tmp.name)
-        tmp.close()
+        tmp = self.tempfile()
+        tmp.write_text(text)
+        self.page(str(tmp))
     
     def save(self, key, dst):
         """ Save a resource. """
         with open(dst, 'wb') as f:
             f.write(self[key])
     
-    def tempdir(self):
-        """ Create a temporary directory. """
-        return TempPath(prefix="dronesploit-", length=16)
-    
     def tempfile(self, root=None):
         """ Create a temporary file. """
-        if root is None or not isinstance(root, Path):
-            root = self.tempdir()
-        return root.tempfile()
+        return TempPath(root or self.tempdir).tempfile()
     
     def view(self, key):
-        """ View a file with PyPager. """
-        self.page_text(self[key])
+        """ View a file using the configured text viewer. """
+        try:
+            self.page_text(self[key])
+        except KeyError:
+            pass
+        p = Path(self.console.config['WORKSPACE'], expand=True).joinpath(key)
+        if p.suffix == ".md":
+            self.page_text(txt_terminal_render(p.text, format="md").strip())
+        else:
+            # if the given key is not in the dictionary of files (APP_FOLDER/files/), it can still be in the workspace
+            self.page(p)
+    
+    @property
+    def list(self):
+        """ Get the list of files from the workspace. """
+        p = Path(self.console.config['WORKSPACE']).expanduser()
+        for f in p.walk(filter_func=lambda p: p.is_file(), relative=True):
+            if all(not re.match(x, f.filename) for x in ["(data|key|store)\.db.*", "history"]):
+                yield f
+    
+    @property
+    def tempdir(self):
+        """ Get the temporary directory. """
+        if not hasattr(self, "_tempdir"):
+            self._tempdir = TempPath(prefix="dronesploit-", length=16)
+        return self._tempdir
 

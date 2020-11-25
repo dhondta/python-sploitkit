@@ -13,6 +13,7 @@ class Config(dict):
     
     def __init__(self, *args, **kwargs):
         self.__d = {}
+        self.__g = {}
         # this will set options for this config, that is, creating NEW Option instances based on the given ones
         self.update(*args, **kwargs)
     
@@ -23,6 +24,11 @@ class Config(dict):
     def __delitem__(self, key):
         """ Custom method for deleting an item, for triggering an unset callback from an Option. """
         self.__run_callback(self.__getkey(key), "unset")
+        if key._reset:
+            try:
+                self.console.reset()
+            except AttributeError:
+                pass
     
     def __getitem__(self, key):
         """ Custom method for getting an item, returning the original value from the current Config instance or, if the
@@ -66,14 +72,18 @@ class Config(dict):
     def __str__(self):
         """ Custom string method. """
         data = [["Name", "Value", "Required", "Description"]]
+        l = len(list(self.items(False)))
         for n, d, v, r in sorted(self.items(False), key=lambda x: x[0]):
+            if v is None and l > 1:
+                continue
             r = ["N", "Y"][r]
             if v == "":
                 n, v, r = map(lambda s: colored(s, "red", attrs=['bold']), [n, v, r])
             data.append([n, v, r, d])
-        if len(data) > 1:
-            t = BorderlessTable(data, "{} option{}".format(self.prefix, ["", "s"][len(data) > 2]))
-            return t.table
+        if len(data) == 2:
+            return BorderlessTable(data).table
+        elif len(data) > 3:
+            return BorderlessTable(data, "{} options".format(self.prefix)).table
         return ""
     
     def __getkey(self, key):
@@ -127,9 +137,9 @@ class Config(dict):
                 v = ""
             yield n, o.description or "", v, o.required
     
-    def keys(self):
+    def keys(self, glob=False):
         """ Return string keys (like original dict). """
-        for k in sorted(self.__d.keys()):
+        for k in sorted((self.__g if glob else self.__d).keys()):
             yield k
     
     def option(self, key):
@@ -159,6 +169,14 @@ class Config(dict):
             self[key] = value
         return self[key]
     
+    def setglobal(self, key, value):
+        """ Set a global key-value. """
+        self.__g[key] = value
+    
+    def unsetglobal(self, key, value):
+        """ Unset a global key-value. """
+        del self.__g[key]
+    
     def update(self, *args, **kwargs):
         """ Custom method for handling update of another Config and forcing the use of the modified __setitem__. """
         if len(args) > 0:
@@ -174,8 +192,7 @@ class Config(dict):
     
     @property
     def bound(self):
-        return hasattr(self, "_console") or \
-               (hasattr(self, "module") and hasattr(self.module, "console"))
+        return hasattr(self, "_console") or (hasattr(self, "module") and hasattr(self.module, "console"))
     
     @property
     def console(self):
@@ -208,14 +225,16 @@ class Option(object):
     _reset     = False
     old_value  = None
     
-    def __init__(self, name, description=None, required=False, choices=None, set_callback=None, unset_callback=None,
-                 transform=None, validate=None):
+    def __init__(self, name, description=None, required=False, choices=None, suggestions=None,
+                 set_callback=None, unset_callback=None, transform=None, validate=None):
+        if choices is not None and suggestions is not None:
+            raise ValueError("choices and suggestions cannot be set at the same time")
         self.name = name
         self.description = description
         self.required = required
-        if choices is bool:
+        if choices is bool or suggestions is bool:
             choices = ["true", "false"]
-        self._choices = choices
+        self._choices = choices if choices is not None else suggestions
         self.__set_func(transform, "transform")
         if validate is None and choices is not None:
             validate = lambda s, v: str(v).lower() in [str(c).lower() for c in s.choices]
@@ -319,8 +338,7 @@ class Option(object):
         except AttributeError:  # occurs e.g. if value is already a bool
             pass
         # then try to transform using the user-defined function
-        if isinstance(self.transform, type(lambda:0)) and \
-            self.transform.__name__ == (lambda:0).__name__:
+        if isinstance(self.transform, type(lambda:0)) and self.transform.__name__ == (lambda:0).__name__:
             value = self.transform(value)
         return value
 
