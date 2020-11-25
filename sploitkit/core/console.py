@@ -17,7 +17,8 @@ from prompt_toolkit.history import FileHistory
 from prompt_toolkit.output import DummyOutput
 from prompt_toolkit.styles import Style
 from random import choice
-from tinyscript.helpers import get_terminal_size, parse_docstring, Capture, Path
+from shutil import which
+from tinyscript.helpers import filter_bin, get_terminal_size, parse_docstring, Capture, Path
 
 from .command import *
 from .components import *
@@ -33,6 +34,15 @@ __all__ = [
     # console-related classes
     "Config", "ConsoleExit", "ConsoleDuplicate", "FrameworkConsole", "Option",
 ]
+
+try:
+    DEFAULT_EDITOR = filter_bin("emacs", "gedit", "mousepad", "nano", "notepad", "notepad++", "vi", "vim")[-1]
+except IndexError:
+    DEFAULT_EDITOR = None
+try:
+    DEFAULT_VIEWER = filter_bin("bat", "less")[0]
+except IndexError:
+    DEFAULT_VIEWER = None
 
 _output = get_app_session().output
 dcount = lambda d, n=0: sum([dcount(v, n) if isinstance(v, dict) else n + 1 for v in d.values()])
@@ -112,11 +122,10 @@ class Console(Entity, metaclass=MetaConsole):
         completer, validator = CommandCompleter(), CommandValidator()
         completer.console = validator.console = self
         message, style = self.prompt
-        hpath = Path(self.config.option("WORKSPACE").value).joinpath("history")
         self._session = PromptSession(
             message,
             completer=completer,
-            history=FileHistory(hpath),
+            history=FileHistory(Path(self.config.option("WORKSPACE").value).joinpath("history")),
             validator=validator,
             style=Style.from_dict(style),
         )
@@ -486,10 +495,24 @@ class FrameworkConsole(Console):
         ROption(
             'DEBUG',
             "debug mode",
-            False,
+            True,
             bool,
             set_callback=lambda o: o.root._set_logging(o.value),
         ): "false",
+        ROption(
+            'TEXT_EDITOR',
+            "text file editor to be used",
+            False,
+            choices=lambda: filter_bin("emacs", "gedit", "mousepad", "nano", "notepad", "notepad++", "vi", "vim"),
+            validate=lambda s, v: which(v) is not None,
+        ): DEFAULT_EDITOR,
+        ROption(
+            'TEXT_VIEWER',
+            "text file viewer (pager) to be used",
+            False,
+            choices=lambda: filter_bin("bat", "less"),
+            validate=lambda s, v: which(v) is not None,
+        ): DEFAULT_VIEWER,
         Option(
             'ENCRYPT_PROJECT',
             "ask for a password to encrypt a project when archiving",

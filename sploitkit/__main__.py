@@ -98,7 +98,7 @@ PROJECT_STRUCTURE = {
     'README': "# {}\n\n#TODO: Fill in the README",
     'main.py': MAIN,
     'requirements.txt': None,
-    'banner': {},
+    'banners': {},
     'commands': {'commands.py': COMMANDS},
     'modules': {'modules.py': MODULES},
 }
