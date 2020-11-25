@@ -27,7 +27,7 @@ class TestBase(TestCase):
                         self.assertIsNone(Show().run(k, "DEBUG"))
                 break
         Set = Entity.get_subclass(Command, "Set")
-        keys = Set().complete_keys()
+        keys = list(Set().complete_keys())
         self.assertTrue(len(keys) > 0)
         self.assertIsNotNone(Set().complete_values(keys[0]))
         self.assertIsNotNone(Set().complete_values("WORKSPACE"))
@@ -36,11 +36,10 @@ class TestBase(TestCase):
         self.assertRaises(ValueError, Set().validate, "DEBUG", "whatever")
         self.assertIsNone(Set().run("DEBUG", "false"))
         Unset = Entity.get_subclass(Command, "Unset")
-        keys = Unset().complete_keys()
-        self.assertTrue(len(keys) > 0)
+        self.assertTrue(len(list(Unset().complete_values())) > 0)
         self.assertRaises(ValueError, Unset().validate, "BAD")
         self.assertRaises(ValueError, Unset().validate, "WORKSPACE")
-        self.assertIsNone(Unset().run("DEBUG"))
+        self.assertRaises(ValueError, Unset().run, "DEBUG")
         self.assertIsNone(Set().run("DEBUG", "false"))
     
     def test_root_commands(self):
