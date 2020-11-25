@@ -132,11 +132,21 @@ class Module(Entity, metaclass=MetaModule):
         """ Get the summary of module counts per category. """
         # display module stats
         m = []
+        uncat = []
         for category in cls.modules.keys():
-            l = "{} {}".format(Module.get_count(category), category)
+            if isinstance(cls.modules[category], MetaModule):
+                uncat.append(cls.modules[category])
+                continue
+            l = "%d %s" % (Module.get_count(category), category)
             disabled = Module.get_count(category, enabled=False)
             if disabled > 0:
-                l += " ({} disabled)".format(disabled)
+                l += " (%d disabled)" % disabled
+            m.append(l)
+        if len(uncat) > 0:
+            l = "%d uncategorized" % len(uncat)
+            disabled = len([u for u in uncat if not u.enabled])
+            if disabled > 0:
+                l += " (%d disabled)" % disabled
             m.append(l)
         if len(m) > 0:
             mlen = max(map(len, m))
