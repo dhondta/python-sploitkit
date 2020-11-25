@@ -181,10 +181,15 @@ class Entity(object):
             return good
         cls._enabled = True
         errors = {}
-        # check for requirements
-        req = getattr(cls, "check_requirements", None)
-        if req is not None:
-            cls._enabled = cls.check_requirements()
+        # check for requirements using an explicitely defined function
+        try:
+            cls._enabled = cls.check_requirements(cls)
+            # unpack requirement messages dictionary if relevant
+            cls._enabled, err = cls._enabled
+            errors.update(err or {})
+        except (AttributeError, TypeError, ValueError):
+            pass
+        # check requirements from the related attribute
         for k, v in getattr(cls, "requirements", {}).items():
             if isinstance(v, str):
                 v = [v]
