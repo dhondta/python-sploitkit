@@ -6,12 +6,9 @@ from prompt_toolkit.completion import Completer, Completion
 __all__ = ["CommandCompleter"]
 
 
-def _sorted_set(lst):
-    for x in sorted(map(str, set(lst)), key=lambda s: str(s).casefold()):
-        yield x
-
-
-def _wfilter(lst, prefix):
+def _filter_sort(lst, prefix=None, sort=False):
+    if sort:
+        lst = sorted(map(lambda s: str(s), set(lst or [])), key=lambda s: str(s).casefold())
     for x in lst or []:
         if prefix is None or x.startswith(prefix):
             yield x
@@ -38,28 +35,27 @@ class CommandCompleter(Completer):
         o2 = len(cmd) + len(t1 or "") + 2 - bc if cmd and t2 else 0
         cmds = {k: v for k, v in self.console.commands.items()}
         c = cmds[cmd]._instance if cmd in cmds else None
-        cmds = _sorted_set(cmds.keys())
         nargs = len(c.args) if c is not None else 0
         # then handle tokens ;
         # when no token is provided, just yield the list of available commands
         if l == 0:
-            for x in cmds:
+            for x in _filter_sort(cmds.keys(), sort=True):
                 yield Completion(x, start_position=0)
         # when one token is provided, handle format:
         #   [PARTIAL_]COMMAND ...
         elif l == 1:
             # when a partial token is provided, yield the list of valid commands
             if ts == 0 and c not in cmds:
-                for x in _wfilter(cmds, cmd):
+                for x in _filter_sort(cmds, cmd, True):
                     yield Completion(x, start_position=-bc)
             # when a valid command is provided, yield the list of valid keys or values, depending on the type of command
             elif ts > 0 and c is not None:
                 if nargs == 1:    # COMMAND VALUE
-                    for x in _sorted_set(c._complete_values()):
+                    for x in _filter_sort(c._complete_values(), sort=True):
                         yield Completion(x, start_position=0)
                 # e.g.  set  ---> ["WORKSPACE", ...]
                 elif nargs == 2:  # COMMAND KEY VALUE
-                    for x in _sorted_set(c._complete_keys()):
+                    for x in _filter_sort(c._complete_keys(), sort=True):
                         yield Completion(x, start_position=0)
         # when two tokens are provided, handle format:
         #   COMMAND [PARTIAL_](KEY ...|VALUE)
@@ -67,23 +63,24 @@ class CommandCompleter(Completer):
             # when a partial value token is given, yield the list of valid ones
             # e.g.  select my-pro  ---> ["my-project", ...]
             if nargs == 1 and ts == 0:
-                for x in _wfilter(_sorted_set(c._complete_values()), t1):
+                for x in _filter_sort(c._complete_values(), t1, True):
                     yield Completion(x, start_position=o1)
             # when a partial key token is given, yield the list of valid ones
             # e.g.  set W  ---> ["WORKSPACE"]
             elif nargs == 2 and ts == 0:
-                for x in _wfilter(_sorted_set(c._complete_keys()), t1):
+                for x in _filter_sort(c._complete_keys(), t1, True):
                     yield Completion(x, start_position=o1)
             # when a valid key token is given, yield the list of values
             # e.g.  set WORKSPACE  ---> ["/home/user/...", "..."]
             elif nargs == 2 and ts > 0 and t1 in c._complete_keys():
-                for x in _sorted_set(c._complete_values(t1)):
+                for x in _filter_sort(c._complete_values(t1), sort=True):
                     yield Completion(x, start_position=0)
         # when three tokens are provided, handle format:
         #   COMMAND KEY [PARTIAL_]VALUE
         elif l == 3 and c is not None and t1 in c._complete_keys():
             if nargs == 2 and ts == 0:
-                for x in _wfilter(_sorted_set(c._complete_values(t1)), t2):
-                    yield Completion(x, start_position=o2)
+                for x in _filter_sort(c._complete_values(t1), sort=True):
+                    for y in _filter_sort(x, t2):
+                        yield Completion(y, start_position=o2)
         # handle no other format
 
