@@ -1,15 +1,11 @@
 ## Introduction
 
-Sploitkit is a framework designed to quickly build CLI consoles with a 
-style resembling that of Metasploit. It features a clear and intuitive 
-plugin architecture that allows to build consoles with new commands or 
-modules but also models for their internal stores. The framework is 
-built with the DRY philosophy in mind.
+Sploitkit is a development kit designed to quickly build CLI consoles with a style resembling that of Metasploit. It features a clear and intuitive plugin architecture that allows to build consoles with new commands or modules but also models for their internal stores. The framework is built with the DRY philosophy in mind.
 
 The idea is to make creating consoles as easy as this:
 
 ```sh
-$ sploitkit-new my-sploit
+$ sploitkit my-sploit
 $ cd my-sploit
 $ gedit main.py
 ```
@@ -17,13 +13,24 @@ $ gedit main.py
 ```python
 #!/usr/bin/python3
 from sploitkit import FrameworkConsole
+from tinyscript import *
+
+
+class MySploitConsole(FrameworkConsole):
+    #TODO: set your console attributes
+    pass
 
 
 if __name__ == '__main__':
-    FrameworkConsole(
+    parser.add_argument("-d", "--dev", action="store_true", help="enable development mode")
+    parser.add_argument("-r", "--rcfile", type=ts.file_exists, help="execute commands from a rcfile")
+    initialize()
+    c = MySploitConsole(
         "MySploit",
-        # configure your console settings here
-    ).start()
+        #TODO: configure your console settings
+        dev=args.dev,
+    )
+    c.rcfile(args.rcfile) if args.rcfile else c.start()
 ```
 
 This will give the following (no banner, ASCII image or quote yet):
