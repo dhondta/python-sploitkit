@@ -35,12 +35,14 @@ __all__ = [
     "Config", "ConsoleExit", "ConsoleDuplicate", "FrameworkConsole", "Option",
 ]
 
+EDITORS = ["atom", "emacs", "gedit", "mousepad", "nano", "notepad", "notepad++", "vi", "vim"]
+VIEWERS = ["bat", "less"]
 try:
-    DEFAULT_EDITOR = filter_bin("emacs", "gedit", "mousepad", "nano", "notepad", "notepad++", "vi", "vim")[-1]
+    DEFAULT_EDITOR = filter_bin(*EDITORS)[-1]
 except IndexError:
     DEFAULT_EDITOR = None
 try:
-    DEFAULT_VIEWER = filter_bin("bat", "less")[0]
+    DEFAULT_VIEWER = filter_bin(*VIEWERS)[0]
 except IndexError:
     DEFAULT_VIEWER = None
 
@@ -503,14 +505,14 @@ class FrameworkConsole(Console):
             'TEXT_EDITOR',
             "text file editor to be used",
             False,
-            choices=lambda: filter_bin("emacs", "gedit", "mousepad", "nano", "notepad", "notepad++", "vi", "vim"),
+            choices=lambda: filter_bin(*EDITORS),
             validate=lambda s, v: which(v) is not None,
         ): DEFAULT_EDITOR,
         ROption(
             'TEXT_VIEWER',
             "text file viewer (pager) to be used",
             False,
-            choices=lambda: filter_bin("bat", "less"),
+            choices=lambda: filter_bin(*VIEWERS),
             validate=lambda s, v: which(v) is not None,
         ): DEFAULT_VIEWER,
         Option(
