@@ -245,11 +245,8 @@ class Console(Entity, metaclass=MetaConsole):
     def _sources(self, items):
         """ Return the list of sources for the related items [banners|entities|libraries], first trying subclass' one
              then Console class' one. Also, resolve paths relative to the path where the parent Console is found. """
-        try:
-            src = self.sources[items]
-        except KeyError:
-            src = Console.sources[items]
-        if isinstance(src, str):
+        src = self.sources.get(items, Console.sources[items])
+        if isinstance(src, (str, Path)):
             src = [src]
         return [Path(self._root.dirname.joinpath(s).expanduser().resolve()) for s in (src or [])]
     

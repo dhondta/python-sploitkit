@@ -4,6 +4,7 @@ from sploitkit.__info__ import __author__, __copyright__, __email__, __license__
 from tinyscript import *
 
 
+__name__      = "__main__"
 __script__    = "sploitkit"
 __examples__  = ["my-sploit", "my-sploit -s"]
 __doc__       = """

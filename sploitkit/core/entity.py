@@ -15,6 +15,7 @@ __all__ = ["load_entities", "Entity", "MetaEntity", "MetaEntityBase"]
 
 ENTITIES = []
 ent_id = lambda c: (getattr(c, "__file__", getfile(c)), c.__name__)
+logger = logging.getLogger("core.entity")
 
 
 @logging.bindLogger
@@ -44,7 +45,7 @@ def load_entities(entities, *sources, **kwargs):
     # load every single source (folder of modules or single module)
     for s in sources:
         if not s.exists():
-            logger.debug("Source file does not exist: %s" % s)
+            logger.debug("Source does not exist: %s" % s)
             continue
         # bind the source to the entity main class
         for e in entities:
@@ -452,6 +453,8 @@ class Entity(object):
         sc = Entity._subclasses
         for c, l in sc.items() if cls is Entity else [cls, cls.subclasses] if cls in sc.keys() \
                                                 else [(cls._entity_class, [cls])]:
+            if c is None:
+                continue
             for subcls in l:
                 e = {}
                 for b in subcls.__bases__:

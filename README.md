@@ -80,3 +80,4 @@ Sploitkit defines multiple types of entities for various purposes. The following
 - [`Command`](https://github.com/dhondta/python-sploitkit/blob/master/sploitkit/core/command.py): a new command associated with any or defined consoles using the `level` attribute
 - [`Module`](https://github.com/dhondta/python-sploitkit/blob/master/sploitkit/core/module.py): a new module associated to a console
 - [`Model`, `BaseModel`, `StoreExtension`](https://github.com/dhondta/python-sploitkit/blob/master/sploitkit/core/model.py): respectively for new models, their association tables and store additional methods (e.g. [`User(Model)`, `Email(Model)`, `UserEmail(BaseModel)`, `UsersStorage(StoreExtension)`](https://github.com/dhondta/python-sploitkit/blob/master/sploitkit/base/models/users.py))
+
