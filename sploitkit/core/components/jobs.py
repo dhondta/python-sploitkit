@@ -4,6 +4,7 @@ import subprocess
 from prompt_toolkit.patch_stdout import patch_stdout
 from six import string_types
 from time import time
+from tinyscript.helpers.text import ansi_seq_strip
 
 from sploitkit.core.components.logger import null_logger
 
@@ -51,7 +52,7 @@ class JobsPool(object):
                 p.close(False)
                 self.__jobs[subpool].remove(p)
     
-    def run(self, cmd, stdin=None, show=False, timeout=None, **kwargs):
+    def run(self, cmd, stdin=None, show=False, timeout=None, ansi_strip=True, **kwargs):
         kwargs['stderr'] = subprocess.PIPE
         kwargs['stdin'] = (None if stdin is None else subprocess.PIPE)
         p = Job(cmd, parent=self, **kwargs)
@@ -76,9 +77,11 @@ class JobsPool(object):
             getattr(self.logger, ["debug", "info"][show])(out)
         if err != "" and p._debug:
             getattr(self.logger, ["debug", "error"][show])(err)
+        if ansi_strip:
+            out = ansi_seq_strip(out)
         return out, err
     
-    def run_iter(self, cmd, timeout=None, **kwargs):
+    def run_iter(self, cmd, timeout=None, ansi_strip=True, **kwargs):
         kwargs['stderr'] = subprocess.STDOUT
         kwargs['universal_newlines'] = True
         p = Job(cmd, parent=self, **kwargs)
@@ -98,6 +101,8 @@ class JobsPool(object):
                 if len(line) > 0:
                     if p._debug:
                         self.logger.debug(line)
+                    if ansi_strip:
+                        line = ansi_seq_strip(line)
                     yield line
                 if timeout is not None and time() - s > timeout:
                     break
