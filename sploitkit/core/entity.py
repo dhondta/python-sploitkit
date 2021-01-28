@@ -453,8 +453,6 @@ class Entity(object):
         sc = Entity._subclasses
         for c, l in sc.items() if cls is Entity else [cls, cls.subclasses] if cls in sc.keys() \
                                                 else [(cls._entity_class, [cls])]:
-            if c is None:
-                continue
             for subcls in l:
                 e = {}
                 for b in subcls.__bases__:

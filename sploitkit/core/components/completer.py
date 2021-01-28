@@ -8,7 +8,7 @@ __all__ = ["CommandCompleter"]
 
 def _filter_sort(lst, prefix=None, sort=False):
     if sort:
-        lst = sorted(map(lambda s: str(s), set(lst or [])), key=lambda s: str(s).casefold())
+        lst = sorted(map(str, set(lst or [])), key=lambda s: str(s).casefold())
     for x in lst or []:
         if prefix is None or x.startswith(prefix):
             yield x
@@ -79,8 +79,7 @@ class CommandCompleter(Completer):
         #   COMMAND KEY [PARTIAL_]VALUE
         elif l == 3 and c is not None and t1 in c._complete_keys():
             if nargs == 2 and ts == 0:
-                for x in _filter_sort(c._complete_values(t1), sort=True):
-                    for y in _filter_sort(x, t2):
-                        yield Completion(y, start_position=o2)
+                for x in _filter_sort(c._complete_values(t1), t2, True):
+                    yield Completion(x, start_position=o2)
         # handle no other format
 
