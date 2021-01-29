@@ -1,7 +1,6 @@
 # -*- coding: UTF-8 -*-
 import shlex
 import subprocess
-from prompt_toolkit.patch_stdout import patch_stdout
 from six import string_types
 from time import time
 from tinyscript.helpers.text import ansi_seq_strip

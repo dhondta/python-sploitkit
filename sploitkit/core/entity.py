@@ -14,7 +14,6 @@ from .components.config import Config, Option, ProxyConfig
 __all__ = ["load_entities", "Entity", "MetaEntity", "MetaEntityBase"]
 
 ENTITIES = []
-ent_id = lambda c: (getattr(c, "__file__", getfile(c)), c.__name__)
 logger = logging.getLogger("core.entity")
 
 
@@ -53,6 +52,9 @@ def load_entities(entities, *sources, **kwargs):
         # now, it loads every Python module from the list of source folders ; when loading entity subclasses, these are
         #  registered to entity's registry for further use (i.e. from the console)
         logger.debug("Loading Python source: %s" % s)
+        # important note: since version 1.23.17 of Tinyscript, support for cached compiled Python files has been added,
+        #                  for the PythonPath class, therefore influencing the location path of loaded entities (that
+        #                  is, adding __pycache__)
         PythonPath(s)
     for e in entities:
         tbr = []
@@ -550,11 +552,24 @@ class MetaEntityBase(type):
             return "entity"
     
     @property
+    def identifier(self):
+        """ Compute a unique identifier for this entity subclass. """
+        f = Path(getattr(self, "__file__", getfile(self)))
+        d, fn = f.dirname, f.filename
+        if len(d.parts) > 0 and d.parts[-1] == "__pycache__":
+            parts = fn.split(".")
+            if re.match(r".?python\-?[23]\d", parts[-2]):
+                parts.pop(-2)
+            parts[-1] = "py"
+            f = d.parent.joinpath(".".join(parts))
+        return str(f), self.__name__
+    
+    @property
     def registered(self):
         """ Boolean indicating if the entity is already registered. """
         e = self._entity_class
         Entity._subclasses.setdefault(e, [])
-        return ent_id(self) in list(map(ent_id, Entity._subclasses[e]))
+        return self.identifier in [x.identifier for x in Entity._subclasses[e]]
     
     @property
     def subclasses(self):

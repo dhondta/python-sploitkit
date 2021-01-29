@@ -21,7 +21,10 @@ class MetaModule(MetaEntity):
             # collect the source temporary attribute
             s = getattr(subcls, "_source", ".")
             try:
-                subcls.path = str(p.relative_to(Path(s)))
+                scp = p.relative_to(Path(s))
+                if len(scp.parts) > 0 and scp.parts[-1] == "__pycache__":
+                    scp = scp.parent
+                subcls.path = str(scp)
             except ValueError:
                 subcls.path = None
         # then pass the subclass with its freshly computed path attribute to the original __new__ method, for
