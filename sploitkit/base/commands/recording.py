@@ -10,6 +10,7 @@ class RecordStatus(Command):
     # Rationale: recording status should be consultable from any console level
     aliases = ["record"]
     alias_only = True
+    except_levels = ["session"]
     values = ["status"]
 
     def run(self, status):

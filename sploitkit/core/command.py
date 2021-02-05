@@ -30,6 +30,7 @@ FUNCTIONALITIES = [
     "root",       # base root-level commands
     "project",    # base project-level commands
     "module",     # base module-level commands
+    "session",    # base session-level commands
 ]
 
 
@@ -177,9 +178,10 @@ class Command(Entity, metaclass=MetaCommand):
                 if not hasattr(c, "console") or not c.check():
                     continue
                 d.append([n, getattr(c, "description", "")])
-            t = BorderlessTable(d, "{} commands".format(l.capitalize()))
-            s += t.table + "\n\n"
-            i += 1
+            if len(d) > 1:
+                t = BorderlessTable(d, "{} commands".format(l.capitalize()))
+                s += t.table + "\n"
+                i += 1
         return "\n" + s.strip() + "\n" if i > 0 else ""
 
     @classmethod

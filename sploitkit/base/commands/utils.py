@@ -15,6 +15,7 @@ from sploitkit import *
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
 class Edit(Command):
     """ Edit a text file """
+    except_levels = ["session"]
     requirements = {'system': ["vim"]}
     single_arg   = True
     
@@ -36,6 +37,7 @@ class Edit(Command):
 
 class History(Command):
     """ Inspect commands history """
+    except_levels = ["session"]
     requirements = {'system': ["less"]}
     
     def run(self):
@@ -45,6 +47,7 @@ class History(Command):
 
 class Shell(Command):
     """ Execute a shell command """
+    except_levels = ["session"]
     single_arg = True
     
     def complete_values(self):
@@ -92,6 +95,7 @@ class Stats(Command):
 # ------------------------------- DEBUGGING COMMANDS ---------------------------
 class DebugCommand(Command):
     """ Proxy class for development commands """
+    except_levels = ["session"]
     requirements = {'config': {'DEBUG': True}}
 
 
