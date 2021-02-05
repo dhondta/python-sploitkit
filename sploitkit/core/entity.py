@@ -6,7 +6,8 @@ from importlib.util import find_spec
 from inspect import getfile, getmro
 from shutil import which
 from tinyscript import logging
-from tinyscript.helpers import merge_dict, BorderlessTable, ClassRegistry, Path, PythonPath
+from tinyscript.helpers import is_dict, is_function, is_list, is_str, merge_dict, BorderlessTable, ClassRegistry, \
+                               Path, PythonPath
 
 from .components.config import Config, Option, ProxyConfig
 
@@ -192,52 +193,83 @@ class Entity(object):
             errors.update(err or {})
         except (AttributeError, TypeError, ValueError):
             pass
+        
+        def _checkv(func, item, not_):
+            """ internal convenience function for handling a NOT operator with an input item """
+            r = func(*item) if isinstance(item, tuple) else func(item)
+            return not not_ and not r or not_ and r
+        
+        def _unpackv(item):
+            """ internal convenience function for unpacking a NOT operator from an input item """
+            not_ = True
+            if item.startswith("!"):
+                not_ = True
+                item = item[1:]
+            return not_, item
         # check requirements from the related attribute
+        #TODO: also handle lambda functions for requirements
         for k, v in getattr(cls, "requirements", {}).items():
-            if isinstance(v, str):
+            if is_str(v):
                 v = [v]
+            # checks if a config option is set to a particular value
             if k == "config":
-                if not isinstance(v, dict):
-                    raise ValueError("Bad config requirements")
+                if not is_dict(v):
+                    raise ValueError("Bad config requirements (should be a dictionary)")
                 for opt, exp_val in v.items():
+                    bad, cur_val = False, None
+                    not_, opt = _unpackv(opt)
                     try:
-                        o = cls.config.option(opt.upper())
+                        cur_val = cls.config.option(opt.upper()).value
+                        if not_:
+                            bad = True
                     except KeyError:
+                        if not not_:
+                            bad = True
+                    # compare current and expected values
+                    if bad or _checkv(lambda v1, v2: v1 != v2, (cur_val, exp_val), not_):
                         cls._enabled = False
                         break
-                    cur_val = o.value       # current value
-                    if cur_val != exp_val:  # expected value
-                        cls._enabled = False
-                        break
+            # checks if a file exists
             elif k == "file":
-                if not isinstance(v, (list, tuple, set)):
-                    raise ValueError("Bad file requirements")
+                if not is_list(v):
+                    raise ValueError("Bad file requirements (should be a list/set/tuple)")
                 for fpath in v:
-                    if not Path(cls.__file__).parent.joinpath(fpath).exists():
+                    not_, fpath = _unpackv(fpath)
+                    if _checkv(lambda p: Path(cls.__file__).parent.joinpath(p), fpath, not_):
                         errors.setdefault("file", [])
-                        errors["file"].append(fpath)
+                        errors["file"].append((fpath, not_))
                         cls._enabled = False
+            # checks if a requirement wrt the console is met
+            elif k == "internal":
+                if not is_function(v):
+                    raise ValueError("Bad internal requirement (should be a function)")
+                if not v(cls):
+                    cls._enabled = False
+            # checks if a Python package is present
             elif k == "python":
-                if not isinstance(v, (list, tuple, set)):
-                    raise ValueError("Bad python requirements")
+                if not is_list(v):
+                    raise ValueError("Bad python requirements (should be a list/set/tuple)")
                 for module in v:
                     if isinstance(module, tuple):
                         module, package = module
+                        not_, module = _unpackv(module)
                         found = find_spec(module, package)
                     else:
+                        not_, module = _unpackv(module)
                         package = module
                         found = find_spec(module)
-                    if found is None:
+                    if _checkv(lambda _: found is None, "", not_):
                         errors.setdefault("python", [])
-                        errors["python"].append(package)
+                        errors["python"].append((package, not_))
                         cls._enabled = False
+            # checks if a state variable is set to a particular value
             elif k == "state":
-                if isinstance(v, (list, tuple, set)):
+                if is_list(v):
                     skeys = {sk: None for sk in v}
-                elif isinstance(v, dict):
+                elif is_dict(v):
                     skeys = v
                 else:
-                    raise ValueError("Bad state requirements")
+                    raise ValueError("Bad state requirements (should be a list/set/tuple or a dictionary)")
                 # catch Console from Entity's registered subclasses as Console cannot be imported in this module (cfr
                 #  circular import)
                 Console = cls.get_class("Console")
@@ -252,7 +284,7 @@ class Entity(object):
                         # e.g. cs={wlp4s0:[False,None,"[MAC_addr]"]}
                         cs = Console._state[sk]
                         # special case: state value is a dict
-                        if isinstance(sv, dict) and isinstance(cs, dict):
+                        if is_dict(sv) and is_dict(cs):
                             check_key, l = True, list(sv.items())
                             if len(l) == 1 and l[0][0] is None:
                                 check_key = False
@@ -276,7 +308,7 @@ class Entity(object):
                                             found = True
                                     if not found:
                                         _tmp.append("{}?{}".format(sk, ref))
-                                elif isinstance(ssv, dict):
+                                elif is_dict(ssv):
                                     # e.g. {monitor:True}
                                     found = False
                                     for sssk, sssv in ssv.items():
@@ -302,22 +334,25 @@ class Entity(object):
                     errors.setdefault("state", [])
                     errors['state'].extend(_tmp)
                     cls._enabled = False
+            # checks if a system package/binary is installed
             elif k == "system":
                 for tool in v:
                     _ = tool.split("/")
                     if len(_) == 1:
                         package = None
+                        not_, tool = _unpackv(tool)
                     elif len(_) == 2:
                         package, tool = _
+                        not_, package = _unpackv(package)
                     else:
-                        raise ValueError("Bad system requirements")
+                        raise ValueError("Bad system requirements (should be a list)")
                     if which(tool) is None:
                         if package is None:
                             errors.setdefault("tools", [])
-                            errors["tools"].append(tool)
+                            errors["tools"].append((tool, not_))
                         else:
                             errors.setdefault("packages", [])
-                            errors["packages"].append(package)
+                            errors["packages"].append((package, not_))
                         cls._enabled = False
             else:
                 raise ValueError("Unknown requirements type '{}'".format(k))
@@ -395,18 +430,24 @@ class Entity(object):
         """ List issues as a text. """
         # message formatting function
         def msg(scname, key, item):
+            # try to unpack item for handling the NOT operator
+            try:
+                item, not_ = item
+            except ValueError:
+                not_ = False
+            not_s = ["not ", ""][not_]
             subcls = Entity.get_subclass(None, scname)
             m = getattr(subcls, "requirements_messages", {}).get(key, {}).get(re.split(r"(\=|\?)", item, 1)[0])
             if m is not None:
                 return m.format(item)
             if key == "file":
-                return "'{}' not found".format(item)
+                return "'{}' {}found".format(item, not_s)
             elif key == "packages":
-                return "'{}' system package is not installed".format(item)
+                return "'{}' system package is {}installed".format(item, not_s)
             elif key == "python":
-                return "'{}' Python package is not installed".format(item)
+                return "'{}' Python package is {}installed".format(item, not_s)
             elif key == "tools":
-                return "'{}' tool is not installed".format(item)
+                return "'{}' tool is {}installed".format(item, not_s)
             elif key == "state":
                 item = re.split(r"(\=|\?)", item, 1)
                 if len(item) == 1:
