@@ -78,7 +78,7 @@ class Console(Entity, metaclass=MetaConsole):
     _files    = FilesManager()
     _jobs     = JobsPool()
     _recorder = Recorder()
-    _sessions = SessionsManager()
+    _sessions = None #FIXME: SessionsPool
     _state    = {}  # state shared between all the consoles
     _storage  = StoragePool(StoreExtension)
     # ... by opposition to public class attributes that can be tuned
@@ -95,7 +95,6 @@ class Console(Entity, metaclass=MetaConsole):
     style   = PROMPT_STYLE
     
     def __init__(self, parent=None, **kwargs):
-        fail = kwargs.pop("fail", True)
         super(Console, self).__init__()
         # determine the relevant parent
         self.parent = parent
@@ -122,7 +121,7 @@ class Console(Entity, metaclass=MetaConsole):
         # reset commands and other bound stuffs
         self.reset()
         # setup the session with the custom completer and validator
-        completer, validator = CommandCompleter(), CommandValidator(fail)
+        completer, validator = CommandCompleter(), CommandValidator()
         completer.console = validator.console = self
         message, style = self.prompt
         self._session = PromptSession(
@@ -180,7 +179,7 @@ class Console(Entity, metaclass=MetaConsole):
         if Entity.has_issues():
             self.logger.warning("There are some issues ; use 'show issues' to see more details")
         # console's components back-referencing
-        for attr in ["_files", "_jobs", "_sessions"]:
+        for attr in ["_files", "_jobs"]:
             setattr(getattr(Console, attr), "console", self)
     
     def _close(self):
@@ -439,9 +438,7 @@ class Console(Entity, metaclass=MetaConsole):
         if self.parent is None:
             return self.message, self.style
         # setup the prompt message by adding child's message tokens at the end of parent's one (parent's last token is
-        #  then re-appended) if it shall not be reset, otherwise reset it then set child's tokens
-        if getattr(self, "message_reset", False):
-            return self.message, self.style
+        #  then re-appended)
         pmessage, pstyle = self.parent.prompt
         message = pmessage.copy()  # copy parent message tokens
         t = message.pop()
@@ -455,10 +452,6 @@ class Console(Entity, metaclass=MetaConsole):
     @property
     def root(self):
         return Console.parent
-    
-    @property
-    def sessions(self):
-        return list(self._sessions)
     
     @property
     def state(self):

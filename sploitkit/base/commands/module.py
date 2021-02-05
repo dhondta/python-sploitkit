@@ -32,8 +32,6 @@ class ModuleConsole(Console):
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
 class Use(Command):
     """ Select a module """
-    except_levels = ["session"]
-    
     def complete_values(self):
         return Module.get_list()
     

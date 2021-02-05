@@ -14,7 +14,7 @@ projects = lambda cmd: [x.filename for x in cmd.workspace.iterpubdir()]
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
 class Back(Command):
     """ Come back to the previous console level """
-    except_levels = ["root", "session"]
+    except_levels = ["root"]
     
     def run(self):
         raise ConsoleExit
@@ -23,7 +23,6 @@ class Back(Command):
 class Exit(Command):
     """ Exit the console """
     aliases = ["quit"]
-    except_levels = ["session"]
        
     def run(self):
         raise ConsoleExit
@@ -39,7 +38,6 @@ class Help(Command):
 
 class Search(Command):
     """ Search for text in modules """
-    except_levels = ["session"]
     single_arg = True
     
     def run(self, text):
@@ -81,8 +79,6 @@ class Show(Command):
             return list(self.config.keys())
         elif key == "projects":
             return projects(self)
-        elif key == "sessions":
-            return [str(i) for i, _ in self.console._sessions]
     
     def run(self, key, value=None):
         if key == "files":
@@ -119,11 +115,6 @@ class Show(Command):
                 print_formatted_text(BorderlessTable(data, "Existing projects"))
             else:
                 print_formatted_text(value)
-        elif key == "sessions":
-            data = [["ID", "Description"]]
-            for i, s in self.console._sessions:
-                data.append([str(i), getattr(s, "description", "<undefined>")])
-                print_formatted_text(BorderlessTable(data, "Open sessions"))
     
     def set_keys(self):
         if Entity.has_issues():
@@ -131,11 +122,6 @@ class Show(Command):
         else:
             while "issues" in self.keys:
                 self.keys.remove("issues")
-        if len(self.console._sessions) > 0:
-            self.keys += ["sessions"]
-        else:
-            while "sessions" in self.keys:
-                self.keys.remove("sessions")
     
     def validate(self, key, value=None):
         if key not in self.keys:
@@ -163,8 +149,6 @@ class Show(Command):
 # ---------------------------- OPTIONS-RELATED COMMANDS ------------------------
 class Set(Command):
     """ Set an option in the current context """
-    except_levels = ["session"]
-    
     def complete_keys(self):
         return self.config.keys()
     
@@ -191,8 +175,6 @@ class Set(Command):
 
 class Unset(Command):
     """ Unset an option from the current context """
-    except_levels = ["session"]
-    
     def complete_values(self):
         for k in self.config.keys():
             if not self.config.option(k).required:

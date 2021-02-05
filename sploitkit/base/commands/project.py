@@ -110,7 +110,6 @@ class Select(ProjectRootCommand):
 # ---------------------------- PROJECT-LEVEL COMMANDS --------------------------
 class Show(Command):
     """ Show project-relevant options """
-    #FIXME
     level = "project"
     values = ["options"]
     

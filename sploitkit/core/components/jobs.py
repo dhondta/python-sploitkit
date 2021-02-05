@@ -14,12 +14,12 @@ communicate = lambda p, **i: tuple(map(lambda x: x.decode().strip(), p.communica
 
 
 class Job(subprocess.Popen):
-    """ Subprocess-based job class, bound to its parent pool. """
     def __init__(self, cmd, **kwargs):
         self.parent = kwargs.pop('parent')
         debug = not kwargs.pop('no_debug', False)
         if debug:
-            self.parent.logger.debug(" ".join(cmd) if isinstance(cmd, (tuple, list)) else cmd)
+            c = " ".join(cmd) if isinstance(cmd, (tuple, list)) else cmd
+            self.parent.logger.debug(c)
         cmd = shlex.split(cmd) if isinstance(cmd, string_types) and not kwargs.get('shell', False) else cmd
         super(Job, self).__init__(cmd, stdout=subprocess.PIPE, **kwargs)
         self._debug = debug
@@ -32,14 +32,9 @@ class Job(subprocess.Popen):
 
 
 class JobsPool(object):
-    """ Subprocess-based pool for managing open jobs. """
     def __init__(self, max_jobs=None):
         self.__jobs = {None: []}
         self.max = max_jobs
-    
-    def __iter__(self):
-        for j in self.__jobs.items():
-            yield j
     
     def background(self, cmd, **kwargs):
         subpool = kwargs.pop('subpool')
