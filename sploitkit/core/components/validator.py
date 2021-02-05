@@ -9,10 +9,6 @@ __all__ = ["CommandValidator"]
 
 class CommandValidator(Validator):
     """ Completer for console's commands and arguments. """
-    def __init__(self, fail=True):
-        self._fail = fail
-        super(CommandValidator, self).__init__()
-    
     def validate(self, document):
         # first, tokenize document.text
         tokens = self.console._get_tokens(document.text.strip())
@@ -24,7 +20,7 @@ class CommandValidator(Validator):
             return
         # when a command is being typed, mention if it is existing
         cmd = tokens[0]
-        if l == 1 and cmd not in commands.keys() and self._fail:
+        if l == 1 and cmd not in commands.keys():
             raise ValidationError(message="Unknown command")
         # when a valid first token is provided, handle command's validation, if any available
         elif l >= 1 and cmd in commands.keys():
@@ -40,6 +36,6 @@ class CommandValidator(Validator):
                     m = m.format("")
                 raise ValidationError(message=m)
         # otherwise, the command is considered bad
-        elif self._fail:
+        else:
             raise ValidationError(message="Bad command")
 
