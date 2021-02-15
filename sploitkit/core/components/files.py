@@ -87,7 +87,7 @@ class FilesManager(dict):
     
     def page_text(self, text):
         """ Page a text using Less. """
-        tmp = self.tempfile()
+        tmp = self.tempdir.tempfile()
         tmp.write_text(text)
         self.page(str(tmp))
     
@@ -95,10 +95,6 @@ class FilesManager(dict):
         """ Save a resource. """
         with open(dst, 'wb') as f:
             f.write(self[key])
-    
-    def tempfile(self, root=None):
-        """ Create a temporary file. """
-        return TempPath(root or self.tempdir).tempfile()
     
     def view(self, key):
         """ View a file using the configured text viewer. """
@@ -125,6 +121,6 @@ class FilesManager(dict):
     def tempdir(self):
         """ Get the temporary directory. """
         if not hasattr(self, "_tempdir"):
-            self._tempdir = TempPath(prefix="dronesploit-", length=16)
+            self._tempdir = TempPath(prefix="%s-" % self.console.appname, length=16)
         return self._tempdir
 
