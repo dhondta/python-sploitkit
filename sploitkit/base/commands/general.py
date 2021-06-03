@@ -175,9 +175,6 @@ class Set(Command):
     
     def run(self, key, value):
         self.config[key] = value
-        self.logger.success("{} => {}".format(key, self.config.option(key).value))
-        if hasattr(self.config, "_last_error"):
-            self.logger.warning("Callback error: {}".format(self.config._last_error))
     
     def validate(self, key, value):
         if key not in self.config.keys():
@@ -199,12 +196,50 @@ class Unset(Command):
                 yield k
     
     def run(self, key):
-        self.config[key] = None
-        self.logger.debug("{} => null".format(key))
+        del self.config[key]
     
     def validate(self, key):
         if key not in self.config.keys():
             raise ValueError("invalid option")
         if self.config.option(key).required:
             raise ValueError("this option is required")
+
+
+class Setg(Command):
+    """ Set a global option """
+    except_levels = ["session"]
+    
+    def complete_keys(self):
+        return self.config.keys(True)
+    
+    def complete_values(self, key):
+        return self.config.option(key).choices or []
+    
+    def run(self, key, value):
+        self.config.setglobal(key, value)
+    
+    def validate(self, key, value):
+        try:
+            o = self.config.option(key)
+            if not o.glob:
+                raise ValueError("cannot be set as global")
+            if not o.validate(value):
+                raise ValueError("invalid value")
+        except KeyError:
+            pass
+
+
+class Unsetg(Command):
+    """ Unset a global option """
+    except_levels = ["session"]
+    
+    def complete_values(self):
+        return self.config._g.keys()
+    
+    def run(self, key):
+        self.config.unsetglobal(key)
+    
+    def validate(self, key):
+        if key not in self.config._g.keys():
+            raise ValueError("invalid option")
 

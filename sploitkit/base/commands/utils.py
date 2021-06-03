@@ -4,10 +4,9 @@ import stat
 import yaml
 from collections.abc import Iterable
 from gc import collect, get_objects, get_referrers
-from pprint import pprint
 from subprocess import call
 from sys import getrefcount
-from tinyscript.helpers import human_readable_size, BorderlessTable, Path
+from tinyscript.helpers import human_readable_size, pprint, BorderlessTable, Capture, Path
 
 from sploitkit import *
 
@@ -186,7 +185,9 @@ class Memory(DevCommand):
             print_formatted_text(p.memory_info())
         elif key == "leaking":
             from objgraph import get_leaking_objects
-            print_formatted_text(get_leaking_objects())
+            with Capture() as (out, err):
+                pprint(get_leaking_objects())
+            print_formatted_text(out)
         elif key == "objects":
             data = [["Object", "#References"]]
             for o in get_objects():
