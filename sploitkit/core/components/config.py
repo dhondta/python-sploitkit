@@ -1,10 +1,16 @@
 # -*- coding: UTF-8 -*-
 import re
+from itertools import chain
 from termcolor import colored
 from tinyscript.helpers import is_function, BorderlessTable, Path
 
+from .logger import *
+
 
 __all__ = ["Config", "Option", "ProxyConfig", "ROption"]
+
+
+logger = get_logger("core.components.config")
 
 
 class Config(dict):
@@ -12,8 +18,9 @@ class Config(dict):
     prefix = "Console"
     
     def __init__(self, *args, **kwargs):
-        self.__d = {}
-        self.__g = {}
+        self._d = {}
+        if not hasattr(Config, "_g"):
+            Config._g = {}
         # this will set options for this config, that is, creating NEW Option instances based on the given ones
         self.update(*args, **kwargs)
     
@@ -23,12 +30,19 @@ class Config(dict):
     
     def __delitem__(self, key):
         """ Custom method for deleting an item, for triggering an unset callback from an Option. """
-        self.__run_callback(self.__getkey(key), "unset")
+        try:
+            l = self.console.logger
+        except:
+            l = null_logger
+        key = self._getkey(key)
+        self[key] = None
+        self.__run_callback(key, "unset")
         if key._reset:
             try:
                 self.console.reset()
-            except AttributeError:
+            except AttributeError as err:
                 pass
+        l.debug("{} => null".format(key.name))
     
     def __getitem__(self, key):
         """ Custom method for getting an item, returning the original value from the current Config instance or, if the
@@ -49,25 +63,25 @@ class Config(dict):
     
     def __setitem__(self, key, value):
         """ Custom method for setting an item, keeping the original value in a private dictionary. """
-        key = tmp = self.__getkey(key)
-        # get an existing instance or the new one
-        key = key.bind(self if not hasattr(key, "config") else key.config)
-        if tmp is not key:
-            del tmp  # if an instance already existed, remove the new one
-        # keep track of the previous value
-        key.old_value = self.__d.get(key.name)
-        # then assign the new one if it is valid
-        self.__d[key.name] = (key, value)
-        if value is not None and not key.validate(value):
-            raise ValueError("Invalid value '{}'".format(value))
-        super(Config, self).__setitem__(key, value)
+        try:
+            l = self.console.logger
+        except AttributeError:
+            l = null_logger
+        key = self._setkey(key, value)
+        if key.old_value == key.value:
+            try:
+                l.debug("{} unchanged".format(key.name))
+            except AttributeError:
+                print(key.name)
+            return  # stop here if the final value is unchanged
         # when the value is validated and assigned, run the callback function
         self.__run_callback(key, "set")
         if key._reset:
             try:
                 self.console.reset()
-            except AttributeError:
+            except AttributeError as err:
                 pass
+        l.success("{} => {}".format(key.name, key.value))
     
     def __str__(self):
         """ Custom string method. """
@@ -86,16 +100,9 @@ class Config(dict):
             return BorderlessTable(data, "{} options".format(self.prefix)).table
         return ""
     
-    def __getkey(self, key):
-        """ Proxy method for ensuring that the key is an Option instance. """
-        if not isinstance(key, Option):
-            if not isinstance(key, tuple):
-                key = (key,)
-            key = Option(*key)
-        return key
-    
     def __run_callback(self, key, name):
         """ Method for executing a callback and updating the current value with its return value if any. """
+        logger.detail("{} {} callback triggered".format(key, name))
         retval = None
         if hasattr(self, "_last_error"):
             del self._last_error
@@ -103,23 +110,53 @@ class Config(dict):
             retval = getattr(key, "{}_callback".format(name))()
         except Exception as e:
             self._last_error = e
+            if True:#not isinstance(e, AttributeError):
+                raise
         if retval is not None:
             key.old_value = key.value
             if not key.validate(retval):
                 raise ValueError("Invalid value '{}'".format(retval))
-            self.__d[key.name] = (key, retval)
+            self._d[key.name] = (key, retval)
     
     def _getitem(self, key):
         """ Custom method for getting an item, returning the original value from the current Config instance. """
-        if isinstance(key, Option):
-            key = key.name
-        return self.__d[key][1]
+        return self._d[key.name if isinstance(key, Option) else key][1]
+    
+    def _getkey(self, key):
+        """ Proxy method for ensuring that the key is an Option instance. """
+        if not isinstance(key, Option):
+            try:
+                key = self.option(key)
+            except KeyError:
+                if not isinstance(key, tuple):
+                    key = (key,)
+                key = Option(*key)
+        return key
     
     def _getoption(self, key):
         """ Return Option instance from key. """
-        if isinstance(key, Option):
-            key = key.name
-        return self.__d[key][0]
+        return self._d[key.name if isinstance(key, Option) else key][0]
+    
+    def _setkey(self, key, value):
+        """ Proxy method for setting a key-value as a validated Option instance. """
+        key = tmp = self._getkey(key)
+        # get an existing instance or the new one
+        key = key.bind(self if not hasattr(key, "config") else key.config)
+        if tmp is not key:
+            del tmp  # if an instance already existed, remove the new one
+            key.config._setkey(key, value)
+            return key
+        # keep track of the previous value
+        try:
+            key.old_value = key.value
+        except (KeyError, ValueError):
+            key.old_value = None
+        # then assign the new one if it is valid
+        self._d[key.name] = (key, value)
+        if value is not None and not key.validate(value):
+            raise ValueError("Invalid value '{}' for key '{}'".format(value, key.name))
+        super(Config, self).__setitem__(key, value)
+        return key
     
     def copy(self, config, key):
         """ Copy an option based on its key from another Config instance. """
@@ -139,11 +176,18 @@ class Config(dict):
     
     def keys(self, glob=False):
         """ Return string keys (like original dict). """
-        for k in sorted((self.__g if glob else self.__d).keys()):
+        l = [k for k in self._d.keys()]
+        if glob:
+            for k in chain(self._d.keys(), Config._g.keys()):
+                try:
+                    getattr(l, ["remove", "append"][self.option(k).glob])(k)
+                except KeyError:
+                    pass
+        for k in sorted(l):
             yield k
     
     def option(self, key):
-        """ Return Option instance from key. """
+        """ Return Option instance from key, also searching for this in parent configs. """
         try:  # search first in the private dictionary
             return self._getoption(key)
         except KeyError:
@@ -160,35 +204,37 @@ class Config(dict):
     
     def options(self):
         """ Return Option instances instead of keys. """
-        for k in sorted(self.__d.keys()):
-            yield self.__d[k][0]
+        for k in sorted(self._d.keys()):
+            yield self._d[k][0]
     
     def setdefault(self, key, value=None):
         """ Custom method for forcing the use of the modified __setitem__. """
         if key not in self:
-            self[key] = value
+            self._setkey(key, value)  # this avoids triggering callbacks (on the contrary of self[key]) !
         return self[key]
     
     def setglobal(self, key, value):
         """ Set a global key-value. """
-        self.__g[key] = value
+        Config._g[key] = value
     
-    def unsetglobal(self, key, value):
-        """ Unset a global key-value. """
-        del self.__g[key]
+    def unsetglobal(self, key):
+        """ Unset a global key. """
+        del Config._g[key]
     
     def update(self, *args, **kwargs):
         """ Custom method for handling update of another Config and forcing the use of the modified __setitem__. """
         if len(args) > 0:
             if len(args) > 1:
-                raise TypeError("update expected at most 1 arguments, got %d" % len(args))
+                raise TypeError("update expected at most 1 argument, got %d" % len(args))
             d = args[0]
             for k in (d.options() if isinstance(d, Config) else d.keys() if isinstance(d, dict) else []):
-                self[k] = d[k]
+                k = self._setkey(k, d[k])  # this avoids triggering callbacks (on the contrary of self[key]) !
+                k.default = d[k]
         # important note: this way, this will cause Option instances to be bound to THIS Config instance, with their
         #                  default attribute values (description, required, ...)
         for k, v in kwargs.items():
-            self[k] = v
+            k, self._setkey(k, v)  # this avoids triggering callbacks (on the contrary of self[key]) !
+            k.default = v
     
     @property
     def bound(self):
@@ -225,13 +271,14 @@ class Option(object):
     _reset     = False
     old_value  = None
     
-    def __init__(self, name, description=None, required=False, choices=None, suggestions=None,
-                 set_callback=None, unset_callback=None, transform=None, validate=None):
+    def __init__(self, name, description=None, required=False, choices=None, suggestions=None, set_callback=None,
+                 unset_callback=None, transform=None, validate=None, glob=True):
         if choices is not None and suggestions is not None:
             raise ValueError("choices and suggestions cannot be set at the same time")
         self.name = name
         self.description = description
         self.required = required
+        self.glob = glob
         if choices is bool or suggestions is bool:
             choices = ["true", "false"]
         self._choices = choices if choices is not None else suggestions
@@ -302,7 +349,7 @@ class Option(object):
     @property
     def root(self):
         """ Shortcut to parent config's root console attribute. """
-        return self.console.root
+        return self.console.root or self.console
 
     @property
     def state(self):
@@ -313,6 +360,8 @@ class Option(object):
     def value(self):
         """ Normalized value attribute. """
         value = self.input
+        if value == getattr(self, "default", None):
+            value = Config._g.get(self.name, value)
         if self.required and value is None:
             raise ValueError("{} must be defined".format(self.name))
         try: # try to expand format variables using console's attributes
@@ -355,6 +404,11 @@ class ProxyConfig(object):
         """ Method for appending another config. """
         self.append(config)
         return self
+    
+    def __delitem__(self, key):
+        """ Del method removing the giving key in every bound config instance. """
+        for c in self.configs:
+            del c[key]
     
     def __getattribute__(self, name):
         """ Custom getattribute method for aggregating Config instances for some specific methods and attributes. """
@@ -441,7 +495,7 @@ class ProxyConfig(object):
             return default
     
     def option(self, key):
-        """ Adapted optoin method (wrt Config). """
+        """ Adapted option method (wrt Config). """
         # search for the first config that has this key and return its Option
         for c in self.configs:
             try:
