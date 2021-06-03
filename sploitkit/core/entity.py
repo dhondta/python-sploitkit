@@ -5,20 +5,19 @@ from collections import OrderedDict
 from importlib.util import find_spec
 from inspect import getfile, getmro
 from shutil import which
-from tinyscript import logging
 from tinyscript.helpers import is_dict, is_function, is_list, is_str, merge_dict, BorderlessTable, ClassRegistry, \
                                Path, PythonPath
 
 from .components.config import Config, Option, ProxyConfig
+from .components.logger import get_logger
 
 
 __all__ = ["load_entities", "Entity", "MetaEntity", "MetaEntityBase"]
 
 ENTITIES = []
-logger = logging.getLogger("core.entity")
+logger = get_logger("core.entity")
 
 
-@logging.bindLogger
 def load_entities(entities, *sources, **kwargs):
     """ Load every entity class of the given type found in the given source folders.
     
@@ -194,14 +193,15 @@ class Entity(object):
         except (AttributeError, TypeError, ValueError):
             pass
         
-        def _checkv(func, item, not_):
+        def _checkv(func, args, not_):
             """ internal convenience function for handling a NOT operator with an input item """
-            r = func(*item) if isinstance(item, tuple) else func(item)
-            return not not_ and not r or not_ and r
+            r = func(*args) if isinstance(args, tuple) else func(args)
+            return not_ ^ r
         
         def _unpackv(item):
             """ internal convenience function for unpacking a NOT operator from an input item """
-            not_ = True
+            not_ = False
+            # handle a NOT operator for the given item
             if item.startswith("!"):
                 not_ = True
                 item = item[1:]
@@ -220,13 +220,10 @@ class Entity(object):
                     not_, opt = _unpackv(opt)
                     try:
                         cur_val = cls.config.option(opt.upper()).value
-                        if not_:
-                            bad = True
                     except KeyError:
-                        if not not_:
-                            bad = True
+                        pass
                     # compare current and expected values
-                    if bad or _checkv(lambda v1, v2: v1 != v2, (cur_val, exp_val), not_):
+                    if not _checkv(lambda v1, v2: v1 is v2 or v1 == v2, (cur_val, exp_val), not_):
                         cls._enabled = False
                         break
             # checks if a file exists
@@ -235,7 +232,7 @@ class Entity(object):
                     raise ValueError("Bad file requirements (should be a list/set/tuple)")
                 for fpath in v:
                     not_, fpath = _unpackv(fpath)
-                    if _checkv(lambda p: Path(cls.__file__).parent.joinpath(p), fpath, not_):
+                    if not _checkv(lambda p: Path(cls.__file__).parent.joinpath(p).exists(), fpath, not_):
                         errors.setdefault("file", [])
                         errors["file"].append((fpath, not_))
                         cls._enabled = False
@@ -258,7 +255,7 @@ class Entity(object):
                         not_, module = _unpackv(module)
                         package = module
                         found = find_spec(module)
-                    if _checkv(lambda _: found is None, "", not_):
+                    if not _checkv(lambda _: found is not None, "", not_):
                         errors.setdefault("python", [])
                         errors["python"].append((package, not_))
                         cls._enabled = False
@@ -529,18 +526,27 @@ class Entity(object):
         # get the base entity class
         ecls = subcls._entity_class
         Entity._subclasses.setdefault(ecls, [])
-        # now register the subcls, ensured to be an end-subclass of the entity
-        Entity._subclasses[ecls].append(subcls)
-        # back-reference the entity from its config if existing
-        if getattr(cls, "_has_config", False):
-            setattr(subcls.config, "_" + subcls.entity, lambda: subcls._instance)
+        if subcls not in Entity._subclasses[ecls]:
+            # now register the subcls, ensured to be an end-subclass of the entity
+            Entity._subclasses[ecls].append(subcls)
+            # back-reference the entity from its config if existing
+            if getattr(cls, "_has_config", False):
+                setattr(subcls.config, "_" + subcls.entity, lambda: subcls._instance)
+            # manually get subclass' name because of MetaModel not having the "name" property (would be considered a
+            #  Peewee database field)
+            n = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', subcls.__name__)).lower()
+            logger.detail("Registered {} '{}'".format(subcls.entity, n))
     
     @classmethod
     def unregister_subclass(cls, subcls):
         """ Remove an entry from the registry of subclasses. """
+        # manually get subclass' name because of MetaModel not having the "name" property (would be considered a Peewee
+        #  database field)
+        n = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', subcls.__name__)).lower()
         if cls in Entity._subclasses.keys():
             try:
                 Entity._subclasses[cls].remove(subcls)
+                logger.detail("Unregistered {} '{}'".format(subcls.entity, n))
             except ValueError:
                 pass
     
@@ -574,8 +580,8 @@ class MetaEntityBase(type):
             # trigger class registration
             for b in bases:
                 if not hasattr(subcls, "registered") or not subcls.registered:
-                    try:
-                        b.register_subclass(subcls)
+                    b.register_subclass(subcls)
+                    try:  # OPTIONAL: execute entity's own register method
                         getattr(b, "register_" + subcls.entity)(subcls)
                     except AttributeError:
                         pass

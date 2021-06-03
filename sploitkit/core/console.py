@@ -48,6 +48,7 @@ except IndexError:
 
 _output = get_app_session().output
 dcount = lambda d, n=0: sum([dcount(v, n) if isinstance(v, dict) else n + 1 for v in d.values()])
+logger = get_logger("core.console")
 
 
 def print_formatted_text(*args, **kwargs):
@@ -136,7 +137,6 @@ class Console(Entity, metaclass=MetaConsole):
     
     def __init(self, **kwargs):
         """ Initialize the parent console with commands and modules. """
-        Console._dev_mode = kwargs.pop("dev", False)
         # setup banners
         try:
             bsrc = str(choice(self._sources("banners")))
@@ -426,7 +426,7 @@ class Console(Entity, metaclass=MetaConsole):
     @property
     def logger(self):
         try:
-            return Console.logger
+            return Console._logger
         except:
             return null_logger
     
@@ -496,7 +496,8 @@ class FrameworkConsole(Console):
             'APP_FOLDER',
             "folder where application assets (i.e. logs) are saved",
             True,
-            set_callback=lambda o: o.root._set_app_folder(),
+            #set_callback=lambda o: o.root._set_app_folder(debug=o.config.option('DEBUG').value),
+            glob=False,
         ): "~/.{appname}",
         ROption(
             'DEBUG',
@@ -504,6 +505,7 @@ class FrameworkConsole(Console):
             True,
             bool,
             set_callback=lambda o: o.root._set_logging(o.value),
+            glob=False,
         ): "false",
         ROption(
             'TEXT_EDITOR',
@@ -511,6 +513,7 @@ class FrameworkConsole(Console):
             False,
             choices=lambda: filter_bin(*EDITORS),
             validate=lambda s, v: which(v) is not None,
+            glob=False,
         ): DEFAULT_EDITOR,
         ROption(
             'TEXT_VIEWER',
@@ -518,27 +521,32 @@ class FrameworkConsole(Console):
             False,
             choices=lambda: filter_bin(*VIEWERS),
             validate=lambda s, v: which(v) is not None,
+            glob=False,
         ): DEFAULT_VIEWER,
         Option(
             'ENCRYPT_PROJECT',
             "ask for a password to encrypt a project when archiving",
             True,
             bool,
+            glob=False,
         ): "true",
         Option(
             'WORKSPACE',
             "folder where results are saved",
             True,
             set_callback=lambda o: o.root._set_workspace(),
+            glob=False,
         ): "~/Notes",
     })
     
     def __init__(self, appname=None, *args, **kwargs):
+        Console._dev_mode = kwargs.pop("dev", False)
         Console.appname = appname or getattr(self, "appname", Console.appname)
         o, v = self.config.option('APP_FOLDER'), str(self.config['APP_FOLDER'])
         self.config[o] = Path(v.format(appname=self.appname.lower()))
         o.old_value = None
-        self._set_app_folder()
+        self.config['DEBUG'] = kwargs.get('debug', False)
+        self._set_app_folder(silent=True, **kwargs)
         self._set_workspace()
         super(FrameworkConsole, self).__init__(*args, **kwargs)
     
@@ -556,20 +564,32 @@ class FrameworkConsole(Console):
         Path(new).joinpath(subpath).mkdir(parents=True, exist_ok=True)
         return new
     
-    def _set_app_folder(self):
+    def _set_app_folder(self, **kwargs):
         """ Set a new APP_FOLDER, moving an old to the new one if necessary. """
         self._files.root_dir = self.__set_folder("APP_FOLDER", "files")
-        self._set_logging()
+        self._set_logging(**kwargs)  # this is necessary as the log file is located in APP_FOLDER
     
-    def _set_logging(self, debug=False, to_file=True):
+    def _set_logging(self, debug=False, to_file=True, **kwargs):
         """ Set a new logger with the input logging level. """
-        l, p = ["INFO", "DEBUG"][debug], None
+        l, p1, p2, dev = "INFO", None, None, Console._dev_mode
+        if debug:
+            l = "DETAIL" if Console._dev_mode else "DEBUG"
         if to_file:
             # attach a logger to the console
             lpath = self.app_folder.joinpath("logs")
             lpath.mkdir(parents=True, exist_ok=True)
-            p = str(lpath.joinpath("main.log"))
-        Console.logger = get_logger(self.__class__.name, p, l)
+            p1 = str(lpath.joinpath("main.log"))
+            if dev:
+                p2 = str(lpath.joinpath("debug.log"))
+        if l == "INFO" and not kwargs.get('silent', False):
+            self.logger.debug("Set logging to INFO")
+        Console._logger = get_logger(self.appname.lower(), p1, l)
+        # setup framework's logger with its own get_logger function (configuring other handlers than the default one)
+        set_logging_level(l, self.appname.lower(), config_func=lambda lgr, lvl: get_logger(lgr.name, p1, lvl))
+        # setup internal (dev) loggers with the default logging.configLogger (enhancement to logging from Tinyscript)
+        set_logging_level(l, "core", config_func=lambda lgr, lvl: get_logger(lgr.name, p2, lvl, True, dev))
+        if l != "INFO" and not kwargs.get('silent', False):
+            self.logger.debug("Set logging to {}".format(l))
     
     def _set_workspace(self):
         """ Set a new APP_FOLDER, moving an old to the new one if necessary. """

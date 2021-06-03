@@ -2,9 +2,11 @@
 import gc
 import re
 from inspect import getfullargspec
+from tinyscript import logging
 from tinyscript.helpers import failsafe, BorderlessTable, Path, PythonPath
 
 from .components.config import Config
+from .components.logger import get_logger
 from .entity import Entity, MetaEntity
 
 
@@ -32,6 +34,9 @@ FUNCTIONALITIES = [
     "module",     # base module-level commands
     "session",    # base session-level commands
 ]
+
+
+logger = get_logger("core.command")
 
 
 class MetaCommand(MetaEntity):
@@ -197,6 +202,7 @@ class Command(Entity, metaclass=MetaCommand):
                 Command.commands[l][subcls.name] = subcls
             for alias in subcls.aliases:
                 Command.commands[l][alias] = subcls
+                logger.detail("Registered command alias '{}'".format(alias))
     
     @classmethod
     def set_style(cls, style):
@@ -214,10 +220,7 @@ class Command(Entity, metaclass=MetaCommand):
         # remove every reference in commands dictionary
         for l in levels:
             for n in [n] + subcls.aliases:
-                try:
-                    del Command.commands[l][n]
-                except KeyError:
-                    pass
+                del Command.commands[l][n]
         # remove the subclass instance from the subclasses registry
         try:
             Command.subclasses.remove(subcls)
@@ -228,11 +231,12 @@ class Command(Entity, metaclass=MetaCommand):
             try:
                 del globals()[subcls.__name__]
             except KeyError:
-                pass
+                pass  # subcls may be a proxy Command-inherited class
         # if the level of commands is become empty, remove it
         for l in levels:
             if len(Command.commands[l]) == 0:
                 del Command.commands[l]
+        logger.detail("Unregistered command '{}/{}'".format(l, n))
     
     @classmethod
     def unregister_commands(cls, *identifiers):

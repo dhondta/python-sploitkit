@@ -3,10 +3,14 @@ import datetime
 from peewee import *
 from peewee import Model as PeeweeModel, ModelBase
 
+from .components.logger import get_logger
 from .entity import Entity, MetaEntityBase
 
 
 __all__ = ["BaseModel", "Model", "StoreExtension"]
+
+
+logger = get_logger("core.model")
 
 
 class MetaModel(ModelBase, MetaEntityBase):

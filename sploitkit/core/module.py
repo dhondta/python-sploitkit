@@ -2,10 +2,14 @@
 from inspect import getfile
 from tinyscript.helpers import flatten_dict, BorderlessTable, Path, PathBasedDict
 
+from .components.logger import get_logger
 from .entity import Entity, MetaEntity
 
 
 __all__ = ["Module"]
+
+
+logger = get_logger("core.module")
 
 
 class MetaModule(MetaEntity):
