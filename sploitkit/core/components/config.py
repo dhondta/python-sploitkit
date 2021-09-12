@@ -15,8 +15,6 @@ logger = get_logger("core.components.config")
 
 class Config(dict):
     """ Enhanced dictionary for handling Option instances as its keys. """
-    prefix = "Console"
-    
     def __init__(self, *args, **kwargs):
         self._d = {}
         if not hasattr(Config, "_g"):
@@ -35,7 +33,7 @@ class Config(dict):
         except:
             l = null_logger
         key = self._getkey(key)
-        self[key] = None
+        self[key] = getattr(self, "default", None)
         self.__run_callback(key, "unset")
         if key._reset:
             try:
@@ -67,12 +65,16 @@ class Config(dict):
             l = self.console.logger
         except AttributeError:
             l = null_logger
+        try:
+            key, force = key
+        except (TypeError, ValueError):
+            force = False
         key = self._setkey(key, value)
-        if key.old_value == key.value:
+        if not force and key.old_value == key.value:
             try:
                 l.debug("{} unchanged".format(key.name))
             except AttributeError:
-                print(key.name)
+                pass
             return  # stop here if the final value is unchanged
         # when the value is validated and assigned, run the callback function
         self.__run_callback(key, "set")
@@ -81,7 +83,7 @@ class Config(dict):
                 self.console.reset()
             except AttributeError as err:
                 pass
-        l.success("{} => {}".format(key.name, key.value))
+        l.success("{} => {}".format(key.name, value if force else key.value))
     
     def __str__(self):
         """ Custom string method. """
@@ -94,10 +96,13 @@ class Config(dict):
             if v == "":
                 n, v, r = map(lambda s: colored(s, "red", attrs=['bold']), [n, v, r])
             data.append([n, v, r, d])
-        if len(data) == 2:
-            return BorderlessTable(data).table
-        elif len(data) > 3:
-            return BorderlessTable(data, "{} options".format(self.prefix)).table
+        if len(data) > 1:
+            try:
+                prefix = self.console.opt_prefix
+            except AttributeError:
+                prefix = None
+            return BorderlessTable(data).table if prefix is None else \
+                   BorderlessTable(data, "%s options" % prefix).table
         return ""
     
     def __run_callback(self, key, name):
@@ -477,6 +482,11 @@ class ProxyConfig(object):
         """ String method for aggregating the list of Config instances. """
         c = Config()
         for config in self.configs:
+            if not hasattr(c, "console"):
+                try:
+                    c.console = config.console
+                except AttributeError:
+                    pass
             c.update(config)
         return str(c)
     
