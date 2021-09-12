@@ -542,6 +542,7 @@ class FrameworkConsole(Console):
     def __init__(self, appname=None, *args, **kwargs):
         Console._dev_mode = kwargs.pop("dev", False)
         Console.appname = appname or getattr(self, "appname", Console.appname)
+        self.opt_prefix = "Console"
         o, v = self.config.option('APP_FOLDER'), str(self.config['APP_FOLDER'])
         self.config[o] = Path(v.format(appname=self.appname.lower()))
         o.old_value = None

@@ -25,8 +25,8 @@ class ModuleConsole(Console):
         self.logname = module.fullpath
         self.message[1] = ('class:prompt', self.module.category)
         self.message[3] = ('class:module', self.module.base)
+        self.opt_prefix = "Module"
         super(ModuleConsole, self).__init__(parent)
-        self.config.prefix = "Module"
 
 
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
@@ -78,8 +78,7 @@ class Show(ModuleCommand):
                 print_formatted_text(ANSI(str(self.config)))
             else:
                 c = Config()
-                c.prefix = "Module"
-                c[self.config.option(value)] = self.config[value]
+                c[self.config.option(value), True] = self.config[value]
                 print_formatted_text(ANSI(str(c)))
         elif key == "info":
             i = self.console.module.get_info(("fullpath|path", "description"), ("author", "email", "version"),

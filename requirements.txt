@@ -1,4 +1,4 @@
 peewee
 prompt_toolkit
 requests
-tinyscript>=1.24.6
+tinyscript>=1.24.10

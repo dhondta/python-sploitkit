@@ -25,11 +25,12 @@ class MySploitConsole(FrameworkConsole):
 if __name__ == '__main__':
     parser.add_argument("-d", "--dev", action="store_true", help="enable development mode")
     parser.add_argument("-r", "--rcfile", type=ts.file_exists, help="execute commands from a rcfile")
-    initialize()
+    initialize(exit_at_interrupt=False)
     c = MySploitConsole(
         "MySploit",
         #TODO: configure your console settings
         dev=args.dev,
+        debug=args.verbose,
     )
     c.rcfile(args.rcfile) if args.rcfile else c.start()
 """

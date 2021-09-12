@@ -20,7 +20,7 @@ class MetaModule(MetaEntity):
     def __new__(meta, name, bases, clsdict):
         subcls = type.__new__(meta, name, bases, clsdict)
         # compute module's path from its root folder if no path attribute defined on its class
-        if not hasattr(subcls, "path") or subcls.path is None:
+        if getattr(subcls, "path", None) is None:
             p = Path(getfile(subcls)).parent
             # collect the source temporary attribute
             s = getattr(subcls, "_source", ".")
@@ -173,14 +173,16 @@ class Module(Entity, metaclass=MetaModule):
     @classmethod
     def unregister_module(cls, subcls):
         """ Unregister a Module subclass from the dictionary of modules. """
+        p, n = subcls.path, subcls.name
         try:
-            del cls.modules[subcls.path, subcls.name]
+            del cls.modules[n if p == "." else (p, n)]
         except KeyError:
             pass
         for M in Module.subclasses:
-            if subcls.path == M.path and subcls.name == M.name:
+            if p == M.path and n == M.name:
                 Module.subclasses.remove(M)
                 break
+        logger.detail("Unregistered module '{}/{}'".format(p, n))
     
     @classmethod
     def unregister_modules(cls, *subcls):
