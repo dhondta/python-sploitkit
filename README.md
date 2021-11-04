@@ -1,3 +1,6 @@
+<h1 align="center">SploitKit <a href="https://twitter.com/intent/tweet?text=SploitKit%20-%20Devkit%20for%20building%20Metasploit-like%20consoles.%0D%0APython%20library%20for%20easilly%20building%20framework%20consoles%20in%20a%20Metasploit-like%20style%20with%20a%20comprehensive%20API.%0D%0Ahttps%3a%2f%2fgithub%2ecom%2fdhondta%2fpython-sploitkit%0D%0A&hashtags=python,programming,devkit,framework,console,ctftools"><img src="https://img.shields.io/badge/Tweet--lightgrey?logo=twitter&style=social" alt="Tweet" height="20"/></a></h1>
+<h3 align="center">Make a Metasploit-like console.</h3>
+
 [![PyPi](https://img.shields.io/pypi/v/sploitkit.svg)](https://pypi.python.org/pypi/sploitkit/)
 [![Read The Docs](https://readthedocs.org/projects/python-sploitkit/badge/?version=latest)](https://python-sploitkit.readthedocs.io/en/latest/?badge=latest)
 [![Build Status](https://travis-ci.com/dhondta/python-sploitkit.svg?branch=master)](https://travis-ci.com/dhondta/python-sploitkit)
@@ -9,17 +12,13 @@
 [![Donate](https://img.shields.io/badge/donate-paypal-orange.svg)](https://www.paypal.me/dhondta)
 
 
-## Introduction
-
 This toolkit is aimed to easilly build framework consoles in a Metasploit-like style. It provides a comprehensive interface to define CLI commands, modules and models for its storage database.
-
-## Setup
 
 ```
 pip install sploitkit
 ```
 
-## Usage
+## :sunglasses: Usage
 
 From this point, `main.py` has the following code:
 
@@ -44,7 +43,7 @@ And you can run it from the terminal:
 
 ![](https://github.com/dhondta/python-sploitkit/tree/master/docs/img/my-sploit-start.png)
 
-## Features
+## :ballot_box_with_check: Features
 
 Sploitkit provides a base set of entities (consoles, commands, modules, models).
 
@@ -72,7 +71,7 @@ It also holds some base models for its storage:
 
 No module is provided with the framework as it is case-specific.
 
-## Customization
+## :pencil2: Customization
 
 Sploitkit defines multiple types of entities for various purposes. The following entities can be subclassed:
 
@@ -81,3 +80,11 @@ Sploitkit defines multiple types of entities for various purposes. The following
 - [`Module`](https://github.com/dhondta/python-sploitkit/blob/master/sploitkit/core/module.py): a new module associated to a console
 - [`Model`, `BaseModel`, `StoreExtension`](https://github.com/dhondta/python-sploitkit/blob/master/sploitkit/core/model.py): respectively for new models, their association tables and store additional methods (e.g. [`User(Model)`, `Email(Model)`, `UserEmail(BaseModel)`, `UsersStorage(StoreExtension)`](https://github.com/dhondta/python-sploitkit/blob/master/sploitkit/base/models/users.py))
 
+
+## :clap:  Supporters
+
+[![Stargazers repo roster for @dhondta/python-sploitkit](https://reporoster.com/stars/dark/dhondta/python-sploitkit)](https://github.com/dhondta/python-sploitkit/stargazers)
+
+[![Forkers repo roster for @dhondta/python-sploitkit](https://reporoster.com/forks/dark/dhondta/python-sploitkit)](https://github.com/dhondta/python-sploitkit/network/members)
+
+<p align="center"><a href="#"><img src="https://img.shields.io/badge/Back%20to%20top--lightgrey?style=social" alt="Back to top" height="20"/></a></p>
