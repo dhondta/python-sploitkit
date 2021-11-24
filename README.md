@@ -1,3 +1,4 @@
+<p align="center"><img src="https://github.com/dhondta/python-sploitkit/raw/master/docs/logo.png"></p>
 <h1 align="center">SploitKit <a href="https://twitter.com/intent/tweet?text=SploitKit%20-%20Devkit%20for%20building%20Metasploit-like%20consoles.%0D%0APython%20library%20for%20easilly%20building%20framework%20consoles%20in%20a%20Metasploit-like%20style%20with%20a%20comprehensive%20API.%0D%0Ahttps%3a%2f%2fgithub%2ecom%2fdhondta%2fpython-sploitkit%0D%0A&hashtags=python,programming,devkit,framework,console,ctftools"><img src="https://img.shields.io/badge/Tweet--lightgrey?logo=twitter&style=social" alt="Tweet" height="20"/></a></h1>
 <h3 align="center">Make a Metasploit-like console.</h3>
 
