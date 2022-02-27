@@ -59,7 +59,7 @@ class Delete(ProjectRootCommand):
     """ Delete a project """
     def run(self, project):
         self.logger.debug("Deleting project '{}'...".format(project))
-        self.workspace.joinpath(project).rmtree()
+        self.workspace.joinpath(project).remove()
         self.logger.success("'{}' deleted".format(project))
 
 
@@ -105,6 +105,9 @@ class Select(ProjectRootCommand):
             self.logger.success("'{}' created".format(project))
         ProjectConsole(self.console, project).start()
         self.config['WORKSPACE'] = str(Path(self.config['WORKSPACE']).parent)
+    
+    def validate(self, project):
+        pass
 
 
 # ---------------------------- PROJECT-LEVEL COMMANDS --------------------------
