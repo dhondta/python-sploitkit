@@ -6,9 +6,11 @@ from collections.abc import Iterable
 from gc import collect, get_objects, get_referrers
 from subprocess import call
 from sys import getrefcount
-from tinyscript.helpers import human_readable_size, pprint, BorderlessTable, Capture, Path
+from tinyscript.helpers import human_readable_size, parse_docstring, pprint, BorderlessTable, Capture, Path
 
 from sploitkit import *
+from sploitkit.core.components import BACK_REFERENCES
+from sploitkit.core.entity import load_entities
 
 
 # ---------------------------- GENERAL-PURPOSE COMMANDS ------------------------
@@ -206,4 +208,17 @@ class Memory(DevCommand):
                 raise ValueError("bad object")
         elif value:
             raise ValueError("this key takes no value")
+
+
+class Reload(Command):
+    """ Inspect memory consumption """
+    level  = "root"
+    values = ["commands", "modules", "models"]
+    
+    def condition(self):
+        return getattr(Console, "_dev_mode", False)
+    
+    def run(self, value):
+        load_entities([globals()[value[:-1].capitalize()]],
+                      *([self.console._root] + self.console._sources("entities")), **self.console._load_kwargs)
 

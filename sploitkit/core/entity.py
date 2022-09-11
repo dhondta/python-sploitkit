@@ -5,8 +5,8 @@ from collections import OrderedDict
 from importlib.util import find_spec
 from inspect import getfile, getmro
 from shutil import which
-from tinyscript.helpers import is_dict, is_function, is_list, is_str, merge_dict, BorderlessTable, ClassRegistry, \
-                               Path, PythonPath
+from tinyscript.helpers import is_dict, is_function, is_list, is_str, merge_dict, parse_docstring, \
+                               BorderlessTable, ClassRegistry, Path, PythonPath
 
 from .components.config import Config, Option, ProxyConfig
 from .components.logger import get_logger
@@ -28,6 +28,7 @@ def load_entities(entities, *sources, **kwargs):
                            (useful when including the base but not every entity is required)
     :param backref:       list of attrs to get entity's class to be bound to
     :param docstr_parser: user-defined docstring parser for populating metadata
+    :param remove_cache:  remove Python file cache
     """
     global ENTITIES
     ENTITIES = [e.__name__ for e in entities]
@@ -55,7 +56,7 @@ def load_entities(entities, *sources, **kwargs):
         # important note: since version 1.23.17 of Tinyscript, support for cached compiled Python files has been added,
         #                  for the PythonPath class, therefore influencing the location path of loaded entities (that
         #                  is, adding __pycache__)
-        PythonPath(s)
+        PythonPath(s, remove_cache=kwargs.get("remove_cache", False))
     for e in entities:
         tbr = []
         # clean up the temporary attribute
@@ -77,7 +78,7 @@ def load_entities(entities, *sources, **kwargs):
                 getattr(e, "unregister_%s" % n, Entity.unregister_subclass)(c)
         # now populate metadata for each class
         for c in e.subclasses:
-            set_metadata(c, kwargs.get("docstr_parser", lambda s: {}))
+            set_metadata(c, kwargs.get("docstr_parser", parse_docstring))
         # bind entity's subclasses to the given attributes for back-reference
         backrefs = kwargs.get("backref", {}).get(n)
         if backrefs is not None:

@@ -161,15 +161,14 @@ class Console(Entity, metaclass=MetaConsole):
         for lib in self._sources("libraries"):
             sys.path.insert(0, str(lib))
         # setup entities
-        load_entities(
-            [BaseModel, Command, Console, Model, Module, StoreExtension],
-            *([self._root] + self._sources("entities")),
-            include_base=kwargs.get("include_base", True),
-            select=kwargs.get("select", {'command': Command._functionalities}),
-            exclude=kwargs.get("exclude", {}),
-            backref=kwargs.get("backref", BACK_REFERENCES),
-            docstr_parser=kwargs.get("docstr_parser", parse_docstring),
-        )
+        self._load_kwargs = {'include_base':  kwargs.get("include_base", True),
+                             'select':        kwargs.get("select", {'command': Command._functionalities}),
+                             'exclude':       kwargs.get("exclude", {}),
+                             'backref':       kwargs.get("backref", BACK_REFERENCES),
+                             'docstr_parser': kwargs.get("docstr_parser", parse_docstring),
+                             'remove_cache':  True}
+        load_entities([BaseModel, Command, Console, Model, Module, StoreExtension],
+                      *([self._root] + self._sources("entities")), **self._load_kwargs)
         Console._storage.models = Model.subclasses + BaseModel.subclasses
         # display module stats
         print_formatted_text(FormattedText([("#00ff00", Module.get_summary())]))
