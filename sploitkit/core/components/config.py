@@ -65,9 +65,9 @@ class Config(dict):
             l = self.console.logger
         except AttributeError:
             l = null_logger
-        try:
+        if isinstance(key, (list, tuple)) and len(key) == 2 and isinstance(key[0], str) and isinstance(key[1], bool):
             key, force = key
-        except (TypeError, ValueError):
+        else:
             force = False
         key = self._setkey(key, value)
         if not force and key.old_value == key.value:
