@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 import shlex
-from inspect import getargspec
+from inspect import getfullargspec
 from prompt_toolkit.validation import Validator, ValidationError
 
 
