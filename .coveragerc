@@ -2,7 +2,6 @@
 cover_pylib = false
 source = sploitkit
 omit =
-    /home/travis/virtualenv/*
     */site-packages/*
     tests/*
 

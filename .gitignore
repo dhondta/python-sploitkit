@@ -67,7 +67,6 @@ target/
 .idea
 .vagrant
 .test
-testsploit
 .pytest_cache
 tmp
 TODO

@@ -49,7 +49,7 @@ def rcfile(rcfile, debug=False):
     p = os.path.join("testsploit", rcfile)
     if not os.path.isfile(p):
         raise ValueError("Bad rc file")
-    cmd = "cd testsploit && python main.py --rcfile %s" % rcfile
+    cmd = "cd testsploit && python3 main.py --rcfile %s" % rcfile
     if debug:
         cmd += " -v"
     out, err = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True).communicate()
