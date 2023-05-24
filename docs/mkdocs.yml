@@ -7,15 +7,15 @@ nav:
   - Introduction: index.md
   - 'Getting started': quickstart.md
   - Design: design.md
-  - Classes: classes.md
   - Classes:
+    - classes.md
     - Entity: classes/entity.md
     - Console: classes/console.md
     - Command: classes/command.md
     - Module: classes/module.md
     - Datastore: classes/datastore.md
-  - 'Base entities': base.md
   - 'Base entities':
+    - base.md
     - Consoles: base/consoles.md
     - Commands: base/commands.md
     - Models: base/models.md
@@ -47,6 +47,8 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  features:
+    - navigation.indexes
   logo: img/logo.png
   favicon: img/icon.png
 use_directory_urls: false
