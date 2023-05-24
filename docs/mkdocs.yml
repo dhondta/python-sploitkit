@@ -8,14 +8,14 @@ nav:
   - 'Getting started': quickstart.md
   - Design: design.md
   - Classes:
-    - classes.md
+    - classes/index.md
     - Entity: classes/entity.md
     - Console: classes/console.md
     - Command: classes/command.md
     - Module: classes/module.md
     - Datastore: classes/datastore.md
   - 'Base entities':
-    - base.md
+    - base/index.md
     - Consoles: base/consoles.md
     - Commands: base/commands.md
     - Models: base/models.md
@@ -49,6 +49,8 @@ theme:
         name: Switch to light mode
   features:
     - navigation.indexes
+    - navigation.top
+    - toc.integrate
   logo: img/logo.png
   favicon: img/icon.png
 use_directory_urls: false
