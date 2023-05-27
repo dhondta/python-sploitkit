@@ -36,6 +36,8 @@ extra:
     - icon: fontawesome/brands/twitter
       link: https://twitter.com/alex_dhondt
       name: Alex on Twitter
+extra_css:
+  - css/extra.css
 theme:
   name: material
   palette:
@@ -59,5 +61,6 @@ markdown_extensions:
   - codehilite:
       linenums: true
   - pymdownx.details
+  - pymdownx.superfences
   - toc:
-      permalink: True
+      permalink: true
