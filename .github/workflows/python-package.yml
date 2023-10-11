@@ -47,7 +47,7 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
-        python-version: 3.11
+        python-version: "3.10"
     - name: Install pandoc
       run: sudo apt-get install -y pandoc notification-daemon
     - name: Install ${{ env.package }}
