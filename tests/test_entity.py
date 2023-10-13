@@ -6,7 +6,7 @@
 from sploitkit.core.entity import load_entities, set_metadata
 from tinyscript.helpers import parse_docstring
 
-from utils import *
+from __utils__ import *
 
 
 class TestEntity(TestCase):

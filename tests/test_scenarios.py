@@ -3,7 +3,7 @@
 """Scenario-based tests of a Sploitkit application.
 
 """
-from utils import *
+from __utils__ import *
 
 
 class TestScenarios(TestCase):

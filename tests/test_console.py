@@ -5,7 +5,7 @@
 """
 from sploitkit.core.components import *
 
-from utils import *
+from __utils__ import *
 
 
 class TestConsole(TestCase):

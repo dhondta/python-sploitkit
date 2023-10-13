@@ -3,7 +3,7 @@
 """Core entity assets' tests.
 
 """
-from utils import *
+from __utils__ import *
 
 
 class TestBase(TestCase):

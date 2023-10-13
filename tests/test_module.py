@@ -3,7 +3,7 @@
 """Module entity tests.
 
 """
-from utils import *
+from __utils__ import *
 
 
 class TestModule(TestCase):
