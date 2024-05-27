@@ -2,3 +2,4 @@ peewee
 prompt_toolkit>=3.0.32
 requests
 tinyscript>=1.28.6
+termcolor
