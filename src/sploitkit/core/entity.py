@@ -38,7 +38,7 @@ def load_entities(entities, *sources, **kwargs):
         for n in ENTITIES:
             n = n.lower()
             for m in kwargs.get("select", {}).get(n, [""]):
-                m = "../base/{}s/".format(n) + m + [".py", ""][m == ""]
+                m = f"../base/{n}s/" + m + [".py", ""][m == ""]
                 p = Path(__file__).parent.joinpath(m).resolve()
                 if p.exists():
                     sources.insert(0, p)
@@ -290,7 +290,7 @@ class Entity(object):
                             if check_key:
                                 for ssk, ssv in sv.items():
                                     if ssk not in cs.keys() or cs[ssk] != ssv:
-                                        _tmp.append("{}={}".format(sk, sv))
+                                        _tmp.append(f"{sk}={sv}")
                                         break
                             # case 2: {None: ...}
                             else:
@@ -305,7 +305,7 @@ class Entity(object):
                                         if ref is not None and ref in values[1:]:
                                             found = True
                                     if not found:
-                                        _tmp.append("{}?{}".format(sk, ref))
+                                        _tmp.append(f"{sk}?{ref}")
                                 elif is_dict(ssv):
                                     # e.g. {monitor:True}
                                     found = False
@@ -319,15 +319,15 @@ class Entity(object):
                                                 found = True
                                                 break
                                         if not found:
-                                            v = ["{}:{}".format(sssk, sssv), sssv][sssv is None]
-                                            _tmp.append("{}?{}".format(sk, v))
+                                            v = [f"{sssk}:{sssv}", sssv][sssv is None]
+                                            _tmp.append(f"{sk}?{v}")
                                 elif ssv not in cs.values():
-                                    _tmp.append("{}?{}".format(sk, ssv))
+                                    _tmp.append(f"{sk}?{ssv}")
                                     break
                         # exact match between any other type than dict
                         else:
                             if sv != Console._state[sk]:
-                                _tmp.append("{}={}".format(sk, sv))
+                                _tmp.append(f"{sk}={sv}")
                 if len(_tmp) > 0:
                     errors.setdefault("state", [])
                     errors['state'].extend(_tmp)
@@ -353,7 +353,7 @@ class Entity(object):
                             errors["packages"].append((package, not_))
                         cls._enabled = False
             else:
-                raise ValueError("Unknown requirements type '{}'".format(k))
+                raise ValueError(f"Unknown requirements type '{k}'")
         cls._errors = errors
         # check for applicability
         cls._applicable = True
@@ -439,21 +439,21 @@ class Entity(object):
             if m is not None:
                 return m.format(item)
             if key == "file":
-                return "'{}' {}found".format(item, not_s)
+                return f"'{item}' {not_s}found"
             elif key == "packages":
-                return "'{}' system package is {}installed".format(item, not_s)
+                return f"'{item}' system package is {not_s}installed"
             elif key == "python":
-                return "'{}' Python package is {}installed".format(item, not_s)
+                return f"'{item}' Python package is {not_s}installed"
             elif key == "tools":
-                return "'{}' tool is {}installed".format(item, not_s)
+                return f"'{item}' tool is {not_s}installed"
             elif key == "state":
                 item = re.split(r"(\=|\?)", item, 1)
                 if len(item) == 1:
-                    return "'{}' state key is not defined".format(item[0])
+                    return f"'{item[0]}' state key is not defined"
                 elif item[1] == "=":
-                    return "'{}' state key does not match the expected value '{}'".format(item[0], item[2])
+                    return f"'{item[0]}' state key does not match the expected value '{item[2]}'"
                 elif item[1] == "?":
-                    return "'{}' state key is expected to have value '{}' at least once".format(item[0], item[2])
+                    return f"'{item[0]}' state key is expected to have value '{item[2]}' at least once"
         # list issues using the related class method
         t = "\n"
         d = OrderedDict()
@@ -470,7 +470,7 @@ class Entity(object):
             for cname, scnames in names.items():
                 scnames = list(set(scnames))
                 cname += ["", "s"][len(scnames) > 1]
-                t += "{}: {}\n".format(cname, ", ".join(sorted(scnames)))
+                t += f"{cname}: {", ".join(sorted(scnames))}\n"
             t += "- " + "\n- ".join(msg(scname, k, e) for k, err in errors.items() for e in err) + "\n"
         return "" if t.strip() == "" else t
     
@@ -536,7 +536,7 @@ class Entity(object):
             # manually get subclass' name because of MetaModel not having the "name" property (would be considered a
             #  Peewee database field)
             n = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', subcls.__name__)).lower()
-            logger.detail("Registered {} '{}'".format(subcls.entity, n))
+            logger.detail(f"Registered {subcls.entity} '{n}'")
     
     @classmethod
     def unregister_subclass(cls, subcls):
@@ -547,7 +547,7 @@ class Entity(object):
         if cls in Entity._subclasses.keys():
             try:
                 Entity._subclasses[cls].remove(subcls)
-                logger.detail("Unregistered {} '{}'".format(subcls.entity, n))
+                logger.detail(f"Unregistered {subcls.entity} '{n}'")
             except ValueError:
                 pass
     
@@ -559,7 +559,7 @@ class Entity(object):
     
     def run(self, *args, **kwargs):
         """ Generic method for running Entity's logic. """
-        raise NotImplementedError("{}'s run() method is not implemented".format(self.__class__.__name__))
+        raise NotImplementedError(f"{self.__class__.__name__}'s run() method is not implemented")
 
 
 class MetaEntityBase(type):

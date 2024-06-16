@@ -119,7 +119,7 @@ class Module(Entity, metaclass=MetaModule):
                                key=lambda x: x[1].name):
                 e = ["N", "Y"][m.enabled]
                 d.append([m.name, m.subpath, e, m.description])
-            t = BorderlessTable(d, "{} modules".format(c.capitalize()))
+            t = BorderlessTable(d, f"{c.capitalize()} modules")
             s += t.table + "\n\n"
             i += 1
         return "\n" + s.strip() + "\n" if i > 0 else ""
@@ -159,7 +159,7 @@ class Module(Entity, metaclass=MetaModule):
             mlen = max(map(len, m))
             s = "\n"
             for line in m:
-                s += ("\t-=[ {: <" + str(mlen) + "} ]=-\n").format(line)
+                s += f"\t-=[ {line: <{mlen}} ]=-\n"
             return s
         return ""
     
@@ -182,7 +182,7 @@ class Module(Entity, metaclass=MetaModule):
             if p == M.path and n == M.name:
                 Module.subclasses.remove(M)
                 break
-        logger.detail("Unregistered module '{}/{}'".format(p, n))
+        logger.detail(f"Unregistered module '{p}/{n}'")
     
     @classmethod
     def unregister_modules(cls, *subcls):

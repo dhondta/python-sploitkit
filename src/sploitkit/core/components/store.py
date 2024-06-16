@@ -120,10 +120,10 @@ class Store(SqliteDatabase):
         self.close()
         if save:
             self._last_snapshot += 1
-        s = "{}.snapshot{}".format(self.path, self._last_snapshot)
+        s = f"{self.path}.snapshot{self._last_snapshot}"
         copy(self.path, s) if save else copy(s, self.path)
         if not save:
-            remove("{}.snapshot{}".format(self.path, self._last_snapshot))
+            remove(f"{self.path}.snapshot{self._last_snapshot}")
             self._last_snapshot -= 1
         self.connect()
 

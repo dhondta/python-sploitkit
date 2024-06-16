@@ -121,7 +121,7 @@ class State(DebugCommand):
     """ Display console's shared state """
     def run(self):
         for k, v in self.console.state.items():
-            print_formatted_text("\n{}:".format(k))
+            print_formatted_text(f"\n{k}:")
             v = v or ""
             if len(v) == 0:
                 continue

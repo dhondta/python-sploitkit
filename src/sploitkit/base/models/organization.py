@@ -23,7 +23,7 @@ class Employee(Model):
     
     @property
     def fullname(self):
-        return "{} {} ({})".format(self.firstname, self.lastname, self.role)
+        return f"{self.firstname} {self.lastname} ({self.role})"
 
 
 class EmployeeUnit(BaseModel):

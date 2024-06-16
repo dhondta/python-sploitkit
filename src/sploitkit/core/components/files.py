@@ -72,7 +72,7 @@ class FilesManager(dict):
             with open(path, 'rb') as f:
                 self[locator] = f.read()
         else:
-            raise ValueError("Unsupported scheme '{}'".format(scheme))
+            raise ValueError(f"Unsupported scheme '{scheme}'")
     
     def page(self, *filenames):
         """ Page a list of files using Less. """
