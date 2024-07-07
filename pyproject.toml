@@ -34,13 +34,14 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "peewee",
-  "prompt_toolkit>=3.0.32",
+  "peewee>=3.17.6",
+  "prompt_toolkit>=3.0.47",
   "requests",
-  "tinyscript>=1.28.6",
+  "tinyscript>=1.30.15",
 ]
 dynamic = ["version"]
 

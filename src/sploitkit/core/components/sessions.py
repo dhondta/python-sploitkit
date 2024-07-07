@@ -1,9 +1,6 @@
 # -*- coding: UTF-8 -*-
 import os
-import shlex
-import shutil
-from subprocess import Popen
-from tinyscript.helpers import Path
+
 
 __all__ = ["SessionsManager"]
 
@@ -11,10 +8,12 @@ __all__ = ["SessionsManager"]
 class Session(object):
     """ Class representing a session object based on a shell command """
     def __init__(self, n, cmd, **kwargs):
+        from shlex import split
+        from tinyscript.helpers import Path
         self.id = n
         self.parent = kwargs.pop('parent')
         if isinstance(cmd, str):
-            cmd = shlex.split(cmd)
+            cmd = split(cmd)
         self._path = Path(self.parent.console._files.tempdir, "session", str(n), create=True)
         for i, s in enumerate(["stdin", "stdout", "stderr"]):
             fifo = str(self._path.joinpath(str(i)))
@@ -23,13 +22,15 @@ class Session(object):
             setattr(self, "_" + s, os.open(fifo ,os.O_WRONLY))
     
     def close(self):
+        from shutil import rmtree
         for s in ["stdin", "stdout", "stderr"]:
             getattr(self, "_" + s).close()
-        shutil.rmtree(str(self._path))
+        rmtree(str(self._path))
         self._process.wait()
         del self.parent[self.id]
     
     def start(self, **kwargs):
+        from subprocess import Popen
         kwargs['close_fds'] = True
         kwargs['preexec_fn'] = os.setsid  # NB: see subprocess' doc ; preexec_fn is not thread-safe
         self._process = Popen(cmd, stdout=self._stdout, stderr=self._stderr, stdin=self._stdin, **kwargs) 

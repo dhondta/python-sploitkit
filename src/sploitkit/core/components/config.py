@@ -1,9 +1,4 @@
 # -*- coding: UTF-8 -*-
-import re
-from itertools import chain
-from termcolor import colored
-from tinyscript.helpers import is_function, BorderlessTable, Path
-
 from .logger import *
 
 
@@ -94,15 +89,17 @@ class Config(dict):
                 continue
             r = ["N", "Y"][r]
             if v == "":
+                from tinyscript.helpers import colored
                 n, v, r = map(lambda s: colored(s, "red", attrs=['bold']), [n, v, r])
             data.append([n, v, r, d])
         if len(data) > 1:
+            from tinyscript.helpers import BorderlessTable
             try:
                 prefix = self.console.opt_prefix
             except AttributeError:
                 prefix = None
             return BorderlessTable(data).table if prefix is None else \
-                   BorderlessTable(data, "%s options" % prefix).table
+                   BorderlessTable(data, f"{prefix} options").table
         return ""
     
     def __run_callback(self, key, name):
@@ -181,6 +178,7 @@ class Config(dict):
     
     def keys(self, glob=False):
         """ Return string keys (like original dict). """
+        from itertools import chain
         l = [k for k in self._d.keys()]
         if glob:
             for k in chain(self._d.keys(), Config._g.keys()):
@@ -325,6 +323,7 @@ class Option(object):
     @property
     def choices(self):
         """ Pre- or lazy-computed list of choices. """
+        from tinyscript.helpers import is_function
         c = self._choices
         if not is_function(c):
             return c
@@ -369,9 +368,11 @@ class Option(object):
             value = Config._g.get(self.name, value)
         if self.required and value is None:
             raise ValueError(f"{self.name} must be defined")
-        try: # try to expand format variables using console's attributes
+        # try to expand format variables using console's attributes
+        from re import findall
+        try:
             kw = {}
-            for n in re.findall(r'\{([a-z]+)\}', str(value)):
+            for n in findall(r'\{([a-z]+)\}', str(value)):
                 kw[n] = self.config.console.__dict__.get(n, "")
             try:
                 value = value.format(**kw)
@@ -381,6 +382,7 @@ class Option(object):
             pass
         # expand and resolve paths
         if self.name.endswith("FOLDER") or self.name.endswith("WORKSPACE"):
+            from tinyscript.helpers import Path
             # this will ensure that every path is expanded
             value = str(Path(value, expand=True))
         # convert common formats to their basic types

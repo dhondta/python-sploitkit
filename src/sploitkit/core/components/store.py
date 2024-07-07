@@ -1,7 +1,4 @@
 # -*- coding: UTF-8 -*-
-import re
-from os import remove
-from shutil import copy
 from peewee import SqliteDatabase
 
 
@@ -88,6 +85,7 @@ class Store(SqliteDatabase):
     
     def __getattr__(self, name):
         """ Override getattr to handle add_* store methods. """
+        from re import match
         if name == "basemodels":
             BaseModel = self._pool._entity_class._subclasses["basemodel"]
             return self._pool._entity_class._subclasses[BaseModel]
@@ -96,7 +94,7 @@ class Store(SqliteDatabase):
             return self._pool._entity_class._subclasses[Model]
         elif name == "volatile":
             return self.path == ":memory:"
-        elif re.match(r"^[gs]et_[a-z]+", name) and name != "model":
+        elif match(r"^[gs]et_[a-z]+", name) and name != "model":
             model = "".join(w.capitalize() for w in name.split("_")[1:])
             cls = self.get_model(model)
             if cls is not None:
@@ -121,9 +119,11 @@ class Store(SqliteDatabase):
         if save:
             self._last_snapshot += 1
         s = f"{self.path}.snapshot{self._last_snapshot}"
+        from shutil import copy
         copy(self.path, s) if save else copy(s, self.path)
         if not save:
-            remove(f"{self.path}.snapshot{self._last_snapshot}")
+            from os import remove
+            remove("{}.snapshot{}".format(self.path, self._last_snapshot))
             self._last_snapshot -= 1
         self.connect()
 

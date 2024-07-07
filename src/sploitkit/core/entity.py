@@ -179,12 +179,8 @@ class Entity(object):
         """ Check for entity's requirements. """
         cls = other_cls or cls
         if cls is Entity:
-            good = True
-            for sc in Entity._subclasses:
-                good = good and sc.check()
-            return good
-        cls._enabled = True
-        errors = {}
+            return all(sc.check() for sc in Entity._subclasses)
+        cls._enabled, errors = True, {}
         # check for requirements using an explicitely defined function
         try:
             cls._enabled = cls.check_requirements(cls)
@@ -193,23 +189,27 @@ class Entity(object):
             errors.update(err or {})
         except (AttributeError, TypeError, ValueError):
             pass
-        
+        # for handling a NOT operator with an input item
         def _checkv(func, args, not_):
-            """ internal convenience function for handling a NOT operator with an input item """
             r = func(*args) if isinstance(args, tuple) else func(args)
             return not_ ^ r
-        
+        # for unpacking a NOT operator from an input item
         def _unpackv(item):
-            """ internal convenience function for unpacking a NOT operator from an input item """
             not_ = False
             # handle a NOT operator for the given item
             if item.startswith("!"):
                 not_ = True
                 item = item[1:]
             return not_, item
-        # check requirements from the related attribute
-        #TODO: also handle lambda functions for requirements
+        # if 'value' is a function, execute it
+        def _execv(value):
+            if is_function(value):
+                value = value(cls)
+            return value
+        # check requirements based on different criteria
         for k, v in getattr(cls, "requirements", {}).items():
+            if is_function(v) and k != "internal":
+                v = v(cls)
             if is_str(v):
                 v = [v]
             # checks if a config option is set to a particular value
@@ -217,16 +217,18 @@ class Entity(object):
                 if not is_dict(v):
                     raise ValueError("Bad config requirements (should be a dictionary)")
                 for opt, exp_val in v.items():
-                    bad, cur_val = False, None
+                    cur_val = None
                     not_, opt = _unpackv(opt)
                     try:
                         cur_val = cls.config.option(opt.upper()).value
                     except KeyError:
                         pass
                     # compare current and expected values
-                    if not _checkv(lambda v1, v2: v1 is v2 or v1 == v2, (cur_val, exp_val), not_):
+                    ev = _execv(exp_val)
+                    if not _checkv(lambda v1, v2: v1 is v2 or v1 == v2, (cur_val, ev), not_):
+                        errors.setdefault('config', [])
+                        errors['config'].append((opt, ev, not_))
                         cls._enabled = False
-                        break
             # checks if a file exists
             elif k == "file":
                 if not is_list(v):
@@ -234,8 +236,8 @@ class Entity(object):
                 for fpath in v:
                     not_, fpath = _unpackv(fpath)
                     if not _checkv(lambda p: Path(cls.__file__).parent.joinpath(p).exists(), fpath, not_):
-                        errors.setdefault("file", [])
-                        errors["file"].append((fpath, not_))
+                        errors.setdefault('file', [])
+                        errors['file'].append((fpath, not_))
                         cls._enabled = False
             # checks if a requirement wrt the console is met
             elif k == "internal":
@@ -257,8 +259,8 @@ class Entity(object):
                         package = module
                         found = find_spec(module)
                     if not _checkv(lambda _: found is not None, "", not_):
-                        errors.setdefault("python", [])
-                        errors["python"].append((package, not_))
+                        errors.setdefault('python', [])
+                        errors['python'].append((package, not_))
                         cls._enabled = False
             # checks if a state variable is set to a particular value
             elif k == "state":
@@ -335,12 +337,13 @@ class Entity(object):
             # checks if a system package/binary is installed
             elif k == "system":
                 for tool in v:
-                    _ = tool.split("/")
-                    if len(_) == 1:
+                    tool = _execv(tool)
+                    t = tool.split("/")
+                    if len(t) == 1:
                         package = None
                         not_, tool = _unpackv(tool)
-                    elif len(_) == 2:
-                        package, tool = _
+                    elif len(t) == 2:
+                        package, tool = t
                         not_, package = _unpackv(package)
                     else:
                         raise ValueError("Bad system requirements (should be a list)")
@@ -471,7 +474,8 @@ class Entity(object):
                 scnames = list(set(scnames))
                 cname += ["", "s"][len(scnames) > 1]
                 t += f"{cname}: {', '.join(sorted(scnames))}\n"
-            t += "- " + "\n- ".join(msg(scname, k, e) for k, err in errors.items() for e in err) + "\n"
+            # exception to issue messages: 'config' requirement
+            t += "- " + "\n- ".join(msg(scname, k, e) for k, err in errors.items() for e in err if k != "config") + "\n"
         return "" if t.strip() == "" else t
     
     @classmethod

@@ -1,11 +1,8 @@
 # -*- coding: UTF-8 -*-
 import shlex
 import subprocess
-from six import string_types
-from time import time
 from tinyscript.helpers.text import ansi_seq_strip
 
-from sploitkit.core.components.logger import null_logger
 
 __all__ = ["JobsPool"]
 
@@ -20,7 +17,7 @@ class Job(subprocess.Popen):
         debug = not kwargs.pop('no_debug', False)
         if debug:
             self.parent.logger.debug(" ".join(cmd) if isinstance(cmd, (tuple, list)) else cmd)
-        cmd = shlex.split(cmd) if isinstance(cmd, string_types) and not kwargs.get('shell', False) else cmd
+        cmd = shlex.split(cmd) if isinstance(cmd, str) and not kwargs.get('shell', False) else cmd
         super(Job, self).__init__(cmd, stdout=subprocess.PIPE, **kwargs)
         self._debug = debug
     
@@ -86,6 +83,7 @@ class JobsPool(object):
         return out, err
     
     def run_iter(self, cmd, timeout=None, ansi_strip=True, **kwargs):
+        from time import time
         kwargs['stderr'] = subprocess.STDOUT
         kwargs['universal_newlines'] = True
         p = Job(cmd, parent=self, **kwargs)
@@ -124,5 +122,6 @@ class JobsPool(object):
     def logger(self):
         if hasattr(self, "console"):
             return self.console.logger
+        from sploitkit.core.components.logger import null_logger
         return null_logger
 

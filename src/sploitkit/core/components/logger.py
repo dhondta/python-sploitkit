@@ -1,7 +1,5 @@
 # -*- coding: utf8 -*-
-from logging.handlers import RotatingFileHandler
-from termcolor import colored
-from tinyscript import logging
+from tinyscript import colored, logging
 
 
 __all__ = ["get_logger", "null_logger", "set_logging_level"]
@@ -54,6 +52,7 @@ class ConsoleHandler(logging.StreamHandler):
 def get_logger(name, logfile=None, level="INFO", dev=False, enabled=True):
     """ Logger initialization function. """
     def _setup_logfile(l):
+        from logging.handlers import RotatingFileHandler
         if logfile is not None and not any(isinstance(h, RotatingFileHandler) for h in l.handlers):
             l.__logfile__ = logfile
             # setup a FileHandler for logging to a file (at level DEBUG)

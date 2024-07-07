@@ -54,7 +54,8 @@ def rcfile(rcfile, debug=False):
         cmd += " -v"
     out, err = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True).communicate()
     out = re.split(r"\+{10,}\s.*?\s\+{10,}", out.decode())[1:]
-    err = "\n".join(l for l in err.decode().splitlines() if not l.startswith("Warning: ")).strip()
+    err = "\n".join(l for l in err.decode().splitlines() if not l.startswith("Warning: ") and \
+          all(x not in l for x in ["DeprecationWarning: ", "import pkg_resources", "There are some issues"])).strip()
     c = []
     with open(p) as f:
         for l in f:
