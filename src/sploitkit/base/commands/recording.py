@@ -14,7 +14,7 @@ class RecordStatus(Command):
     values = ["status"]
 
     def run(self, status):
-        self.logger.info(f"Recording is {["disabled", "enabled"][self.recorder.enabled]}")
+        self.logger.info(f"Recording is {['disabled', 'enabled'][self.recorder.enabled]}")
 
 
 # ------------------------------ ROOT-LEVEL COMMANDS ---------------------------
@@ -38,7 +38,7 @@ class Record(RootProjectCommand):
         elif key == "stop":
             self.recorder.stop()
         elif key == "status":
-            self.logger.info(f"Recording is {["disabled", "enabled"][self.recorder.enabled]}")
+            self.logger.info(f"Recording is {['disabled', 'enabled'][self.recorder.enabled]}")
     
     def validate(self, key, rcfile=None):
         if key == "start":
