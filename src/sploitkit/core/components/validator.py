@@ -30,7 +30,7 @@ class CommandValidator(Validator):
             try:
                 c._validate(*tokens[1:])
             except Exception as e:
-                m = "Command syntax: %s{}" % c.signature.format(cmd)
+                m = f"Command syntax: {c.signature.format(cmd)}" 
                 e = str(e)
                 if not e.startswith("validate() "):
                     m = m.format([" (" + e + ")", ""][len(e) == 0])

@@ -45,22 +45,22 @@ class Archive(ProjectRootCommand):
     def run(self, project):
         projpath = Path(self.workspace).joinpath(project)
         folder = ProjectPath(projpath)
-        self.logger.debug("Archiving project '{}'...".format(project))
+        self.logger.debug(f"Archiving project '{project}'...")
         ask = self.console.config.option("ENCRYPT_PROJECT").value
         try:
             folder.archive(ask=ask)
-            self.logger.success("'{}' archived".format(project))
+            self.logger.success(f"'{project}' archived")
         except OSError as e:
-            logger.error(str(e))
-            self.logger.failure("'{}' not archived".format(project))
+            self.logger.error(str(e))
+            self.logger.failure(f"'{project}' not archived")
 
 
 class Delete(ProjectRootCommand):
     """ Delete a project """
     def run(self, project):
-        self.logger.debug("Deleting project '{}'...".format(project))
+        self.logger.debug(f"Deleting project '{project}'...")
         self.workspace.joinpath(project).remove()
-        self.logger.success("'{}' deleted".format(project))
+        self.logger.success(f"'{project}' deleted")
 
 
 class Load(ProjectRootCommand):
@@ -70,16 +70,16 @@ class Load(ProjectRootCommand):
         return [x.stem for x in self.workspace.iterfiles(".zip")]
     
     def run(self, project):
-        self.logger.debug("Loading archive '{}'...".format(project + ".zip"))
+        self.logger.debug(f"Loading archive '{project}.zip'...")
         projpath = Path(self.workspace).joinpath(project)
         archive = ProjectPath(projpath.with_suffix(".zip"))
         ask = self.console.config.option("ENCRYPT_PROJECT").value
         try:
             archive.load(ask=ask)
-            self.logger.success("'{}' loaded".format(project))
+            self.logger.success(f"'{project}' loaded")
         except Exception as e:
-            logger.error("Bad password" if "error -3" in str(e) else str(e))
-            self.logger.failure("'{}' not loaded".format(project))
+            self.logger.error("Bad password" if "error -3" in str(e) else str(e))
+            self.logger.failure(f"'{project}' not loaded")
     
     def validate(self, project):
         if project not in self.complete_values():
@@ -100,9 +100,9 @@ class Select(ProjectRootCommand):
                                                            "do you want to load the archive instead ?"):
             loader.run(project)
         if not p.exists():
-            self.logger.debug("Creating project '{}'...".format(project))
+            self.logger.debug(f"Creating project '{project}'...")
             p.mkdir()
-            self.logger.success("'{}' created".format(project))
+            self.logger.success(f"'{project}' created")
         ProjectConsole(self.console, project).start()
         self.config['WORKSPACE'] = str(Path(self.config['WORKSPACE']).parent)
     

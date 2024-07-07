@@ -55,7 +55,7 @@ class Search(Command):
             t = BorderlessTable(data, "Matching modules")
             print_formatted_text(t.table)
             n = len(data) - 2
-            self.logger.info("{} match{} found".format(n, ["", "es"][n > 0]))
+            self.logger.info(f"{n} match{['', 'es'][n > 0]} found")
 
 
 class Show(Command):

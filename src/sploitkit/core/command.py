@@ -51,7 +51,7 @@ class MetaCommand(MetaEntity):
             s += " ["
             i = []
             for a, d in zip(args[len(args)-len(defs):], defs):
-                i.append("{}={}".format(a, d) if d is not None else a)
+                i.append(f"{a}={d}" if d is not None else a)
             s += " ".join(i) + "]"
         self.signature = s
         self.args, self.defaults = args, defs
@@ -182,7 +182,7 @@ class Command(Entity, metaclass=MetaCommand):
                     continue
                 d.append([n, getattr(c, "description", "")])
             if len(d) > 1:
-                t = BorderlessTable(d, "{} commands".format(l.capitalize()))
+                t = BorderlessTable(d, f"{l.capitalize()} commands")
                 s += t.table + "\n"
                 i += 1
         return "\n" + s.strip() + "\n" if i > 0 else ""
@@ -200,13 +200,13 @@ class Command(Entity, metaclass=MetaCommand):
                 Command.commands[l][subcls.name] = subcls
             for alias in subcls.aliases:
                 Command.commands[l][alias] = subcls
-                logger.detail("Registered command alias '{}'".format(alias))
+                logger.detail(f"Registered command alias '{alias}'")
     
     @classmethod
     def set_style(cls, style):
         """ Set the style of command name. """
         if style not in COMMAND_STYLES:
-            raise ValueError("Command style must be one of the followings: [{}]".format("|".join(COMMAND_STYLES)))
+            raise ValueError(f"Command style must be one of the followings: [{'|'.join(COMMAND_STYLES)}]")
         MetaCommand.style = style
     
     @classmethod
@@ -234,7 +234,7 @@ class Command(Entity, metaclass=MetaCommand):
         for l in levels:
             if len(Command.commands[l]) == 0:
                 del Command.commands[l]
-        logger.detail("Unregistered command '{}/{}'".format(l, n))
+        logger.detail(f"Unregistered command '{l}/{n}'")
     
     @classmethod
     def unregister_commands(cls, *identifiers):
@@ -248,7 +248,7 @@ class Command(Entity, metaclass=MetaCommand):
             # apply deletions
             if n is None:
                 if f not in cls._functionalities:
-                    raise ValueError("Unknown functionality {}".format(f))
+                    raise ValueError(f"Unknown functionality {f}")
                 p = Path(__file__).parent.joinpath("../base/commands/" + f + ".py").resolve()
                 for c in PythonPath(str(p)).get_classes(Command):
                     Command.unregister_command(c)

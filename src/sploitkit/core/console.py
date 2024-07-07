@@ -184,7 +184,7 @@ class Console(Entity, metaclass=MetaConsole):
     
     def _close(self):
         """ Gracefully close the console. """
-        self.logger.debug("Exiting {}[{}]".format(self.__class__.__name__, id(self)))
+        self.logger.debug(f"Exiting {self.__class__.__name__}[{id(self)}]")
         if hasattr(self, "close") and isfunction(self.close):
             self.close()
         # cleanup references for this console
@@ -230,7 +230,7 @@ class Console(Entity, metaclass=MetaConsole):
     def _reset_logname(self):
         """ Reset logger's name according to console's attributes. """
         try:
-            self.logger.name = "{}:{}".format(self.level, self.logname)
+            self.logger.name = f"{self.level}:{self.logname}"
         except AttributeError:
             self.logger.name = self.__class__.name
     
@@ -238,7 +238,7 @@ class Console(Entity, metaclass=MetaConsole):
         """ Run the given function if it is defined at the module level. """
         if hasattr(self, "module") and hasattr(self.module, func) and \
             not (getattr(self.module._instance, func)() is None):
-            self.logger.debug("{} failed".format(func))
+            self.logger.debug(f"{func} failed")
             return False
         return True
     
@@ -388,7 +388,7 @@ class Console(Entity, metaclass=MetaConsole):
         """ Start looping with console's session prompt. """
         reexec = None
         self._reset_logname()
-        self.logger.debug("Starting {}[{}]".format(self.__class__.__name__, id(self)))
+        self.logger.debug(f"Starting {self.__class__.__name__}[{id(self)}]")
         # execute attached module's pre-load function if relevant
         self._run_if_defined("preload")
         # now start the console loop
@@ -474,7 +474,7 @@ class Console(Entity, metaclass=MetaConsole):
         s = t.total_seconds()
         h, _ = divmod(s, 3600)
         m, s = divmod(_, 60)
-        return "{:02}:{:02}:{:02}".format(int(h), int(m), int(s))
+        return f"{h:02}:{m:02}:{s:02}"
 
 
 class ConsoleDuplicate(Exception):
@@ -592,7 +592,7 @@ class FrameworkConsole(Console):
         # setup internal (dev) loggers with the default logging.configLogger (enhancement to logging from Tinyscript)
         set_logging_level(l, "core", config_func=lambda lgr, lvl: get_logger(lgr.name, p2, lvl, True, dev))
         if l != "INFO" and not kwargs.get('silent', False):
-            self.logger.debug("Set logging to {}".format(l))
+            self.logger.debug(f"Set logging to {l}")
     
     def _set_workspace(self):
         """ Set a new APP_FOLDER, moving an old to the new one if necessary. """

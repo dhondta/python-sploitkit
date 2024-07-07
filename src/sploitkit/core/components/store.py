@@ -118,7 +118,7 @@ class Store(SqliteDatabase):
         self.close()
         if save:
             self._last_snapshot += 1
-        s = "{}.snapshot{}".format(self.path, self._last_snapshot)
+        s = f"{self.path}.snapshot{self._last_snapshot}"
         from shutil import copy
         copy(self.path, s) if save else copy(s, self.path)
         if not save:
