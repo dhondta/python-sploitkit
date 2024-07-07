@@ -300,7 +300,7 @@ class Option(object):
     
     def __str__(self):
         """ Custom string method. """
-        return f"<{self.name}[{["N", "Y"][self.required]}]>"
+        return f"<{self.name}[{'NY'[self.required]}]>"
     
     def __set_func(self, func, name, default_func=None):
         """ Set a function, e.g. for manipulating option's value. """
