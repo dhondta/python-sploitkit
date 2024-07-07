@@ -470,7 +470,7 @@ class Entity(object):
             for cname, scnames in names.items():
                 scnames = list(set(scnames))
                 cname += ["", "s"][len(scnames) > 1]
-                t += f"{cname}: {", ".join(sorted(scnames))}\n"
+                t += f"{cname}: {', '.join(sorted(scnames))}\n"
             t += "- " + "\n- ".join(msg(scname, k, e) for k, err in errors.items() for e in err) + "\n"
         return "" if t.strip() == "" else t
     
