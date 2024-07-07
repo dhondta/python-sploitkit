@@ -70,7 +70,7 @@ class Load(ProjectRootCommand):
         return [x.stem for x in self.workspace.iterfiles(".zip")]
     
     def run(self, project):
-        self.logger.debug(f"Loading archive '{project+ ".zip"}'...")
+        self.logger.debug(f"Loading archive '{project}.zip'...")
         projpath = Path(self.workspace).joinpath(project)
         archive = ProjectPath(projpath.with_suffix(".zip"))
         ask = self.console.config.option("ENCRYPT_PROJECT").value
