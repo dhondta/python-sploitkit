@@ -1,7 +1,4 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers import Path
-
-
 __all__ = ["Recorder"]
 
 
@@ -24,6 +21,7 @@ class Recorder(object):
     
     def start(self, filename, overwrite=False):
         """ Start the recorder, creating the record file. """
+        from tinyscript.helpers import Path
         self.__file = f = Path(filename)
         if f.suffix != ".rc":
             self.__file = f = Path(self.root_dir).joinpath(filename + ".rc")

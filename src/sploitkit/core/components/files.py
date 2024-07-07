@@ -4,7 +4,7 @@ import requests
 from ftplib import FTP, FTP_TLS
 from shutil import which
 from subprocess import call, PIPE
-from tinyscript.helpers import b, ensure_str, txt_terminal_render, Path, TempPath
+from tinyscript.helpers import Path
 
 
 __all__ = ["FilesManager"]
@@ -42,7 +42,7 @@ class FilesManager(dict):
         #FIXME: edit by calling the locator and manage its local file (e.g. for a URL, point to a temp folder)
         ted = self.console.config['TEXT_EDITOR']
         if which(ted) is None:
-            raise ValueError("'%s' does not exist or is not installed" % ted)
+            raise ValueError(f"'{ted}' does not exist or is not installed")
         p = Path(self.console.config['WORKSPACE']).joinpath(filename)
         if not p.exists():
             p.touch()
@@ -78,7 +78,7 @@ class FilesManager(dict):
         """ Page a list of files using Less. """
         tvw = self.console.config['TEXT_VIEWER']
         if which(tvw) is None:
-            raise ValueError("'%s' does not exist or is not installed" % tvw)
+            raise ValueError(f"'{tvw}' does not exist or is not installed")
         filenames = list(map(str, filenames))
         for f in filenames:
             if not Path(str(f)).is_file():
@@ -98,6 +98,7 @@ class FilesManager(dict):
     
     def view(self, key):
         """ View a file using the configured text viewer. """
+        from tinyscript.helpers import txt_terminal_render
         try:
             self.page_text(self[key])
         except KeyError:
@@ -120,7 +121,8 @@ class FilesManager(dict):
     @property
     def tempdir(self):
         """ Get the temporary directory. """
+        from tinyscript.helpers import TempPath
         if not hasattr(self, "_tempdir"):
-            self._tempdir = TempPath(prefix="%s-" % self.console.appname, length=16)
+            self._tempdir = TempPath(prefix=f"{self.console.appname}-", length=16)
         return self._tempdir
 

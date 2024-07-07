@@ -1,9 +1,4 @@
 # -*- coding: UTF-8 -*-
-import re
-from itertools import chain
-from termcolor import colored
-from tinyscript.helpers import is_function, BorderlessTable, Path
-
 from .logger import *
 
 
@@ -40,7 +35,7 @@ class Config(dict):
                 self.console.reset()
             except AttributeError as err:
                 pass
-        l.debug("{} => null".format(key.name))
+        l.debug(f"{key.name} => null")
     
     def __getitem__(self, key):
         """ Custom method for getting an item, returning the original value from the current Config instance or, if the
@@ -72,7 +67,7 @@ class Config(dict):
         key = self._setkey(key, value)
         if not force and key.old_value == key.value:
             try:
-                l.debug("{} unchanged".format(key.name))
+                l.debug(f"{key.name} unchanged")
             except AttributeError:
                 pass
             return  # stop here if the final value is unchanged
@@ -83,7 +78,7 @@ class Config(dict):
                 self.console.reset()
             except AttributeError as err:
                 pass
-        l.success("{} => {}".format(key.name, value if force else key.value))
+        l.success(f"{key.name} => {value if force else key.value}")
     
     def __str__(self):
         """ Custom string method. """
@@ -94,25 +89,27 @@ class Config(dict):
                 continue
             r = ["N", "Y"][r]
             if v == "":
+                from tinyscript.helpers import colored
                 n, v, r = map(lambda s: colored(s, "red", attrs=['bold']), [n, v, r])
             data.append([n, v, r, d])
         if len(data) > 1:
+            from tinyscript.helpers import BorderlessTable
             try:
                 prefix = self.console.opt_prefix
             except AttributeError:
                 prefix = None
             return BorderlessTable(data).table if prefix is None else \
-                   BorderlessTable(data, "%s options" % prefix).table
+                   BorderlessTable(data, f"{prefix} options").table
         return ""
     
     def __run_callback(self, key, name):
         """ Method for executing a callback and updating the current value with its return value if any. """
-        logger.detail("{} {} callback triggered".format(key, name))
+        logger.detail(f"{key} {name} callback triggered")
         retval = None
         if hasattr(self, "_last_error"):
             del self._last_error
         try:
-            retval = getattr(key, "{}_callback".format(name))()
+            retval = getattr(key, f"{name}_callback")()
         except Exception as e:
             self._last_error = e
             if True:#not isinstance(e, AttributeError):
@@ -120,7 +117,7 @@ class Config(dict):
         if retval is not None:
             key.old_value = key.value
             if not key.validate(retval):
-                raise ValueError("Invalid value '{}'".format(retval))
+                raise ValueError(f"Invalid value '{retval}'")
             self._d[key.name] = (key, retval)
     
     def _getitem(self, key):
@@ -159,7 +156,7 @@ class Config(dict):
         # then assign the new one if it is valid
         self._d[key.name] = (key, value)
         if value is not None and not key.validate(value):
-            raise ValueError("Invalid value '{}' for key '{}'".format(value, key.name))
+            raise ValueError(f"Invalid value '{value}' for key '{key.name}'")
         super(Config, self).__setitem__(key, value)
         return key
     
@@ -181,6 +178,7 @@ class Config(dict):
     
     def keys(self, glob=False):
         """ Return string keys (like original dict). """
+        from itertools import chain
         l = [k for k in self._d.keys()]
         if glob:
             for k in chain(self._d.keys(), Config._g.keys()):
@@ -300,7 +298,7 @@ class Option(object):
     
     def __str__(self):
         """ Custom string method. """
-        return "<{}[{}]>".format(self.name, ["N", "Y"][self.required])
+        return f"<{self.name}[{'NY'[self.required]}]>"
     
     def __set_func(self, func, name, default_func=None):
         """ Set a function, e.g. for manipulating option's value. """
@@ -309,7 +307,7 @@ class Option(object):
         if isinstance(func, type(lambda:0)):
             setattr(self, name, func.__get__(self, self.__class__))
         else:
-            raise Exception("Bad {} lambda".format(name))
+            raise Exception(f"Bad {name} lambda")
     
     def bind(self, parent):
         """ Register this instance as a key of the given Config or retrieve the already existing one. """
@@ -325,6 +323,7 @@ class Option(object):
     @property
     def choices(self):
         """ Pre- or lazy-computed list of choices. """
+        from tinyscript.helpers import is_function
         c = self._choices
         if not is_function(c):
             return c
@@ -344,7 +343,7 @@ class Option(object):
         if hasattr(self, "config"):
             return self.config[self]
         else:
-            raise Exception("Unbound option {}".format(self.name))
+            raise Exception(f"Unbound option {self.name}")
 
     @property
     def module(self):
@@ -368,10 +367,12 @@ class Option(object):
         if value == getattr(self, "default", None):
             value = Config._g.get(self.name, value)
         if self.required and value is None:
-            raise ValueError("{} must be defined".format(self.name))
-        try: # try to expand format variables using console's attributes
+            raise ValueError(f"{self.name} must be defined")
+        # try to expand format variables using console's attributes
+        from re import findall
+        try:
             kw = {}
-            for n in re.findall(r'\{([a-z]+)\}', str(value)):
+            for n in findall(r'\{([a-z]+)\}', str(value)):
                 kw[n] = self.config.console.__dict__.get(n, "")
             try:
                 value = value.format(**kw)
@@ -381,6 +382,7 @@ class Option(object):
             pass
         # expand and resolve paths
         if self.name.endswith("FOLDER") or self.name.endswith("WORKSPACE"):
+            from tinyscript.helpers import Path
             # this will ensure that every path is expanded
             value = str(Path(value, expand=True))
         # convert common formats to their basic types
@@ -447,7 +449,7 @@ class ProxyConfig(object):
                     return c.__getattribute__(name)
                 except AttributeError:
                     continue
-        raise AttributeError("'ProxyConfig' object has no attribute '{}'".format(name))
+        raise AttributeError(f"'ProxyConfig' object has no attribute '{name}'")
     
     def __getitem__(self, key):
         """ Get method for returning the first occurrence of a key among the list of Config instances. """
