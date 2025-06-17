@@ -45,14 +45,14 @@ def load_entities(entities, *sources, **kwargs):
     # load every single source (folder of modules or single module)
     for s in sources:
         if not s.exists():
-            logger.debug("Source does not exist: %s" % s)
+            logger.debug(f"Source does not exist: {s}")
             continue
         # bind the source to the entity main class
         for e in entities:
             e._source = str(s)
         # now, it loads every Python module from the list of source folders ; when loading entity subclasses, these are
         #  registered to entity's registry for further use (i.e. from the console)
-        logger.debug("Loading Python source: %s" % s)
+        logger.debug(f"Loading Python source: {s}")
         # important note: since version 1.23.17 of Tinyscript, support for cached compiled Python files has been added,
         #                  for the PythonPath class, therefore influencing the location path of loaded entities (that
         #                  is, adding __pycache__)
@@ -66,16 +66,16 @@ def load_entities(entities, *sources, **kwargs):
         n = e.__name__.lower()
         for c in e.subclasses[:]:
             if len(c.__subclasses__()) > 0:
-                getattr(e, "unregister_%s" % n, Entity.unregister_subclass)(c)
+                getattr(e, f"unregister_{n}", Entity.unregister_subclass)(c)
         # handle specific entities or sets of entities exclusions ; this will remove them from Entity's registries
         excludes = kwargs.get("exclude", {}).get(n)
         if excludes is not None:
-            getattr(e, "unregister_%ss" % n, Entity.unregister_subclasses)(*excludes)
+            getattr(e, f"unregister_{n}s", Entity.unregister_subclasses)(*excludes)
         # handle conditional entities ; this will remove entities having a "condition" method returning False
         for c in e.subclasses[:]:
             # convention: conditional entities are unregistered and removed
             if hasattr(c, "condition") and not c().condition():
-                getattr(e, "unregister_%s" % n, Entity.unregister_subclass)(c)
+                getattr(e, f"unregister_{n}", Entity.unregister_subclass)(c)
         # now populate metadata for each class
         for c in e.subclasses:
             set_metadata(c, kwargs.get("docstr_parser", parse_docstring))
@@ -593,7 +593,7 @@ class MetaEntityBase(type):
         return subcls
     
     def __repr__(self):
-        return "<%s: %s>" % (self.entity.capitalize(), self.__name__)
+        return f"<{self.entity.capitalize()}: {self.__name__}>"
     
     @property
     def entity(self):
