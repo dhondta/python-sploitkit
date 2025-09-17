@@ -3,7 +3,6 @@
 """Test utility functions.
 
 """
-import os
 import pytest
 import re
 import sys
@@ -17,6 +16,7 @@ from sploitkit import *
 from sploitkit.__info__ import *
 from sploitkit.core.entity import load_entities, Entity
 
+import testsploit.main
 from testsploit.main import MySploitConsole
 
 
@@ -36,20 +36,18 @@ FILE = ".commands.rc"
 def execute(*commands):
     """ Execute commands. """
     c = list(commands) + ["exit"]
-    p = os.path.join("testsploit", FILE)
-    with open(p, 'w') as f:
+    p = Path(testsploit.main.__file__).dirname.joinpath(FILE)
+    print(p)
+    with p.open('w') as f:
         f.write("\n".join(c))
-    r = rcfile(FILE)
-    os.remove(p)
+    r = rcfile(p)
+    p.remove()
     return r
 
 
 def rcfile(rcfile, debug=False):
     """ Execute commands using a rcfile. """
-    p = os.path.join("testsploit", rcfile)
-    if not os.path.isfile(p):
-        raise ValueError("Bad rc file")
-    cmd = "cd testsploit && python3 main.py --rcfile %s" % rcfile
+    cmd = f"cd {Path(testsploit.main.__file__).dirname}/testsploit && python3 main.py --rcfile {rcfile}"
     if debug:
         cmd += " -v"
     out, err = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True).communicate()
@@ -57,7 +55,7 @@ def rcfile(rcfile, debug=False):
     err = "\n".join(l for l in err.decode().splitlines() if not l.startswith("Warning: ") and \
           all(x not in l for x in ["DeprecationWarning: ", "import pkg_resources", "There are some issues"])).strip()
     c = []
-    with open(p) as f:
+    with open(str(rcfile)) as f:
         for l in f:
             l = l.strip()
             try:

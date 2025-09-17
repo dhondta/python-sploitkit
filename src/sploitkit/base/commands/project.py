@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
-from tinyscript.helpers import confirm, Path, ProjectPath
+from prompt_toolkit.formatted_text import ANSI
+from tinyscript.helpers import confirm, BorderlessTable, Path, ProjectPath
 
 from sploitkit import *
 
@@ -118,5 +119,6 @@ class Show(Command):
     values = ["options"]
     
     def run(self, value):
-        print_formatted_text(BorderlessTable(self.console.__class__.options, "Console options"))
+        #print_formatted_text(BorderlessTable(self.config, "Console options"))
+        print_formatted_text(ANSI(str(self.config)))
 

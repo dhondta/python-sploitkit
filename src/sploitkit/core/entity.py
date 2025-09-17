@@ -441,6 +441,7 @@ class Entity(object):
             m = getattr(subcls, "requirements_messages", {}).get(key, {}).get(re.split(r"(\=|\?)", item, 1)[0])
             if m is not None:
                 return m.format(item)
+            # important note: 'config' key is not handled this way
             if key == "file":
                 return f"'{item}' {not_s}found"
             elif key == "packages":
@@ -469,6 +470,8 @@ class Entity(object):
         # this then displays the issues with their list of related entities having these same issues
         for _, names in d.items():
             errors = list(Entity.issues(list(names.values())[0][0]))[0][-1]
+            if len([k for k in errors.keys() if k != "config"]) == 0:
+                continue
             t = ""
             for cname, scnames in names.items():
                 scnames = list(set(scnames))
@@ -485,14 +488,14 @@ class Entity(object):
         return Entity._subclasses[key, name]
     
     @classmethod
-    def has_issues(cls, subcls_name=None, category=None):
+    def has_issues(cls, subcls_name=None, category=None, config=False):
         """ Tell if issues were encountered while checking entities. """
-        for _ in cls.issues(subcls_name, category):
+        for c, n, e in cls.issues(subcls_name, category, config):
             return True
         return False
     
     @classmethod
-    def issues(cls, subcls_name=None, category=None):
+    def issues(cls, subcls_name=None, category=None, config=False):
         """ List issues encountered while checking all the entities. """
         cls.check()
         sc = Entity._subclasses
@@ -510,16 +513,22 @@ class Entity(object):
                     # update the errors dictionary starting with proxy classes
                     for _, __, errors in b.issues(category=category):
                         for categ, i in errors.items():
+                            if not config and categ == "config":
+                                continue
                             e.setdefault(categ, [])
                             e[categ].extend(i)
                 # now update the errors dictionary of the selected subclass
                 if hasattr(subcls, "_errors") and len(subcls._errors) > 0:
                     for categ, i in subcls._errors.items():
+                        if not config and categ == "config":
+                            continue
                         if category in [None, categ]:
                             e.setdefault(categ, [])
                             e[categ].extend(i)
                 if len(e) > 0:
                     for categ, i in e.items():  # [categ]ory, [i]ssues
+                        if not config and categ == "config":
+                            continue
                         e[categ] = list(sorted(set(i)))
                     n = subcls.__name__
                     if subcls_name in [None, n]:

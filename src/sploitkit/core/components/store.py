@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from peewee import SqliteDatabase
+from peewee import OperationalError, SqliteDatabase
 
 
 __all__ = ["StoragePool"]
@@ -40,9 +40,12 @@ class StoragePool(object):
             self.__pool.append(db)
             for m in self.models:
                 m.bind(db)
-            db.create_tables(self.models, safe=True)
-            db.close()  # commit and save the created tables
-            db.connect()
+            try:
+                db.create_tables(self.models, safe=True)
+                db.close()  # commit and save the created tables
+                db.connect()
+            except OperationalError:
+                db._mode = "ro"
         return db
     
     def remove(self, db):
@@ -66,6 +69,7 @@ class Store(SqliteDatabase):
     def __init__(self, path, *args, **kwargs):
         self.path = str(path)  # ensure the input is str, e.g. not Path
         self._last_snapshot = 0
+        self._mode = "rw"
         kwargs.setdefault('pragmas', {})
         # enable automatic VACUUM (to regularly defragment the DB)
         kwargs['pragmas'].setdefault('auto_vacuum', 1)

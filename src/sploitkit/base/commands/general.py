@@ -61,7 +61,7 @@ class Search(Command):
 class Show(Command):
     """ Show options, projects, modules or issues (if any) """
     level = "root"
-    keys = ["files", "modules", "options", "projects"]
+    keys = []
     
     def complete_values(self, key):
         if key == "files":
@@ -126,16 +126,25 @@ class Show(Command):
                 print_formatted_text(BorderlessTable(data, "Open sessions"))
     
     def set_keys(self):
+        if sum(1 for _ in self.console._files.list) > 0:
+            self.keys.append("files")
         if Entity.has_issues():
-            self.keys += ["issues"]
+            self.keys.append("issues")
         else:
             while "issues" in self.keys:
                 self.keys.remove("issues")
+        if len(self.console.modules) > 0:
+            self.keys.append("modules")
+        if sum(1 for _ in self.config.options()) > 0:
+            self.keys.append("options")
+        if len(projects(self)) > 0:
+            self.keys.append("projects")
         if len(self.console._sessions) > 0:
-            self.keys += ["sessions"]
+            self.keys.append("sessions")
         else:
             while "sessions" in self.keys:
                 self.keys.remove("sessions")
+        self.keys = list(set(self.keys))
     
     def validate(self, key, value=None):
         if key not in self.keys:
